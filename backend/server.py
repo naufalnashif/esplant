@@ -13,10 +13,11 @@ from datetime import datetime
 
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / '.env', override=False)
 
 # MongoDB connection
 from lib.db import client, db, ensure_indexes
+from routers.integrations import router as integrations_router
 
 
 # Startup runs before the yield, shutdown after it. Add your own setup/teardown here.
@@ -61,6 +62,7 @@ async def get_status_checks():
     return [StatusCheck(**status_check) for status_check in status_checks]
 
 # Include the router in the main app
+api_router.include_router(integrations_router)
 app.include_router(api_router)
 
 app.add_middleware(

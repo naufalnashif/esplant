@@ -86,6 +86,8 @@ export interface Budget {
   currency: Currency;
 }
 
+export interface Category { id: string; name: string; archived: boolean; }
+
 export interface FinanceState {
   profileName: string;
   baseCurrency: Currency;
@@ -99,6 +101,7 @@ export interface FinanceState {
   savings: SavingsGoal[];
   wishlist: WishlistItem[];
   budgets: Budget[];
+  categories: Category[];
   schedule: ScheduleSettings;
 }
 
@@ -166,6 +169,9 @@ export const createDemoState = (): FinanceState => ({
     { id: "budget-lifestyle", category: "Lifestyle", limit: 900000, currency: "IDR" },
     { id: "budget-family", category: "Family", limit: 1000000, currency: "IDR" },
   ],
+  categories: [
+    ...["Food", "Transport", "Housing", "Utilities", "Family", "Lifestyle", "Salary", "Freelance", "Savings", "Other"].map((name) => ({ id: `category-${name.toLowerCase()}`, name, archived: false })),
+  ],
   schedule: { enabled: false, frequency: "daily", email: "", browserReminder: true },
 });
 
@@ -192,14 +198,14 @@ export const loadState = async (): Promise<FinanceState> => {
     db.close();
     if (value) {
       const demo = createDemoState();
-      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets };
+      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories };
     }
   } catch {
     const fallback = localStorage.getItem("nusa-artha-state");
     if (fallback) {
       const demo = createDemoState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
-      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets };
+      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories };
     }
   }
   const demo = createDemoState();

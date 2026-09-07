@@ -14,9 +14,10 @@ Accounts (multiple banks, debit/credit cards, e-wallets, cash, and investments),
 5. Export local data as JSON/CSV or open a print dialog for PDF.
 6. Configure language, theme, manual exchange rates, browser reminder, Gmail/Resend setup checklist, and local report schedule.
 7. Review and update category budgets with safe/warning/over-budget status and automatic remaining/overage insight.
-8. View category trend recommendations, add/adjust/remove accounts, preview normalized QRIS email samples, and preview/print the same monthly report figures as the dashboard.
+8. View category trend recommendations, add/adjust/remove accounts, connect Gmail readonly, preview/approve/deduplicate normalized QRIS emails, and preview/print the same monthly report figures as the dashboard.
 9. Switch display currency, commit money into a savings goal as an expense transaction that reduces an account, or withdraw it as an income transaction that increases an account.
-10. Preview a simple daily report containing total balance, income, expense, net flow, top categories, budget warnings, and five recent transactions.
+10. Preview a simple daily report containing total balance, income, expense, net flow, top categories, budget warnings, and five recent transactions; send it through Resend with a browser-generated PDF attachment.
+11. Create/read/update/delete transactions; create/edit/archive/restore/delete categories with history validation; manage account balances, bills, debts, wishlist entries, savings commits, and budgets locally.
 
 ## Auth and integrations
-Single-user, no app login. Gmail OAuth QRIS reading and Resend/Netlify email delivery are setup-only or deferred in this MVP and are MOCKED/NOT ACTIVE because credentials were intentionally deferred. The safe MVP schedule is daily IndexedDB state plus browser reminder; closed-browser email scheduling requires an explicit future server-side payload architecture.
+Single-user, no app login. Gmail OAuth uses readonly scope, state validation, encrypted token storage in the backend, preview approval, and message-id deduplication. Resend delivery is active with `onboarding@resend.dev` sandbox sender and a fixed recipient from server environment. Financial records remain in IndexedDB; closed-browser cron still requires an explicit future encrypted server-side snapshot architecture.
