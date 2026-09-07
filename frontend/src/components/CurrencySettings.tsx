@@ -1,0 +1,10 @@
+import { ArrowRightLeft } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import type { Currency, FinanceState } from "@/lib/localDb";
+
+const currencies: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
+const labels: Record<Currency, string> = { IDR: "Indonesian Rupiah", USD: "US Dollar", EUR: "Euro", SGD: "Singapore Dollar", MYR: "Malaysian Ringgit", JPY: "Japanese Yen", AUD: "Australian Dollar" };
+
+export function CurrencySettings({ state, onChange }: { state: FinanceState; onChange: (currency: Currency) => void }) {
+  return <Card className="mt-6 border-primary/20 bg-primary/5 p-5 sm:p-6" data-testid="currency-settings"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary"><ArrowRightLeft size={18} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Display currency</p><h2 className="font-heading text-xl font-bold">Convert Esplant automatically</h2><p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">Semua KPI, chart, budget, report, dan total saldo mengikuti mata uang pilihan. Kurs offline dapat diedit di panel pengaturan.</p></div></div><select data-testid="base-currency-select" value={state.baseCurrency} onChange={(event) => onChange(event.target.value as Currency)} className="h-11 min-w-[210px] rounded-lg border border-primary/30 bg-background px-3 text-xs font-bold outline-none focus:border-primary">{currencies.map((currency) => <option key={currency} value={currency} label={`${currency} · ${labels[currency]}`} />)}</select></div><div className="mt-4 flex flex-wrap gap-2 text-[10px] font-semibold text-muted-foreground"><span className="rounded-full bg-background/60 px-3 py-1.5">1 IDR = {1 / state.exchangeRates[state.baseCurrency]} {state.baseCurrency}</span><span className="rounded-full bg-background/60 px-3 py-1.5">No external rate API</span><span className="rounded-full bg-background/60 px-3 py-1.5">Stored locally</span></div></Card>;
+}

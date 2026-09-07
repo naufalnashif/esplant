@@ -102,7 +102,7 @@ export interface FinanceState {
   schedule: ScheduleSettings;
 }
 
-const DB_NAME = "nusa-artha-local";
+const DB_NAME = "esplant-financial-tracker";
 const STORE_NAME = "finance-state";
 const STATE_KEY = "current";
 
