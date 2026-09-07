@@ -79,6 +79,13 @@ export interface ScheduleSettings {
   lastReminder?: string;
 }
 
+export interface Budget {
+  id: string;
+  category: string;
+  limit: number;
+  currency: Currency;
+}
+
 export interface FinanceState {
   profileName: string;
   baseCurrency: Currency;
@@ -91,6 +98,7 @@ export interface FinanceState {
   debts: Debt[];
   savings: SavingsGoal[];
   wishlist: WishlistItem[];
+  budgets: Budget[];
   schedule: ScheduleSettings;
 }
 
@@ -152,6 +160,12 @@ export const createDemoState = (): FinanceState => ({
     { id: "wish-1", name: "Standing desk", price: 3200000, currency: "IDR", priority: "medium", targetDate: monthDate(3, 1), category: "Work", status: "saving" },
     { id: "wish-2", name: "Kyoto trip", price: 18000000, currency: "IDR", priority: "high", targetDate: monthDate(10, 1), category: "Travel", status: "planning" },
   ],
+  budgets: [
+    { id: "budget-food", category: "Food", limit: 1800000, currency: "IDR" },
+    { id: "budget-transport", category: "Transport", limit: 1200000, currency: "IDR" },
+    { id: "budget-lifestyle", category: "Lifestyle", limit: 900000, currency: "IDR" },
+    { id: "budget-family", category: "Family", limit: 1000000, currency: "IDR" },
+  ],
   schedule: { enabled: false, frequency: "weekly", email: "", browserReminder: true },
 });
 
@@ -176,10 +190,17 @@ export const loadState = async (): Promise<FinanceState> => {
       request.onerror = () => reject(request.error);
     });
     db.close();
-    if (value) return value;
+    if (value) {
+      const demo = createDemoState();
+      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets };
+    }
   } catch {
     const fallback = localStorage.getItem("nusa-artha-state");
-    if (fallback) return JSON.parse(fallback) as FinanceState;
+    if (fallback) {
+      const demo = createDemoState();
+      const value = JSON.parse(fallback) as Partial<FinanceState>;
+      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets };
+    }
   }
   const demo = createDemoState();
   await saveState(demo);

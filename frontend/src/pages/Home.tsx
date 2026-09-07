@@ -21,6 +21,8 @@ import type {
 } from "@/lib/localDb";
 import { createDemoState, loadState, saveState } from "@/lib/localDb";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
+import { BudgetGuardrails } from "@/components/BudgetGuardrails";
+import { IntegrationSetup } from "@/components/IntegrationSetup";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
 const CATEGORY_COLORS = ["#14b8a6", "#818cf8", "#fbbf24", "#fb7185", "#60a5fa", "#a78bfa"];
@@ -45,7 +47,7 @@ const copy = {
     addWish: "Tambah wishlist", target: "Target", remaining: "tersisa", due: "Jatuh tempo", progress: "Progress", profile: "Profil lokal",
     language: "Bahasa", appearance: "Tampilan", backup: "Backup & export", exportCsv: "Export CSV", exportJson: "Backup JSON", printPdf: "Cetak / PDF",
     integrations: "Integrasi yang aman", gmail: "Gmail e-banking", scheduler: "Laporan terjadwal", offline: "Offline-first", manualRates: "Kurs manual",
-    enabled: "Aktif", disabled: "Nonaktif", reset: "Reset data demo", notifications: "Pengingat browser", monthly: "Bulanan", weekly: "Mingguan", daily: "Harian",
+  enabled: "Aktif", disabled: "Nonaktif", reset: "Reset data demo", notifications: "Pengingat browser", monthly: "Bulanan", weekly: "Mingguan", daily: "Harian", budgets: "Budget guardrails", budgetSubtitle: "Batas kategori dengan insight otomatis", safe: "Aman", warning: "Perhatian", over: "Melewati batas", setBudget: "Atur budget", monthlyLimit: "Batas bulanan", insightWithin: "ruang tersisa", insightOver: "melewati batas",
   },
   en: {
     overview: "Overview", transactions: "Transactions", commitments: "Commitments", goals: "Goals & wishlist", settings: "Settings",
@@ -60,7 +62,7 @@ const copy = {
     addWish: "Add wishlist", target: "Target", remaining: "remaining", due: "Due", progress: "Progress", profile: "Local profile",
     language: "Language", appearance: "Appearance", backup: "Backup & export", exportCsv: "Export CSV", exportJson: "Backup JSON", printPdf: "Print / PDF",
     integrations: "Safe integrations", gmail: "Gmail e-banking", scheduler: "Scheduled reports", offline: "Offline-first", manualRates: "Manual rates",
-    enabled: "Enabled", disabled: "Disabled", reset: "Reset demo data", notifications: "Browser reminders", monthly: "Monthly", weekly: "Weekly", daily: "Daily",
+  enabled: "Enabled", disabled: "Disabled", reset: "Reset demo data", notifications: "Browser reminders", monthly: "Monthly", weekly: "Weekly", daily: "Daily", budgets: "Budget guardrails", budgetSubtitle: "Category limits with automatic insights", safe: "Safe", warning: "Watch", over: "Over budget", setBudget: "Set budget", monthlyLimit: "Monthly limit", insightWithin: "room left", insightOver: "over the limit",
   },
 };
 type Tab = "overview" | "transactions" | "commitments" | "goals" | "settings";
@@ -159,6 +161,12 @@ export default function Home() {
     const wish: WishlistItem = { id: id(), name: wishForm.name.trim(), price, currency: state.baseCurrency, priority: wishForm.priority, targetDate: wishForm.targetDate, category: wishForm.category, status: "planning" };
     save({ ...state, wishlist: [wish, ...state.wishlist] }); setWishForm({ name: "", price: "", priority: "medium", targetDate: "", category: "Lifestyle" }); toast.success("Wishlist ditambahkan.");
   };
+  const saveBudget = (category: string, limit: number) => {
+    const existing = state.budgets.find((budget) => budget.category === category);
+    const budgets = existing ? state.budgets.map((budget) => budget.category === category ? { ...budget, limit, currency: state.baseCurrency } : budget) : [...state.budgets, { id: id(), category, limit, currency: state.baseCurrency }];
+    save({ ...state, budgets });
+    toast.success(state.locale === "id" ? `Budget ${category} diperbarui.` : `${category} budget updated.`);
+  };
   const payDebt = (debt: Debt) => { const nextPaid = Math.min(debt.total, debt.paid + debt.total / 3); save({ ...state, debts: state.debts.map((item) => item.id === debt.id ? { ...item, paid: nextPaid } : item) }); toast.success("Pembayaran dicatat."); };
   const addSavings = (goal: SavingsGoal) => { const value = Number(window.prompt("Nominal tabungan", "250000")); if (!Number.isFinite(value) || value <= 0) return; save({ ...state, savings: state.savings.map((item) => item.id === goal.id ? { ...item, saved: Math.min(item.target, item.saved + value) } : item) }); toast.success("Tabungan diperbarui."); };
   const download = (filename: string, content: string, type: string) => { const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([content], { type })); link.download = filename; link.click(); URL.revokeObjectURL(link.href); };
@@ -193,6 +201,8 @@ export default function Home() {
             {tab === "goals" && <Goals state={state} t={t} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onAddSavings={addSavings} />}
             {tab === "settings" && <Settings state={state} t={t} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onCsv={exportCsv} onJson={exportJson} onPrint={() => window.print()} onReset={async () => { const next = await import("@/lib/localDb").then((module) => module.resetState()); queryClient.setQueryData(["nusa-artha-local-state"], next); toast.success("Data demo dipulihkan."); }} onReminder={requestReminder} />}
           </div>
+          {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} /></div>}
+          {tab === "settings" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><IntegrationSetup /></div>}
         </main>
       </div>
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border/70 bg-card/95 px-2 py-2 backdrop-blur-xl lg:hidden" data-testid="mobile-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`mobile-nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold ${tab === item.key ? "text-primary" : "text-muted-foreground"}`}><Icon size={18} /><span>{item.label}</span></button>; })}</nav>
