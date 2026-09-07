@@ -32,6 +32,7 @@ class ReportSendRequest(BaseModel):
     html: str = Field(min_length=1, max_length=200_000)
     pdf_base64: Optional[str] = Field(default=None, max_length=8_000_000)
     filename: str = Field(default="esplant-daily-summary.pdf", max_length=120)
+    recipient: Optional[str] = Field(default=None, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class ReportSendResponse(BaseModel):

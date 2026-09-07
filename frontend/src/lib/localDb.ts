@@ -11,6 +11,8 @@ export interface Account {
   brand: string;
   balance: number;
   currency: Currency;
+  /** Balance before any recorded transaction; anchor for Data Health reconciliation. */
+  openingBalance?: number;
 }
 
 export interface Transaction {
@@ -175,6 +177,26 @@ export const createDemoState = (): FinanceState => ({
   schedule: { enabled: false, frequency: "daily", email: "", browserReminder: true },
 });
 
+const transactionDelta = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) =>
+  ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / (rates[currency] || 1);
+
+/** Backfills openingBalance for accounts created before the Data Health feature existed. */
+export const withOpeningBalances = (state: FinanceState): FinanceState => ({
+  ...state,
+  accounts: state.accounts.map((account) =>
+    account.openingBalance !== undefined
+      ? account
+      : {
+          ...account,
+          openingBalance:
+            account.balance -
+            state.transactions
+              .filter((item) => item.accountId === account.id)
+              .reduce((sum, item) => sum + transactionDelta(item, state.exchangeRates, account.currency), 0),
+        },
+  ),
+});
+
 const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
@@ -198,17 +220,17 @@ export const loadState = async (): Promise<FinanceState> => {
     db.close();
     if (value) {
       const demo = createDemoState();
-      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories };
+      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   } catch {
     const fallback = localStorage.getItem("nusa-artha-state");
     if (fallback) {
       const demo = createDemoState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
-      return { ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories };
+      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   }
-  const demo = createDemoState();
+  const demo = withOpeningBalances(createDemoState());
   await saveState(demo);
   return demo;
 };
@@ -230,7 +252,7 @@ export const saveState = async (state: FinanceState): Promise<FinanceState> => {
 };
 
 export const resetState = async () => {
-  const demo = createDemoState();
+  const demo = withOpeningBalances(createDemoState());
   await saveState(demo);
   return demo;
 };

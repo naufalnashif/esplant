@@ -157,17 +157,6 @@
 .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
 .font-data { font-family: 'JetBrains Mono Variable', monospace; }
 
-aside p.font-heading { font-size: 0; }
-aside p.font-heading::after { content: 'Esplant'; font-size: 1.125rem; }
-header p.font-heading { font-size: 0; }
-header p.font-heading::after { content: 'Esplant'; font-size: 0.875rem; }
-header p.text-xs.font-semibold { font-size: 0; }
-header p.text-xs.font-semibold::after { content: 'Esplant / Financial Tracker'; font-size: 0.75rem; }
-label:has([data-testid^="exchange-rate-"]) { display: none; }
-
-@media (max-width: 1023px) {
-  [data-testid="mobile-navigation"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-}
 
 @media print {
   body * { visibility: hidden !important; }

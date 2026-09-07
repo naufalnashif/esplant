@@ -155,9 +155,11 @@ async def gmail_disconnect() -> GmailStatusResponse:
 async def send_report(request: ReportSendRequest) -> ReportSendResponse:
     api_key = os.environ.get("RESEND_API_KEY")
     sender = os.environ.get("REPORT_FROM_EMAIL")
-    recipient = os.environ.get("REPORT_RECIPIENT_EMAIL")
-    if not api_key or not sender or not recipient:
+    if not api_key or not sender:
         raise HTTPException(status_code=503, detail="Resend report credentials are not configured")
+    recipient = request.recipient or os.environ.get("REPORT_RECIPIENT_EMAIL")
+    if not recipient:
+        raise HTTPException(status_code=400, detail="A recipient email is required")
     payload: Dict[str, Any] = {"from": sender, "to": [recipient], "subject": request.subject, "html": request.html}
     if request.pdf_base64:
         payload["attachments"] = [{"filename": request.filename, "content": request.pdf_base64}]
