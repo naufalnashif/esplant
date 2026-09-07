@@ -166,7 +166,7 @@ export const createDemoState = (): FinanceState => ({
     { id: "budget-lifestyle", category: "Lifestyle", limit: 900000, currency: "IDR" },
     { id: "budget-family", category: "Family", limit: 1000000, currency: "IDR" },
   ],
-  schedule: { enabled: false, frequency: "weekly", email: "", browserReminder: true },
+  schedule: { enabled: false, frequency: "daily", email: "", browserReminder: true },
 });
 
 const openDb = (): Promise<IDBDatabase> =>

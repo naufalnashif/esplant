@@ -156,3 +156,13 @@
 .animate-pulse-soft { animation: pulse-soft 2.6s ease-in-out infinite; }
 .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
 .font-data { font-family: 'JetBrains Mono Variable', monospace; }
+
+@media (max-width: 1023px) {
+  [data-testid="mobile-navigation"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@media print {
+  body * { visibility: hidden !important; }
+  [data-testid="report-print-surface"], [data-testid="report-print-surface"] * { visibility: visible !important; }
+  [data-testid="report-print-surface"] { position: absolute; inset: 0; width: 100%; border: 0 !important; }
+}

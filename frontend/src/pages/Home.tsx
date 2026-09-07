@@ -22,6 +22,10 @@ import type {
 import { createDemoState, loadState, saveState } from "@/lib/localDb";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
+import { AccountsPanel } from "@/components/AccountsPanel";
+import { InsightsPanel } from "@/components/InsightsPanel";
+import { GmailMockImporter, type MockEmailCandidate } from "@/components/GmailMockImporter";
+import { ReportCenter } from "@/components/ReportCenter";
 import { IntegrationSetup } from "@/components/IntegrationSetup";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
@@ -36,7 +40,7 @@ const currentMonth = new Date().toISOString().slice(0, 7);
 const copy = {
   id: {
     overview: "Ringkasan", transactions: "Transaksi", commitments: "Komitmen", goals: "Tujuan & wishlist", settings: "Pengaturan",
-    hello: "Selamat datang kembali", command: "Satu ruang tenang untuk keputusan uang yang lebih baik.",
+    hello: "Selamat datang kembali", command: "Satu ruang tenang untuk keputusan uang yang lebih baik.", accounts: "Akun & saldo", manageAccounts: "Kelola bank, kartu kredit, e-wallet, cash, dan investasi dalam satu money map.", addAccount: "Tambah akun", bankName: "Nama akun / bank", accountType: "Tipe akun", brand: "Brand", startingBalance: "Saldo awal", adjust: "Sesuaikan saldo", remove: "Hapus", totalAcross: "Total seluruh akun",
     totalBalance: "Total saldo", spent: "Pengeluaran bulan ini", income: "Pemasukan bulan ini", net: "Arus bersih", committed: "Komitmen aktif",
     vsLast: "vs bulan lalu", addTransaction: "Tambah transaksi", recent: "Aktivitas terbaru", seeAll: "Lihat semua",
     compare: "Bandingkan pengeluaran", category: "Kategori", thisMonth: "Bulan ini", lastMonth: "Bulan lalu", cashFlow: "Arus kas 6 bulan",
@@ -51,7 +55,7 @@ const copy = {
   },
   en: {
     overview: "Overview", transactions: "Transactions", commitments: "Commitments", goals: "Goals & wishlist", settings: "Settings",
-    hello: "Welcome back", command: "One calm space for better money decisions.",
+    hello: "Welcome back", command: "One calm space for better money decisions.", accounts: "Accounts & balances", manageAccounts: "Manage banks, credit cards, e-wallets, cash, and investments in one money map.", addAccount: "Add account", bankName: "Account / bank name", accountType: "Account type", brand: "Brand", startingBalance: "Starting balance", adjust: "Adjust balance", remove: "Remove", totalAcross: "Total across accounts",
     totalBalance: "Total balance", spent: "Spent this month", income: "Income this month", net: "Net flow", committed: "Active commitments",
     vsLast: "vs last month", addTransaction: "Add transaction", recent: "Recent activity", seeAll: "See all",
     compare: "Spending comparison", category: "Category", thisMonth: "This month", lastMonth: "Last month", cashFlow: "6-month cash flow",
@@ -65,7 +69,7 @@ const copy = {
   enabled: "Enabled", disabled: "Disabled", reset: "Reset demo data", notifications: "Browser reminders", monthly: "Monthly", weekly: "Weekly", daily: "Daily", budgets: "Budget guardrails", budgetSubtitle: "Category limits with automatic insights", safe: "Safe", warning: "Watch", over: "Over budget", setBudget: "Set budget", monthlyLimit: "Monthly limit", insightWithin: "room left", insightOver: "over the limit",
   },
 };
-type Tab = "overview" | "transactions" | "commitments" | "goals" | "settings";
+type Tab = "overview" | "transactions" | "commitments" | "goals" | "accounts" | "settings";
 
 const id = () => typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 const monthKey = (date: string) => date.slice(0, 7);
@@ -167,6 +171,15 @@ export default function Home() {
     save({ ...state, budgets });
     toast.success(state.locale === "id" ? `Budget ${category} diperbarui.` : `${category} budget updated.`);
   };
+  const addAccount = (account: Account) => { save({ ...state, accounts: [...state.accounts, account] }); toast.success(state.locale === "id" ? "Akun baru ditambahkan." : "New account added."); };
+  const adjustAccount = (account: Account) => { const next = Number(window.prompt(`Saldo baru untuk ${account.name}`, String(account.balance))); if (!Number.isFinite(next)) return; save({ ...state, accounts: state.accounts.map((item) => item.id === account.id ? { ...item, balance: next } : item) }); toast.success("Saldo akun diperbarui."); };
+  const removeAccount = (account: Account) => { if (state.transactions.some((item) => item.accountId === account.id)) { toast.error(state.locale === "id" ? "Akun dengan transaksi tidak dapat dihapus." : "Accounts with transactions cannot be removed."); return; } save({ ...state, accounts: state.accounts.filter((item) => item.id !== account.id) }); toast.success("Akun dihapus."); };
+  const importMockEmails = (items: MockEmailCandidate[]) => {
+    const fresh = items.filter((item) => !state.transactions.some((transaction) => transaction.id === item.id)).map((item) => ({ id: item.id, kind: "expense" as TransactionKind, date: item.date, description: item.merchant, category: item.category, accountId: item.accountId, amount: item.amount, currency: "IDR" as Currency, baseAmount: item.amount, tags: ["qris", "gmail-mock"] }));
+    if (!fresh.length) { toast.info("Email sample sudah pernah diimpor."); return; }
+    const accounts = state.accounts.map((account) => { const incoming = fresh.filter((transaction) => transaction.accountId === account.id).reduce((sum, transaction) => sum + (account.currency === "IDR" ? transaction.amount : transaction.baseAmount / state.exchangeRates[account.currency]), 0); return incoming ? { ...account, balance: account.balance - incoming } : account; });
+    save({ ...state, accounts, transactions: [...fresh, ...state.transactions] }); toast.success(`${fresh.length} QRIS transaction normalized.`);
+  };
   const payDebt = (debt: Debt) => { const nextPaid = Math.min(debt.total, debt.paid + debt.total / 3); save({ ...state, debts: state.debts.map((item) => item.id === debt.id ? { ...item, paid: nextPaid } : item) }); toast.success("Pembayaran dicatat."); };
   const addSavings = (goal: SavingsGoal) => { const value = Number(window.prompt("Nominal tabungan", "250000")); if (!Number.isFinite(value) || value <= 0) return; save({ ...state, savings: state.savings.map((item) => item.id === goal.id ? { ...item, saved: Math.min(item.target, item.saved + value) } : item) }); toast.success("Tabungan diperbarui."); };
   const download = (filename: string, content: string, type: string) => { const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([content], { type })); link.download = filename; link.click(); URL.revokeObjectURL(link.href); };
@@ -175,7 +188,7 @@ export default function Home() {
   const requestReminder = async () => { if (!("Notification" in window)) { toast.error("Browser ini belum mendukung notifikasi."); return; } const permission = await Notification.requestPermission(); updateState({ schedule: { ...state.schedule, browserReminder: permission === "granted", enabled: permission === "granted" ? state.schedule.enabled : false } }); toast.success(permission === "granted" ? "Pengingat browser aktif." : "Izin notifikasi belum diberikan."); };
 
   const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
-    { key: "overview", label: t.overview, icon: LayoutDashboard }, { key: "transactions", label: t.transactions, icon: ReceiptText }, { key: "commitments", label: t.commitments, icon: Landmark }, { key: "goals", label: t.goals, icon: Target }, { key: "settings", label: t.settings, icon: Settings2 },
+    { key: "overview", label: t.overview, icon: LayoutDashboard }, { key: "transactions", label: t.transactions, icon: ReceiptText }, { key: "commitments", label: t.commitments, icon: Landmark }, { key: "goals", label: t.goals, icon: Target }, { key: "accounts", label: t.accounts, icon: WalletCards }, { key: "settings", label: t.settings, icon: Settings2 },
   ];
   const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
@@ -199,10 +212,13 @@ export default function Home() {
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={(accountId) => state.accounts.find((account) => account.id === accountId)?.name ?? "—"} onAdd={() => setShowTransactionForm(true)} />}
             {tab === "commitments" && <Commitments state={state} t={t} debtForm={debtForm} setDebtForm={setDebtForm} onAddDebt={handleAddDebt} onPayDebt={payDebt} />}
             {tab === "goals" && <Goals state={state} t={t} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onAddSavings={addSavings} />}
+            {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
             {tab === "settings" && <Settings state={state} t={t} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onCsv={exportCsv} onJson={exportJson} onPrint={() => window.print()} onReset={async () => { const next = await import("@/lib/localDb").then((module) => module.resetState()); queryClient.setQueryData(["nusa-artha-local-state"], next); toast.success("Data demo dipulihkan."); }} onReminder={requestReminder} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} /></div>}
+          {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><InsightsPanel state={state} currentMonth={compareMonth} /></div>}
           {tab === "settings" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><IntegrationSetup /></div>}
+          {tab === "settings" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><GmailMockImporter state={state} onImport={importMockEmails} /><ReportCenter state={state} currentMonth={compareMonth} onPrint={() => window.print()} /></div>}
         </main>
       </div>
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border/70 bg-card/95 px-2 py-2 backdrop-blur-xl lg:hidden" data-testid="mobile-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`mobile-nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-semibold ${tab === item.key ? "text-primary" : "text-muted-foreground"}`}><Icon size={18} /><span>{item.label}</span></button>; })}</nav>
