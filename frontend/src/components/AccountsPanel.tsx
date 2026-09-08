@@ -5,6 +5,8 @@ import type { Account, Currency, FinanceState } from "@/lib/localDb";
 import { useState } from "react";
 import type * as React from "react";
 
+import { formatMoney } from "@/lib/formatters";
+
 interface AccountLabels {
   accounts: string;
   manageAccounts: string;
@@ -21,7 +23,6 @@ interface AccountLabels {
 
 const types: Account["type"][] = ["debit", "credit", "ewallet", "cash", "investment"];
 const typeLabel: Record<Account["type"], string> = { debit: "Debit", credit: "Credit", ewallet: "E-Wallet", cash: "Cash", investment: "Investment" };
-const formatMoney = (value: number, currency: Currency, locale: FinanceState["locale"]) => new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency, maximumFractionDigits: currency === "IDR" ? 0 : 2, notation: value > 1000000 ? "compact" : "standard" }).format(value);
 
 export function AccountsPanel({ state, labels, totalBalance, onAdd, onAdjust, onRemove }: { state: FinanceState; labels: AccountLabels; totalBalance: number; onAdd: (account: Account) => void; onAdjust: (account: Account) => void; onRemove: (account: Account) => void }) {
   const [form, setForm] = useState({ name: "", brand: "", type: "debit" as Account["type"], balance: "", currency: state.baseCurrency as Currency });

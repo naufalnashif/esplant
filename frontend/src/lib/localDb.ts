@@ -148,7 +148,7 @@ export const createInitialState = (): FinanceState => ({
   wishlist: [],
   budgets: [],
   categories: DEFAULT_CATEGORIES.map((name) => ({ id: `category-${name.toLowerCase()}`, name, archived: false })),
-  schedule: { enabled: false, frequency: "daily", email: "", browserReminder: false },
+  schedule: { enabled: true, frequency: "daily", email: "naufalnashif.imanuddin@gmail.com", browserReminder: false },
 });
 
 /** Validates and normalizes a JSON backup into a safe FinanceState (returns null when unusable). */
@@ -191,7 +191,53 @@ const openDb = (): Promise<IDBDatabase> =>
     request.onerror = () => reject(request.error ?? new Error("Unable to open local storage"));
   });
 
+export const saveLocalStateOnly = async (state: FinanceState): Promise<void> => {
+  // 1. Always update localStorage immediately for instant synchronous recovery
+  try {
+    localStorage.setItem("nusa-artha-state", JSON.stringify(state));
+  } catch {}
+
+  // 2. Also update IndexedDB for structured local storage
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, "readwrite");
+      transaction.objectStore(STORE_NAME).put(state, STATE_KEY);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  } catch {}
+};
+
+export const saveApiState = async (state: FinanceState) => {
+  try {
+    await fetch("/api/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state }),
+    });
+  } catch {}
+};
+
 export const loadState = async (): Promise<FinanceState> => {
+  // 1. Try loading from MongoDB API backend first
+  try {
+    const res = await fetch("/api/state");
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.state) {
+        const sanitized = sanitizeImportedState(data.state);
+        if (sanitized) {
+          await saveLocalStateOnly(sanitized);
+          return sanitized;
+        }
+      }
+    }
+  } catch {
+    // Backend API unavailable
+  }
+
   try {
     const db = await openDb();
     const value = await new Promise<FinanceState | undefined>((resolve, reject) => {
@@ -202,14 +248,18 @@ export const loadState = async (): Promise<FinanceState> => {
     db.close();
     if (value) {
       const demo = createInitialState();
-      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
+      const loaded = withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
+      saveApiState(loaded);
+      return loaded;
     }
   } catch {
     const fallback = localStorage.getItem("nusa-artha-state");
     if (fallback) {
       const demo = createInitialState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
-      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
+      const loaded = withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
+      saveApiState(loaded);
+      return loaded;
     }
   }
   const demo = withOpeningBalances(createInitialState());
@@ -218,18 +268,8 @@ export const loadState = async (): Promise<FinanceState> => {
 };
 
 export const saveState = async (state: FinanceState): Promise<FinanceState> => {
-  try {
-    const db = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      transaction.objectStore(STORE_NAME).put(state, STATE_KEY);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
-  } catch {
-    localStorage.setItem("nusa-artha-state", JSON.stringify(state));
-  }
+  await saveLocalStateOnly(state);
+  saveApiState(state);
   return state;
 };
 

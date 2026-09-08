@@ -1,81 +1,64 @@
-import asyncio
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
-import uuid
+import os
+from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict
 
+from dotenv import load_dotenv
+from fastapi import APIRouter, FastAPI
+from starlette.middleware.cors import CORSMiddleware
+
+from lib.db_sql import db_sql
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env', override=False)
-
-# MongoDB connection
-from lib.db import client, db, ensure_indexes
-from routers.integrations import router as integrations_router
+load_dotenv(ROOT_DIR / ".env", override=False)
 
 
-# Startup runs before the yield, shutdown after it. Add your own setup/teardown here.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.index_task = asyncio.create_task(ensure_indexes())  # background: a big index build must not block boot
+    logger.info("Starting Esplan Backend SQL Server (Engine: %s)...", db_sql.db_type)
     yield
-    client.close()
 
 
-# Create the main app without a prefix
 app = FastAPI(lifespan=lifespan)
-
-# Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
 
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "db_engine": db_sql.db_type}
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
 
-# Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Esplan Financial Tracker API", "db_engine": db_sql.db_type}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.model_dump())
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
+@api_router.get("/state")
+async def get_finance_state():
+    state_data = db_sql.get_state()
+    return {"state": state_data}
 
-# Include the router in the main app
-api_router.include_router(integrations_router)
+
+@api_router.post("/state")
+async def save_finance_state(payload: Dict[str, Any]):
+    state_data = payload.get("state", payload)
+    ok = db_sql.save_state(state_data)
+    return {"status": "saved" if ok else "error", "engine": db_sql.db_type}
+
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)

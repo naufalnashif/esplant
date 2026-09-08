@@ -1,18 +1,11 @@
-# Esplant — Netlify deployment configuration
-# Frontend (Vite static build) + serverless Functions for Gmail OAuth & Resend reports.
-# All personal financial data stays in the user's browser (IndexedDB); Functions only
-# proxy OAuth token exchange and email delivery so secrets never reach the client.
+# Esplan — Netlify deployment configuration
+# Static Vite build outputted to frontend/dist
 
 [build]
-  command = "cd frontend && yarn install && yarn build"
+  command = "cd frontend && npm install && npm run build"
   publish = "frontend/dist"
 
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-
-# SPA fallback — function routes (declared via `config.path` in each function) are
-# matched BEFORE this redirect, so /api/integrations/* keeps working.
+# SPA Fallback for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"

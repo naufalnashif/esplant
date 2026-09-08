@@ -1,23 +1,245 @@
-import { AlertTriangle, CheckCircle2, CircleDollarSign, Plus, ShieldAlert } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import type { Budget, FinanceState } from "@/lib/localDb";
+import { AlertTriangle, CheckCircle2, CircleDollarSign, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type * as React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { formatMoney } from "@/lib/formatters";
+import type { Budget, FinanceState } from "@/lib/localDb";
 
-interface BudgetLabels { budgets: string; budgetSubtitle: string; safe: string; warning: string; over: string; setBudget: string; monthlyLimit: string; insightWithin: string; insightOver: string; save: string; }
-const money = (value: number, state: FinanceState) => new Intl.NumberFormat(state.locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: state.baseCurrency, maximumFractionDigits: state.baseCurrency === "IDR" ? 0 : 2, notation: value > 1000000 ? "compact" : "standard" }).format(value / (state.exchangeRates[state.baseCurrency] || 1));
-const baseValue = (value: number, currency: FinanceState["baseCurrency"], state: FinanceState) => value * state.exchangeRates[currency];
-
-export function BudgetGuardrails({ state, labels, categories, currentMonth, onSave }: { state: FinanceState; labels: BudgetLabels; categories: string[]; currentMonth: string; onSave: (category: string, limit: number) => void }) {
-  const [category, setCategory] = useState(categories[0] ?? "Food"); const [limit, setLimit] = useState("");
-  const rows = state.budgets.map((budget) => { const spent = state.transactions.filter((item) => item.kind === "expense" && item.date.slice(0, 7) === currentMonth && item.category === budget.category).reduce((sum, item) => sum + item.baseAmount, 0); const limitBase = baseValue(budget.limit, budget.currency, state); const ratio = limitBase ? spent / limitBase : 0; const status: "over" | "warning" | "safe" = ratio >= 1 ? "over" : ratio >= 0.8 ? "warning" : "safe"; return { ...budget, spent, limitBase, ratio, status }; });
-  const totalLimit = rows.reduce((sum, row) => sum + row.limitBase, 0); const totalSpent = rows.reduce((sum, row) => sum + row.spent, 0);
-  const submit = (event: React.FormEvent) => { event.preventDefault(); const value = Number(limit); if (!category || !Number.isFinite(value) || value <= 0) return; onSave(category, value); setLimit(""); };
-  return <section className="mt-6 rounded-2xl border border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl sm:p-6"><div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div className="flex items-start gap-3"><div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary"><ShieldAlert size={19} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Guardrails / monthly</p><h2 className="mt-1 font-heading text-xl font-bold">{labels.budgets}</h2><p className="mt-1 text-xs text-muted-foreground">{labels.budgetSubtitle}</p></div></div><div className="text-left sm:text-right"><p className="font-data text-lg font-bold">{money(totalSpent, state)}</p><p className="text-[10px] text-muted-foreground">of {money(totalLimit, state)} allocated</p></div></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{rows.map((row) => <BudgetRow key={row.id} row={row} state={state} labels={labels} />)}</div><form onSubmit={submit} className="mt-5 grid gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 sm:grid-cols-[1fr_1fr_auto]" data-testid="budget-form"><select data-testid="budget-category-select" value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-xs font-semibold">{categories.map((item) => <option key={item} value={item} label={item} />)}</select><input data-testid="budget-limit-input" required type="number" min="1" value={limit} onChange={(event) => setLimit(event.target.value)} placeholder={labels.monthlyLimit} className="h-10 rounded-lg border border-border bg-background px-3 font-data text-xs outline-none focus:border-primary" /><Button data-testid="budget-save-button" type="submit" className="h-10 gap-2"><Plus size={15} />{labels.setBudget}</Button></form></section>;
+interface BudgetLabels {
+  budgets: string;
+  budgetSubtitle: string;
+  safe: string;
+  warning: string;
+  over: string;
+  setBudget: string;
+  monthlyLimit: string;
+  insightWithin: string;
+  insightOver: string;
+  save: string;
 }
 
-function BudgetRow({ row, state, labels }: { row: Budget & { spent: number; limitBase: number; ratio: number; status: "safe" | "warning" | "over" }; state: FinanceState; labels: BudgetLabels }) {
-  const statusCopy = row.status === "over" ? labels.over : row.status === "warning" ? labels.warning : labels.safe; const className = row.status === "over" ? "text-red-400 bg-red-500/10" : row.status === "warning" ? "text-amber-400 bg-amber-500/10" : "text-emerald-400 bg-emerald-500/10"; const Icon = row.status === "over" ? AlertTriangle : row.status === "warning" ? CircleDollarSign : CheckCircle2; const insight = row.status === "over" ? `${money(row.spent - row.limitBase, state)} ${labels.insightOver}` : `${money(row.limitBase - row.spent, state)} ${labels.insightWithin}`;
-  return <div className="rounded-xl border border-border/60 bg-background/35 p-3" data-testid={`budget-row-${row.category.toLowerCase().replaceAll(" ", "-")}`}><div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold">{row.category}</p><Badge variant="outline" className={`gap-1 border-transparent text-[9px] ${className}`}><Icon size={11} />{statusCopy}</Badge></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary"><div className={`h-full rounded-full ${row.status === "over" ? "bg-red-400" : row.status === "warning" ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${Math.min(100, row.ratio * 100)}%` }} /></div><div className="mt-2 flex justify-between text-[10px] font-semibold text-muted-foreground"><span>{money(row.spent, state)}</span><span>{money(row.limitBase, state)}</span></div><p className={`mt-2 text-[10px] font-semibold ${row.status === "over" ? "text-red-400" : row.status === "warning" ? "text-amber-400" : "text-emerald-400"}`}>{insight}</p></div>;
+const baseValue = (value: number, currency: FinanceState["baseCurrency"], state: FinanceState) =>
+  value * (state.exchangeRates[currency] || 1);
+
+export function BudgetGuardrails({
+  state,
+  labels,
+  categories,
+  currentMonth,
+  onSave,
+  onDelete,
+}: {
+  state: FinanceState;
+  labels: BudgetLabels;
+  categories: string[];
+  currentMonth: string;
+  onSave: (category: string, limit: number) => void;
+  onDelete?: (category: string) => void;
+}) {
+  const isId = state.locale === "id";
+  const [category, setCategory] = useState(categories[0] ?? "Food");
+  const [limit, setLimit] = useState("");
+
+  const rows = state.budgets.map((budget) => {
+    const spent = state.transactions
+      .filter(
+        (item) => item.kind === "expense" && item.date.slice(0, 7) === currentMonth && item.category === budget.category
+      )
+      .reduce((sum, item) => sum + item.baseAmount, 0);
+
+    const limitBase = baseValue(budget.limit, budget.currency, state);
+    const ratio = limitBase ? spent / limitBase : 0;
+    const status: "over" | "warning" | "safe" = ratio >= 1 ? "over" : ratio >= 0.8 ? "warning" : "safe";
+    return { ...budget, spent, limitBase, ratio, status };
+  });
+
+  const totalLimit = rows.reduce((sum, row) => sum + row.limitBase, 0);
+  const totalSpent = rows.reduce((sum, row) => sum + row.spent, 0);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const value = Number(limit);
+    if (!category || !Number.isFinite(value) || value <= 0) return;
+    onSave(category, value);
+    setLimit("");
+  };
+
+  const handleEditBudget = (budget: Budget) => {
+    const input = window.prompt(
+      isId ? `Atur batas budget baru untuk kategori ${budget.category}` : `Set new budget limit for ${budget.category}`,
+      String(budget.limit)
+    );
+    if (!input) return;
+    const newLimit = Number(input);
+    if (!Number.isFinite(newLimit) || newLimit <= 0) return;
+    onSave(budget.category, newLimit);
+  };
+
+  const handleDeleteBudget = (budget: Budget) => {
+    if (!window.confirm(isId ? `Hapus budget guardrail untuk ${budget.category}?` : `Delete budget guardrail for ${budget.category}?`)) return;
+    if (onDelete) {
+      onDelete(budget.category);
+    } else {
+      // Fallback update
+      onSave(budget.category, 0);
+    }
+  };
+
+  return (
+    <section className="mt-6 rounded-2xl border border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl sm:p-6">
+      <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div className="flex items-start gap-3">
+          <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">
+            <ShieldAlert size={19} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Guardrails / monthly</p>
+            <h2 className="mt-1 font-heading text-xl font-bold">{labels.budgets}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{labels.budgetSubtitle}</p>
+          </div>
+        </div>
+        <div className="text-left sm:text-right">
+          <p className="font-data text-lg font-bold">{formatMoney(totalSpent, state.baseCurrency, state.locale, true)}</p>
+          <p className="text-[10px] text-muted-foreground">
+            of {formatMoney(totalLimit, state.baseCurrency, state.locale, true)} allocated
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {rows.map((row) => (
+          <BudgetRow
+            key={row.id}
+            row={row}
+            state={state}
+            labels={labels}
+            onEdit={() => handleEditBudget(row)}
+            onDelete={() => handleDeleteBudget(row)}
+          />
+        ))}
+
+        {rows.length === 0 && (
+          <div className="col-span-full py-8 text-center text-xs text-muted-foreground">
+            {isId ? "Belum ada budget guardrail. Tambahkan di bawah." : "No budget guardrails set. Add one below."}
+          </div>
+        )}
+      </div>
+
+      <form
+        onSubmit={submit}
+        className="mt-5 grid gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 sm:grid-cols-[1fr_1fr_auto]"
+        data-testid="budget-form"
+      >
+        <select
+          data-testid="budget-category-select"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          className="h-10 rounded-lg border border-border bg-background px-3 text-xs font-semibold"
+        >
+          {categories.map((item) => (
+            <option key={item} value={item} label={item} />
+          ))}
+        </select>
+        <input
+          data-testid="budget-limit-input"
+          required
+          type="number"
+          min="1"
+          value={limit}
+          onChange={(event) => setLimit(event.target.value)}
+          placeholder={labels.monthlyLimit}
+          className="h-10 rounded-lg border border-border bg-background px-3 font-data text-xs outline-none focus:border-primary"
+        />
+        <Button data-testid="budget-save-button" type="submit" className="h-10 gap-2">
+          <Plus size={15} />
+          {labels.setBudget}
+        </Button>
+      </form>
+    </section>
+  );
+}
+
+function BudgetRow({
+  row,
+  state,
+  labels,
+  onEdit,
+  onDelete,
+}: {
+  row: Budget & { spent: number; limitBase: number; ratio: number; status: "safe" | "warning" | "over" };
+  state: FinanceState;
+  labels: BudgetLabels;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const statusCopy = row.status === "over" ? labels.over : row.status === "warning" ? labels.warning : labels.safe;
+  const className =
+    row.status === "over"
+      ? "text-red-400 bg-red-500/10"
+      : row.status === "warning"
+      ? "text-amber-400 bg-amber-500/10"
+      : "text-emerald-400 bg-emerald-500/10";
+  const Icon = row.status === "over" ? AlertTriangle : row.status === "warning" ? CircleDollarSign : CheckCircle2;
+  const insight =
+    row.status === "over"
+      ? `${formatMoney(row.spent - row.limitBase, state.baseCurrency, state.locale, true)} ${labels.insightOver}`
+      : `${formatMoney(row.limitBase - row.spent, state.baseCurrency, state.locale, true)} ${labels.insightWithin}`;
+
+  return (
+    <div
+      className="group relative rounded-xl border border-border/60 bg-background/35 p-3 transition-colors hover:border-border"
+      data-testid={`budget-row-${row.category.toLowerCase().replaceAll(" ", "-")}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-sm font-semibold">{row.category}</p>
+        <div className="flex items-center gap-1">
+          <Badge variant="outline" className={`gap-1 border-transparent text-[9px] ${className}`}>
+            <Icon size={11} />
+            {statusCopy}
+          </Badge>
+          <button
+            type="button"
+            data-testid={`budget-edit-${row.category.toLowerCase().replaceAll(" ", "-")}`}
+            onClick={onEdit}
+            title="Edit Budget"
+            className="grid size-6 place-items-center rounded text-muted-foreground opacity-60 transition-opacity hover:opacity-100 hover:text-primary"
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            type="button"
+            data-testid={`budget-delete-${row.category.toLowerCase().replaceAll(" ", "-")}`}
+            onClick={onDelete}
+            title="Delete Budget"
+            className="grid size-6 place-items-center rounded text-muted-foreground opacity-60 transition-opacity hover:opacity-100 hover:text-red-400"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
+        <div
+          className={`h-full rounded-full ${
+            row.status === "over" ? "bg-red-400" : row.status === "warning" ? "bg-amber-400" : "bg-emerald-400"
+          }`}
+          style={{ width: `${Math.min(100, row.ratio * 100)}%` }}
+        />
+      </div>
+
+      <div className="mt-2 flex justify-between text-[10px] font-semibold text-muted-foreground">
+        <span>{formatMoney(row.spent, state.baseCurrency, state.locale, true)}</span>
+        <span>{formatMoney(row.limitBase, state.baseCurrency, state.locale, true)}</span>
+      </div>
+
+      <p
+        className={`mt-2 text-[10px] font-semibold ${
+          row.status === "over" ? "text-red-400" : row.status === "warning" ? "text-amber-400" : "text-emerald-400"
+        }`}
+      >
+        {insight}
+      </p>
+    </div>
+  );
 }
