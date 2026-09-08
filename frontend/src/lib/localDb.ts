@@ -111,71 +111,7 @@ const DB_NAME = "esplant-financial-tracker";
 const STORE_NAME = "finance-state";
 const STATE_KEY = "current";
 
-const isoDate = (offsetDays = 0) => {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
-};
-
-const monthDate = (offsetMonths: number, day: number) => {
-  const date = new Date();
-  date.setMonth(date.getMonth() + offsetMonths, day);
-  return date.toISOString().slice(0, 10);
-};
-
-export const createDemoState = (): FinanceState => ({
-  profileName: "Raka",
-  baseCurrency: "IDR",
-  locale: "id",
-  theme: "dark",
-  exchangeRates: { IDR: 1, USD: 16250, EUR: 17600, SGD: 12100, MYR: 3800, JPY: 108, AUD: 10600 },
-  accounts: [
-    { id: "acc-bca", name: "BCA Debit", type: "debit", brand: "BCA", balance: 8425000, currency: "IDR" },
-    { id: "acc-gopay", name: "GoPay", type: "ewallet", brand: "GoPay", balance: 680000, currency: "IDR" },
-    { id: "acc-cash", name: "Cash wallet", type: "cash", brand: "Cash", balance: 450000, currency: "IDR" },
-    { id: "acc-shopee", name: "ShopeePayLater", type: "credit", brand: "SPayLater", balance: -1250000, currency: "IDR" },
-  ],
-  transactions: [
-    { id: "tx-1", kind: "expense", date: monthDate(0, 2), description: "Kost bulanan", category: "Housing", accountId: "acc-bca", amount: 2100000, currency: "IDR", baseAmount: 2100000, tags: ["fixed", "home"] },
-    { id: "tx-2", kind: "expense", date: monthDate(0, 4), description: "Kirim orang tua", category: "Family", accountId: "acc-bca", amount: 750000, currency: "IDR", baseAmount: 750000, tags: ["priority"] },
-    { id: "tx-3", kind: "expense", date: monthDate(0, 8), description: "Makan siang kantor", category: "Food", accountId: "acc-gopay", amount: 420000, currency: "IDR", baseAmount: 420000, tags: ["work"] },
-    { id: "tx-4", kind: "expense", date: monthDate(0, 11), description: "PLN Token", category: "Utilities", accountId: "acc-bca", amount: 250000, currency: "IDR", baseAmount: 250000, tags: ["fixed"] },
-    { id: "tx-5", kind: "income", date: monthDate(0, 1), description: "Gaji bulan ini", category: "Salary", accountId: "acc-bca", amount: 12500000, currency: "IDR", baseAmount: 12500000, tags: ["income"] },
-    { id: "tx-6", kind: "expense", date: monthDate(-1, 5), description: "Transport & ride-hailing", category: "Transport", accountId: "acc-gopay", amount: 890000, currency: "IDR", baseAmount: 890000, tags: ["mobility"] },
-    { id: "tx-7", kind: "expense", date: monthDate(-1, 9), description: "Belanja groceries", category: "Food", accountId: "acc-bca", amount: 1250000, currency: "IDR", baseAmount: 1250000, tags: ["home"] },
-    { id: "tx-8", kind: "expense", date: monthDate(-1, 12), description: "Paket data", category: "Utilities", accountId: "acc-bca", amount: 150000, currency: "IDR", baseAmount: 150000, tags: ["fixed"] },
-    { id: "tx-9", kind: "expense", date: monthDate(-1, 18), description: "Jajan weekend", category: "Lifestyle", accountId: "acc-cash", amount: 540000, currency: "IDR", baseAmount: 540000, tags: ["fun"] },
-    { id: "tx-10", kind: "income", date: monthDate(-1, 1), description: "Freelance project", category: "Freelance", accountId: "acc-bca", amount: 1800000, currency: "IDR", baseAmount: 1800000, tags: ["income"] },
-  ],
-  bills: [
-    { id: "bill-1", name: "Kost", category: "Housing", amount: 2100000, currency: "IDR", frequency: "monthly", nextDueDate: isoDate(4), active: true },
-    { id: "bill-2", name: "SPayLater", category: "Installment", amount: 480000, currency: "IDR", frequency: "monthly", nextDueDate: isoDate(8), remainingInstallments: 4, active: true },
-    { id: "bill-3", name: "Kirim orang tua", category: "Family", amount: 750000, currency: "IDR", frequency: "monthly", nextDueDate: isoDate(10), active: true },
-    { id: "bill-4", name: "Paket data", category: "Utilities", amount: 150000, currency: "IDR", frequency: "monthly", nextDueDate: isoDate(13), active: true },
-  ],
-  debts: [
-    { id: "debt-1", name: "Laptop kerja", person: "Dimas", type: "debt", total: 3600000, paid: 1800000, currency: "IDR", dueDate: isoDate(21), note: "Cicilan 3x, pembayaran kedua sudah masuk" },
-    { id: "debt-2", name: "Patungan liburan", person: "Nadia", type: "receivable", total: 900000, paid: 300000, currency: "IDR", dueDate: isoDate(12), note: "Sisa transfer minggu depan" },
-  ],
-  savings: [
-    { id: "goal-1", name: "Dana darurat", target: 15000000, saved: 8200000, currency: "IDR", targetDate: monthDate(5, 1), color: "teal" },
-    { id: "goal-2", name: "Trip Jepang", target: 18000000, saved: 4600000, currency: "IDR", targetDate: monthDate(10, 1), color: "amber" },
-  ],
-  wishlist: [
-    { id: "wish-1", name: "Standing desk", price: 3200000, currency: "IDR", priority: "medium", targetDate: monthDate(3, 1), category: "Work", status: "saving" },
-    { id: "wish-2", name: "Kyoto trip", price: 18000000, currency: "IDR", priority: "high", targetDate: monthDate(10, 1), category: "Travel", status: "planning" },
-  ],
-  budgets: [
-    { id: "budget-food", category: "Food", limit: 1800000, currency: "IDR" },
-    { id: "budget-transport", category: "Transport", limit: 1200000, currency: "IDR" },
-    { id: "budget-lifestyle", category: "Lifestyle", limit: 900000, currency: "IDR" },
-    { id: "budget-family", category: "Family", limit: 1000000, currency: "IDR" },
-  ],
-  categories: [
-    ...["Food", "Transport", "Housing", "Utilities", "Family", "Lifestyle", "Salary", "Freelance", "Savings", "Other"].map((name) => ({ id: `category-${name.toLowerCase()}`, name, archived: false })),
-  ],
-  schedule: { enabled: false, frequency: "daily", email: "", browserReminder: true },
-});
+export const DEFAULT_CATEGORIES = ["Food", "Transport", "Housing", "Utilities", "Family", "Lifestyle", "Health", "Education", "Salary", "Freelance", "Savings", "Other"];
 
 const transactionDelta = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) =>
   ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / (rates[currency] || 1);
@@ -196,6 +132,52 @@ export const withOpeningBalances = (state: FinanceState): FinanceState => ({
         },
   ),
 });
+
+/** Launch-ready initial state: no dummy data, everything starts from zero. */
+export const createInitialState = (): FinanceState => ({
+  profileName: "",
+  baseCurrency: "IDR",
+  locale: "id",
+  theme: "dark",
+  exchangeRates: { IDR: 1, USD: 16250, EUR: 17600, SGD: 12100, MYR: 3800, JPY: 108, AUD: 10600 },
+  accounts: [],
+  transactions: [],
+  bills: [],
+  debts: [],
+  savings: [],
+  wishlist: [],
+  budgets: [],
+  categories: DEFAULT_CATEGORIES.map((name) => ({ id: `category-${name.toLowerCase()}`, name, archived: false })),
+  schedule: { enabled: false, frequency: "daily", email: "", browserReminder: false },
+});
+
+/** Validates and normalizes a JSON backup into a safe FinanceState (returns null when unusable). */
+export const sanitizeImportedState = (raw: unknown): FinanceState | null => {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const value = raw as Partial<FinanceState>;
+  const base = createInitialState();
+  const arr = <T,>(input: unknown, fallback: T[]): T[] => (Array.isArray(input) ? (input as T[]) : fallback);
+  const next: FinanceState = {
+    ...base,
+    profileName: typeof value.profileName === "string" ? value.profileName.slice(0, 60) : base.profileName,
+    baseCurrency: typeof value.baseCurrency === "string" && value.baseCurrency in base.exchangeRates ? (value.baseCurrency as Currency) : base.baseCurrency,
+    locale: value.locale === "en" ? "en" : "id",
+    theme: value.theme === "light" ? "light" : "dark",
+    exchangeRates: { ...base.exchangeRates, ...(typeof value.exchangeRates === "object" && value.exchangeRates ? value.exchangeRates : {}) },
+    accounts: arr(value.accounts, base.accounts),
+    transactions: arr(value.transactions, base.transactions),
+    bills: arr(value.bills, base.bills),
+    debts: arr(value.debts, base.debts),
+    savings: arr(value.savings, base.savings),
+    wishlist: arr(value.wishlist, base.wishlist),
+    budgets: arr(value.budgets, base.budgets),
+    categories: arr(value.categories, base.categories),
+    schedule: { ...base.schedule, ...(typeof value.schedule === "object" && value.schedule ? value.schedule : {}) },
+  };
+  if (!next.accounts.every((item) => item && typeof item.id === "string" && typeof item.name === "string" && Number.isFinite(item.balance))) return null;
+  if (!next.transactions.every((item) => item && typeof item.id === "string" && Number.isFinite(item.amount))) return null;
+  return withOpeningBalances(next);
+};
 
 const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
@@ -219,18 +201,18 @@ export const loadState = async (): Promise<FinanceState> => {
     });
     db.close();
     if (value) {
-      const demo = createDemoState();
+      const demo = createInitialState();
       return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   } catch {
     const fallback = localStorage.getItem("nusa-artha-state");
     if (fallback) {
-      const demo = createDemoState();
+      const demo = createInitialState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
       return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   }
-  const demo = withOpeningBalances(createDemoState());
+  const demo = withOpeningBalances(createInitialState());
   await saveState(demo);
   return demo;
 };
@@ -252,7 +234,7 @@ export const saveState = async (state: FinanceState): Promise<FinanceState> => {
 };
 
 export const resetState = async () => {
-  const demo = withOpeningBalances(createDemoState());
+  const demo = withOpeningBalances(createInitialState());
   await saveState(demo);
   return demo;
 };

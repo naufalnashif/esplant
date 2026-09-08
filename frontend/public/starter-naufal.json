@@ -1,0 +1,24 @@
+{
+  "profileName": "Naufal",
+  "baseCurrency": "IDR",
+  "locale": "id",
+  "theme": "dark",
+  "schedule": { "enabled": true, "frequency": "daily", "email": "naufalnashif.imanuddin@gmail.com", "browserReminder": false },
+  "accounts": [
+    { "id": "acc-blu-bca", "name": "Blu BCA", "type": "debit", "brand": "Blu", "balance": 1400000, "openingBalance": 1400000, "currency": "IDR" },
+    { "id": "acc-bni", "name": "BNI", "type": "debit", "brand": "BNI", "balance": 771670, "openingBalance": 771670, "currency": "IDR" },
+    { "id": "acc-kredit-mandiri", "name": "Kredit Mandiri", "type": "credit", "brand": "Mandiri", "balance": 419000, "openingBalance": 419000, "currency": "IDR" },
+    { "id": "acc-cash", "name": "Uang Tunai", "type": "cash", "brand": "Cash", "balance": 300000, "openingBalance": 300000, "currency": "IDR" }
+  ],
+  "debts": [
+    { "id": "debt-shopee-kredit", "name": "Shopee Kredit", "person": "Shopee", "type": "debt", "total": 24600000, "paid": 0, "currency": "IDR", "dueDate": "2026-10-07", "note": "" },
+    { "id": "debt-kredit-mandiri", "name": "Kredit Mandiri", "person": "Bank Mandiri", "type": "debt", "total": 4000000, "paid": 0, "currency": "IDR", "dueDate": "2026-10-07", "note": "" },
+    { "id": "debt-mba-resi", "name": "Pinjaman Teman", "person": "Mba Resi", "type": "debt", "total": 3000000, "paid": 0, "currency": "IDR", "dueDate": "2026-10-07", "note": "" },
+    { "id": "debt-atha", "name": "Pinjaman Teman", "person": "Atha", "type": "debt", "total": 1000000, "paid": 0, "currency": "IDR", "dueDate": "2026-10-07", "note": "" }
+  ],
+  "transactions": [],
+  "bills": [],
+  "savings": [],
+  "wishlist": [],
+  "budgets": []
+}

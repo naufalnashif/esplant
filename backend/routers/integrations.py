@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from google.auth.transport.requests import Request as GoogleRequest
 from google.oauth2.credentials import Credentials
@@ -32,6 +32,8 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 APP_URL = os.environ.get("OAUTH_PUBLIC_URL", os.environ.get("APP_URL", "")).rstrip("/")
 REDIRECT_URI = f"{APP_URL}/api/integrations/gmail/callback"
+REPORT_DAILY_LIMIT = 3
+_REPORT_RATE: Dict[str, tuple] = {}
 
 
 def _client_config() -> Dict[str, Any]:
@@ -152,7 +154,7 @@ async def gmail_disconnect() -> GmailStatusResponse:
 
 
 @router.post("/reports/send", response_model=ReportSendResponse)
-async def send_report(request: ReportSendRequest) -> ReportSendResponse:
+async def send_report(request: ReportSendRequest, http_request: Request) -> ReportSendResponse:
     api_key = os.environ.get("RESEND_API_KEY")
     sender = os.environ.get("REPORT_FROM_EMAIL")
     if not api_key or not sender:
@@ -160,11 +162,22 @@ async def send_report(request: ReportSendRequest) -> ReportSendResponse:
     recipient = request.recipient or os.environ.get("REPORT_RECIPIENT_EMAIL")
     if not recipient:
         raise HTTPException(status_code=400, detail="A recipient email is required")
-    payload: Dict[str, Any] = {"from": sender, "to": [recipient], "subject": request.subject, "html": request.html}
+    # Anti-spam: max 3 report emails per client per UTC day
+    forwarded = http_request.headers.get("x-forwarded-for", "")
+    client_ip = forwarded.split(",")[0].strip() if forwarded else (http_request.client.host if http_request.client else "unknown")
+    today = datetime.now(timezone.utc).date().isoformat()
+    day, count = _REPORT_RATE.get(client_ip, (today, 0))
+    if day != today:
+        count = 0
+    if count >= REPORT_DAILY_LIMIT:
+        raise HTTPException(status_code=429, detail="Daily report email limit reached (3 per day)")
+    display_sender = sender if "<" in sender else f"Esplant Reports <{sender}>"
+    payload: Dict[str, Any] = {"from": display_sender, "to": [recipient], "subject": request.subject, "html": request.html}
     if request.pdf_base64:
         payload["attachments"] = [{"filename": request.filename, "content": request.pdf_base64}]
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json=payload)
     if response.status_code >= 400:
         raise HTTPException(status_code=502, detail="Resend rejected the report")
+    _REPORT_RATE[client_ip] = (today, count + 1)
     return ReportSendResponse(sent=True, message_id=response.json().get("id"))

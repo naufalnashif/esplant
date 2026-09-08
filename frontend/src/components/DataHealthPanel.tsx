@@ -65,7 +65,7 @@ export function DataHealthPanel({ state, onSave }: { state: FinanceState; onSave
         <div className="space-y-2" data-testid="data-health-issues-list">
           {report.issues.map((issue) => (
             <div key={issue.id} className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/35 p-3" data-testid={`data-health-issue-${issue.id}`}>
-              <div className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg ${issue.severity === "error" ? "bg-rose-500/12 text-rose-400" : "bg-amber-500/12 text-amber-400"}`}>
+              <div className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg ${issue.severity === "error" ? "bg-red-500/12 text-red-400" : "bg-amber-500/12 text-amber-400"}`}>
                 <TriangleAlert size={14} />
               </div>
               <div className="min-w-0 flex-1">
