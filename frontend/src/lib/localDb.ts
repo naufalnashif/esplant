@@ -148,7 +148,7 @@ export const createInitialState = (): FinanceState => ({
   wishlist: [],
   budgets: [],
   categories: DEFAULT_CATEGORIES.map((name) => ({ id: `category-${name.toLowerCase()}`, name, archived: false })),
-  schedule: { enabled: true, frequency: "daily", email: "naufalnashif.imanuddin@gmail.com", browserReminder: false },
+  schedule: { enabled: false, frequency: "daily", email: "", browserReminder: false },
 });
 
 /** Validates and normalizes a JSON backup into a safe FinanceState (returns null when unusable). */
@@ -191,7 +191,7 @@ const openDb = (): Promise<IDBDatabase> =>
     request.onerror = () => reject(request.error ?? new Error("Unable to open local storage"));
   });
 
-export const saveLocalStateOnly = async (state: FinanceState): Promise<void> => {
+export const saveLocalState = async (state: FinanceState): Promise<void> => {
   // 1. Always update localStorage immediately for instant synchronous recovery
   try {
     localStorage.setItem("nusa-artha-state", JSON.stringify(state));
@@ -210,61 +210,8 @@ export const saveLocalStateOnly = async (state: FinanceState): Promise<void> => 
   } catch {}
 };
 
-export const getUserProfileFromStorage = () => {
-  try {
-    const raw = localStorage.getItem("esplan-user-profile");
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
-
-export const saveApiState = async (state: FinanceState) => {
-  try {
-    await fetch("/api/state", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ state }),
-    });
-  } catch {}
-};
-
-export const loadState = async (): Promise<FinanceState> => {
-  const profile = getUserProfileFromStorage();
-  if (profile?.storageMode === "sheets" && profile.spreadsheetId) {
-    try {
-      const { readFullState, isSignedIn } = await import("./googleSheets");
-      if (isSignedIn()) {
-        const sheetsState = await readFullState(profile.spreadsheetId);
-        const sanitized = sanitizeImportedState(sheetsState);
-        if (sanitized) {
-          await saveLocalStateOnly(sanitized);
-          return sanitized;
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to load from Google Sheets, falling back to local storage:", err);
-    }
-  }
-
-  // 1. Try loading from backend API if available
-  try {
-    const res = await fetch("/api/state");
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.state) {
-        const sanitized = sanitizeImportedState(data.state);
-        if (sanitized) {
-          await saveLocalStateOnly(sanitized);
-          return sanitized;
-        }
-      }
-    }
-  } catch {
-    // Backend API unavailable
-  }
-
+/** This browser's copy of the workspace. Never leaves the device. */
+export const loadLocalState = async (): Promise<FinanceState> => {
   try {
     const db = await openDb();
     const value = await new Promise<FinanceState | undefined>((resolve, reject) => {
@@ -275,46 +222,17 @@ export const loadState = async (): Promise<FinanceState> => {
     db.close();
     if (value) {
       const demo = createInitialState();
-      const loaded = withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
-      saveApiState(loaded);
-      return loaded;
+      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   } catch {
     const fallback = localStorage.getItem("nusa-artha-state");
     if (fallback) {
       const demo = createInitialState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
-      const loaded = withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
-      saveApiState(loaded);
-      return loaded;
+      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   }
-  const demo = withOpeningBalances(createInitialState());
-  await saveState(demo);
-  return demo;
-};
-
-export const saveState = async (state: FinanceState): Promise<FinanceState> => {
-  await saveLocalStateOnly(state);
-  saveApiState(state);
-
-  const profile = getUserProfileFromStorage();
-  if (profile?.storageMode === "sheets" && profile.spreadsheetId) {
-    try {
-      const { debouncedWriteState, isSignedIn } = await import("./googleSheets");
-      if (isSignedIn()) {
-        debouncedWriteState(profile.spreadsheetId, state).catch((err) => {
-          console.error("Background Sheets sync failed:", err);
-        });
-      }
-    } catch {}
-  }
-
-  return state;
-};
-
-export const resetState = async () => {
-  const demo = withOpeningBalances(createInitialState());
-  await saveState(demo);
-  return demo;
+  const fresh = withOpeningBalances(createInitialState());
+  await saveLocalState(fresh);
+  return fresh;
 };

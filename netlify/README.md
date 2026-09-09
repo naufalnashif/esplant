@@ -1,55 +1,49 @@
-# Deploy Esplant ke Netlify (Statis + Serverless Functions)
+# Deploy Esplan ke Netlify
 
-Frontend Vite dibangun sebagai situs statis; integrasi Gmail OAuth dan Resend berjalan
-sebagai **Netlify Functions** dengan path yang identik dengan backend FastAPI
-(`/api/integrations/...`), sehingga **kode frontend tidak perlu diubah sama sekali**.
+Esplan adalah aplikasi statis (Vite + React). Tidak ada database milik aplikasi:
+data keuangan tersimpan di spreadsheet Google milik masing-masing pengguna, atau di
+IndexedDB browser saat mode lokal dipakai.
 
-Token OAuth disimpan terenkripsi (AES-256-GCM) di **Netlify Blobs** — key-value storage
-bawaan Netlify (gratis), bukan database yang Anda kelola. Data keuangan pengguna tetap
-100% di browser (IndexedDB).
+## 1. Build settings
 
-## Langkah deploy
+Sudah diatur di `netlify.toml`:
 
-1. Push repo ini ke GitHub, lalu di Netlify: **Add new site → Import from Git**.
-2. Netlify otomatis membaca `netlify.toml` di root (build: `cd frontend && yarn install && yarn build`, publish: `frontend/dist`, functions: `netlify/functions`).
-3. Set **Environment variables** di Site settings → Environment variables:
+```
+command = "cd frontend && npm install && npm run build"
+publish = "frontend/dist"
+```
 
-   | Variable | Nilai |
-   |---|---|
-   | `GOOGLE_CLIENT_ID` | Dari Google Cloud Console (OAuth Client ID, tipe Web) |
-   | `GOOGLE_CLIENT_SECRET` | Dari Google Cloud Console |
-   | `RESEND_API_KEY` | Dari https://resend.com/api-keys |
-   | `REPORT_FROM_EMAIL` | `onboarding@resend.dev` (sandbox) atau email domain terverifikasi |
-   | `REPORT_RECIPIENT_EMAIL` | (Opsional) fallback email tujuan laporan |
+## 2. Environment variable (wajib)
 
-4. Di **Google Cloud Console → APIs & Services → Credentials → OAuth Client**, tambahkan
-   Authorized redirect URI:
+Site configuration → Environment variables → Add:
 
-   ```
-   https://NAMA-SITE-ANDA.netlify.app/api/integrations/gmail/callback
-   ```
+| Key | Value |
+| --- | --- |
+| `VITE_GOOGLE_CLIENT_ID` | OAuth Client ID Anda, mis. `xxxx.apps.googleusercontent.com` |
 
-5. Deploy. Selesai — tidak perlu server terpisah.
+`frontend/.env` tidak ikut ter-commit (di-ignore), jadi nilai ini harus diisi di Netlify.
+Client ID bersifat publik — tidak ada client secret yang dipakai aplikasi ini.
 
-## Catatan penting
+## 3. Google Cloud Console (wajib, kalau tidak akan muncul `Error 400: origin_mismatch`)
 
-- **Resend sandbox**: selama domain belum diverifikasi di Resend, pengirim
-  `onboarding@resend.dev` hanya bisa mengirim ke alamat email pemilik akun Resend.
-  Verifikasi domain di https://resend.com/domains untuk mengirim ke email mana pun.
-- **Scheduler laporan**: reminder browser berjalan lokal. Untuk pengiriman otomatis saat
-  browser tertutup, Anda bisa menambah [Netlify Scheduled Functions](https://docs.netlify.com/functions/scheduled-functions/)
-  — namun laporan butuh data dari perangkat, jadi desain local-first tetap mengandalkan
-  reminder + kirim manual satu klik.
-- **Keamanan**: `GOOGLE_CLIENT_SECRET` dan `RESEND_API_KEY` hanya hidup di environment
-  Functions. Scope Gmail hanya `gmail.readonly`. Token dienkripsi sebelum disimpan.
+APIs & Services → Credentials → OAuth 2.0 Client ID (tipe *Web application*) →
+**Authorized JavaScript origins**, tambahkan setiap alamat tempat aplikasi dibuka,
+persis apa adanya dan tanpa garis miring di akhir:
 
-## Pemetaan endpoint
+```
+https://naufalnashif-financial.netlify.app
+https://<subdomain-preview>.preview.emergentagent.com
+http://localhost:3000
+```
 
-| Path | Function |
-|---|---|
-| `GET /api/integrations/gmail/start` | `gmail-start.mjs` |
-| `GET /api/integrations/gmail/callback` | `gmail-callback.mjs` |
-| `GET /api/integrations/gmail/status` | `gmail-status.mjs` |
-| `POST /api/integrations/gmail/scan` | `gmail-scan.mjs` |
-| `DELETE /api/integrations/gmail` | `gmail-disconnect.mjs` |
-| `POST /api/integrations/reports/send` | `reports-send.mjs` |
+Authorized redirect URIs tidak perlu diisi (aplikasi memakai token client, bukan redirect flow).
+Pastikan juga **Google Sheets API** aktif di APIs & Services → Library.
+
+Origin yang sedang dipakai selalu ditampilkan aplikasi di dialog "Hubungkan spreadsheet"
+ketika Google menolak login, lengkap dengan tombol salin.
+
+## 4. Jumlah pengguna
+
+Selama OAuth consent screen masih *Testing*, hanya email yang terdaftar sebagai
+**Test users** yang bisa login (maks. 100). Untuk publik, klik **Publish app**; karena
+scope `spreadsheets` termasuk sensitif, Google akan meminta proses verifikasi (gratis).

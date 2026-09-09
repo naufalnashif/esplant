@@ -22,167 +22,157 @@ import type { FinanceState } from "@/lib/localDb";
 import { CategoryManager } from "@/components/CategoryManager";
 import { DataHealthPanel } from "@/components/DataHealthPanel";
 import { useStorage } from "@/lib/storageContext";
-import { readFullState, writeFullState } from "@/lib/googleSheets";
+import { readState, isGoogleConfigured } from "@/lib/googleSheets";
+import { pushNow } from "@/lib/dataStore";
+import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 
 type SettingsSubTab = "general" | "data";
 
 function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (nextState: FinanceState) => void }) {
-  const { profile, setProfile, setSyncStatus, lastSyncTime, setLastSyncTime } = useStorage();
+  const { profile, spreadsheetId, sheetUrl, disconnectSheet, lastSyncTime, syncStatus } = useStorage();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showConnect, setShowConnect] = useState(false);
   const isId = state.locale === "id";
+  const connected = Boolean(spreadsheetId);
 
-  const handleManualSync = async () => {
-    if (!profile?.spreadsheetId || profile.storageMode !== "sheets") return;
+  const handlePull = async () => {
+    if (!spreadsheetId) return;
     setIsSyncing(true);
-    setSyncStatus("syncing");
     try {
-      const remoteState = await readFullState(profile.spreadsheetId);
-      save(remoteState);
-      setSyncStatus("idle");
-      setLastSyncTime(new Date());
-      toast.success(isId ? "Data berhasil disinkronkan dari Google Sheets!" : "Successfully synced from Google Sheets!");
-    } catch (err) {
-      console.error("Sync error:", err);
-      setSyncStatus("error");
-      toast.error(isId ? "Gagal sinkronisasi dengan Google Sheets." : "Failed to sync with Google Sheets.");
+      save(await readState(spreadsheetId));
+      toast.success(isId ? "Data ditarik dari spreadsheet." : "Pulled from your spreadsheet.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : isId ? "Gagal menarik data." : "Pull failed.");
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const handlePushToSheets = async () => {
-    if (!profile?.spreadsheetId || profile.storageMode !== "sheets") return;
+  const handlePush = async () => {
+    if (!spreadsheetId) return;
     setIsSyncing(true);
-    setSyncStatus("syncing");
     try {
-      await writeFullState(profile.spreadsheetId, state);
-      setSyncStatus("idle");
-      setLastSyncTime(new Date());
-      toast.success(isId ? "Data lokal berhasil di-push ke Google Sheets!" : "Local data pushed to Google Sheets!");
-    } catch (err) {
-      console.error("Push error:", err);
-      setSyncStatus("error");
-      toast.error(isId ? "Gagal mengirim data ke Google Sheets." : "Failed to push data to Google Sheets.");
+      await pushNow(spreadsheetId, state);
+      toast.success(isId ? "Data dikirim ke spreadsheet." : "Pushed to your spreadsheet.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : isId ? "Gagal mengirim data." : "Push failed.");
     } finally {
       setIsSyncing(false);
     }
-  };
-
-  const handleSwitchMode = (mode: "sheets" | "local") => {
-    if (!profile) return;
-    setProfile({ ...profile, storageMode: mode });
-    toast.success(
-      isId
-        ? `Mode penyimpanan diubah ke ${mode === "sheets" ? "Google Sheets" : "Lokal"}`
-        : `Storage mode changed to ${mode === "sheets" ? "Google Sheets" : "Local"}`
-    );
   };
 
   return (
-    <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
-      <div className="mb-5 flex items-center justify-between">
+    <Card className="border-border/70 bg-card/75 p-5 sm:p-6" data-testid="database-connection-card">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/12 text-emerald-500">
             <Database size={18} />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Database Connection</p>
-            <h2 className="font-heading text-xl font-bold">{isId ? "Status & Koneksi Database" : "Database & Storage Mode"}</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Storage</p>
+            <h2 className="font-heading text-xl font-bold">{isId ? "Koneksi Spreadsheet" : "Spreadsheet Connection"}</h2>
           </div>
         </div>
-        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-          profile?.storageMode === "sheets"
-            ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
-            : "bg-blue-500/15 text-blue-500 border border-blue-500/30"
-        }`}>
-          {profile?.storageMode === "sheets" ? "Google Sheets" : "Lokal (Offline)"}
+        <span
+          data-testid="storage-mode-badge"
+          className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${
+            connected
+              ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-500"
+              : "border border-blue-500/30 bg-blue-500/15 text-blue-500"
+          }`}
+        >
+          {connected ? "Google Sheets" : isId ? "Lokal (browser)" : "Local (browser)"}
         </span>
       </div>
 
-      <div className="space-y-4">
-        {profile?.storageMode === "sheets" ? (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-border/60 bg-background/50 p-3.5">
-                <p className="text-xs text-muted-foreground mb-1">Spreadsheet ID</p>
-                {profile.spreadsheetId ? (
-                  <a
-                    href={profile.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${profile.spreadsheetId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-data font-bold text-primary hover:underline truncate block"
-                  >
-                    {profile.spreadsheetId} ↗
-                  </a>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">{isId ? "Belum terhubung" : "Not connected"}</p>
-                )}
-              </div>
+      {connected ? (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border/60 bg-background/50 p-3.5">
+            <p className="mb-1 text-xs text-muted-foreground">{profile?.spreadsheetName || "Spreadsheet"}</p>
+            <a
+              href={sheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="settings-open-sheet-link"
+              className="block truncate font-data text-xs font-bold text-primary hover:underline"
+            >
+              {sheetUrl} ↗
+            </a>
+          </div>
 
-              <div className="rounded-xl border border-border/60 bg-background/50 p-3.5">
-                <p className="text-xs text-muted-foreground mb-1">{isId ? "Akun Google" : "Google Account"}</p>
-                <p className="text-xs font-bold text-foreground truncate">{profile.email || "—"}</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualSync}
-                disabled={isSyncing}
-                className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-              >
-                <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-                {isId ? "Tarik Data dari Sheets" : "Pull from Sheets"}
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePushToSheets}
-                disabled={isSyncing}
-                className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
-              >
-                <Upload size={14} className={isSyncing ? "animate-spin" : ""} />
-                {isId ? "Push Data ke Sheets" : "Push to Sheets"}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleSwitchMode("local")}
-                className="text-xs text-muted-foreground hover:text-foreground ml-auto"
-              >
-                {isId ? "Ubah ke Mode Lokal" : "Switch to Local Mode"}
-              </Button>
-            </div>
-
-            {lastSyncTime && (
-              <p className="text-[11px] text-muted-foreground">
-                {isId ? "Terakhir sinkronisasi: " : "Last synced: "}{lastSyncTime.toLocaleTimeString()}
-              </p>
-            )}
-          </>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {isId
-                ? "Saat ini Anda menggunakan mode lokal. Data disimpan secara aman di browser peranti ini (IndexedDB)."
-                : "You are using local storage mode. Data is stored safely in this browser (IndexedDB)."}
-            </p>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleSwitchMode("sheets")}
-              className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              data-testid="pull-from-sheets-button"
+              onClick={handlePull}
+              disabled={isSyncing}
+              className="gap-2 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
             >
-              <Cloud size={14} />
-              {isId ? "Aktifkan Sync Google Sheets" : "Enable Google Sheets Sync"}
+              <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+              {isId ? "Tarik dari Sheets" : "Pull from Sheets"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="push-to-sheets-button"
+              onClick={handlePush}
+              disabled={isSyncing}
+              className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
+            >
+              <Upload size={14} className={isSyncing ? "animate-spin" : ""} />
+              {isId ? "Kirim ke Sheets" : "Push to Sheets"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="disconnect-sheet-button"
+              onClick={() => {
+                disconnectSheet();
+                toast.success(isId ? "Spreadsheet dilepas. Kembali ke mode lokal." : "Disconnected. Back to local mode.");
+              }}
+              className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+            >
+              {isId ? "Lepas koneksi" : "Disconnect"}
             </Button>
           </div>
-        )}
-      </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            {syncStatus === "error"
+              ? isId ? "Sinkronisasi terakhir gagal — coba tarik atau kirim ulang." : "Last sync failed — try pull or push again."
+              : lastSyncTime
+                ? `${isId ? "Terakhir sinkron: " : "Last synced: "}${lastSyncTime.toLocaleTimeString()}`
+                : isId ? "Perubahan tersimpan otomatis ke spreadsheet Anda." : "Changes are saved to your spreadsheet automatically."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {isId
+              ? "Mode lokal aktif: data hanya ada di browser ini (IndexedDB). Hubungkan spreadsheet agar data tersimpan di Google Drive Anda dan bisa dibuka dari perangkat lain."
+              : "Local mode: data lives only in this browser. Connect a spreadsheet to store it in your own Google Drive."}
+          </p>
+          {!isGoogleConfigured() && (
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/8 p-3 text-[11px] leading-relaxed text-amber-500">
+              {isId
+                ? "VITE_GOOGLE_CLIENT_ID belum diisi, jadi login Google masih nonaktif."
+                : "VITE_GOOGLE_CLIENT_ID is not set, so Google sign-in is disabled."}
+            </p>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="connect-sheet-from-settings-button"
+            onClick={() => setShowConnect(true)}
+            className="gap-2 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
+          >
+            <Cloud size={14} />
+            {isId ? "Hubungkan Google Sheets" : "Connect Google Sheets"}
+          </Button>
+        </div>
+      )}
+
+      <ConnectSheetDialog open={showConnect} onClose={() => setShowConnect(false)} />
     </Card>
   );
 }

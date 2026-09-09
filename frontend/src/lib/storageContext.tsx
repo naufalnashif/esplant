@@ -1,14 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { loadGoogleApi } from './googleSheets';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { onSyncStatus, type StorageMode, type SyncStatus } from "./dataStore";
+import { isSignedIn, signOutGoogle, spreadsheetUrl } from "./googleSheets";
 
-export type StorageMode = 'local' | 'sheets';
-export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
+export type { StorageMode, SyncStatus };
 
+/**
+ * Workspace pointer kept in this browser only. Deliberately holds no email,
+ * no token and nothing that identifies the user to our servers.
+ */
 export interface UserProfile {
   nickname: string;
-  email: string;
   spreadsheetId: string;
-  spreadsheetUrl: string;
+  spreadsheetName: string;
   storageMode: StorageMode;
   onboarded: boolean;
 }
@@ -17,106 +20,109 @@ export interface StorageContextValue {
   profile: UserProfile | null;
   setProfile: (profile: UserProfile) => void;
   clearProfile: () => void;
+  disconnectSheet: () => void;
   storageMode: StorageMode;
+  spreadsheetId: string;
+  sheetUrl: string;
   syncStatus: SyncStatus;
-  setSyncStatus: (status: SyncStatus) => void;
-  googleReady: boolean;
-  isAuthenticated: boolean;
+  syncDetail: string;
   lastSyncTime: Date | null;
-  setLastSyncTime: (time: Date) => void;
+  googleSignedIn: boolean;
 }
 
 const StorageContext = createContext<StorageContextValue | undefined>(undefined);
+const PROFILE_KEY = "esplan-user-profile";
 
-const PROFILE_KEY = 'esplan-user-profile';
+const readProfile = (): UserProfile | null => {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<UserProfile> & { email?: string };
+    if (!parsed || typeof parsed !== "object") return null;
+    // Migration: drop the legacy `email` field, it was never used.
+    return {
+      nickname: String(parsed.nickname ?? "").slice(0, 24),
+      spreadsheetId: String(parsed.spreadsheetId ?? ""),
+      spreadsheetName: String(parsed.spreadsheetName ?? ""),
+      storageMode: parsed.spreadsheetId ? "sheets" : "local",
+      onboarded: Boolean(parsed.onboarded),
+    };
+  } catch {
+    return null;
+  }
+};
 
 export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [profile, setProfileState] = useState<UserProfile | null>(() => {
-    try {
-      const stored = localStorage.getItem(PROFILE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
-  const [googleReady, setGoogleReady] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [profile, setProfileState] = useState<UserProfile | null>(readProfile);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [syncDetail, setSyncDetail] = useState("");
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-
-  const storageMode: StorageMode = profile?.storageMode || 'local';
+  const [googleSignedIn, setGoogleSignedIn] = useState(isSignedIn);
 
   useEffect(() => {
-    const initGoogle = async () => {
-      try {
-        await loadGoogleApi();
-        setGoogleReady(true);
-        // Note: we'd also check if token exists to set isAuthenticated
-        if (window.gapi?.client?.getToken()) {
-          setIsAuthenticated(true);
-        }
-      } catch (e) {
-        console.error('Failed to load Google API:', e);
-      }
-    };
-    initGoogle();
+    onSyncStatus((status, detail) => {
+      setSyncStatus(status);
+      setSyncDetail(detail ?? "");
+      if (status === "saved") setLastSyncTime(new Date());
+      setGoogleSignedIn(isSignedIn());
+    });
+    return () => onSyncStatus(null);
   }, []);
 
-  const setProfile = (newProfile: UserProfile) => {
-    setProfileState(newProfile);
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
-  };
+  const setProfile = useCallback((next: UserProfile) => {
+    setProfileState(next);
+    try {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+    } catch {
+      /* private mode */
+    }
+    setGoogleSignedIn(isSignedIn());
+  }, []);
 
-  const clearProfile = () => {
+  const clearProfile = useCallback(() => {
     setProfileState(null);
     localStorage.removeItem(PROFILE_KEY);
-  };
+    signOutGoogle();
+    setGoogleSignedIn(false);
+  }, []);
 
-  // Keep track of auth status periodically or by listening to events if needed
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (googleReady && window.gapi?.client) {
-        setIsAuthenticated(!!window.gapi.client.getToken());
+  const disconnectSheet = useCallback(() => {
+    signOutGoogle();
+    setGoogleSignedIn(false);
+    setProfileState((current) => {
+      if (!current) return current;
+      const next: UserProfile = { ...current, spreadsheetId: "", spreadsheetName: "", storageMode: "local" };
+      try {
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+      } catch {
+        /* private mode */
       }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [googleReady]);
+      return next;
+    });
+  }, []);
 
-  return (
-    <StorageContext.Provider
-      value={{
-        profile,
-        setProfile,
-        clearProfile,
-        storageMode,
-        syncStatus,
-        setSyncStatus,
-        googleReady,
-        isAuthenticated,
-        lastSyncTime,
-        setLastSyncTime,
-      }}
-    >
-      {children}
-    </StorageContext.Provider>
-  );
+  const value = useMemo<StorageContextValue>(() => {
+    const spreadsheetId = profile?.storageMode === "sheets" ? profile.spreadsheetId : "";
+    return {
+      profile,
+      setProfile,
+      clearProfile,
+      disconnectSheet,
+      storageMode: spreadsheetId ? "sheets" : "local",
+      spreadsheetId,
+      sheetUrl: spreadsheetId ? spreadsheetUrl(spreadsheetId) : "",
+      syncStatus,
+      syncDetail,
+      lastSyncTime,
+      googleSignedIn,
+    };
+  }, [profile, setProfile, clearProfile, disconnectSheet, syncStatus, syncDetail, lastSyncTime, googleSignedIn]);
+
+  return <StorageContext.Provider value={value}>{children}</StorageContext.Provider>;
 };
 
 export const useStorage = (): StorageContextValue => {
   const context = useContext(StorageContext);
-  if (!context) {
-    throw new Error('useStorage must be used within a StorageProvider');
-  }
+  if (!context) throw new Error("useStorage must be used within a StorageProvider");
   return context;
-};
-
-export const useProfile = () => {
-  const { profile, setProfile, clearProfile } = useStorage();
-  return { profile, setProfile, clearProfile };
-};
-
-export const useSyncStatus = () => {
-  const { syncStatus, setSyncStatus, lastSyncTime, setLastSyncTime } = useStorage();
-  return { syncStatus, setSyncStatus, lastSyncTime, setLastSyncTime };
 };

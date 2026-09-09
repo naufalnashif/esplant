@@ -19,7 +19,8 @@ import type {
   Account, CommitmentType, Currency, Debt, FinanceState, Locale, SavingsGoal,
   Transaction, TransactionKind, WishlistItem,
 } from "@/lib/localDb";
-import { createInitialState, loadState, saveState, sanitizeImportedState } from "@/lib/localDb";
+import { createInitialState, sanitizeImportedState } from "@/lib/localDb";
+import { loadFinanceState, saveFinanceState } from "@/lib/dataStore";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
@@ -29,8 +30,9 @@ import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { WishlistManager } from "@/components/WishlistManager";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
-import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { LandingPreview } from "@/components/LandingPreview";
 import { useStorage } from "@/lib/storageContext";
+import { authorize, isSignedIn } from "@/lib/googleSheets";
 import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 
@@ -86,7 +88,7 @@ const percent = (value: number, total: number) => total ? Math.min(100, Math.rou
 const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) => ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / rates[currency];
 
 export default function Home() {
-  const { profile } = useStorage();
+  const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime } = useStorage();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [compareMonth, setCompareMonth] = useState(currentMonth);
@@ -99,11 +101,16 @@ export default function Home() {
   const [debtForm, setDebtForm] = useState({ name: "", person: "", type: "debt" as CommitmentType, total: "", dueDate: new Date().toISOString().slice(0, 10) });
   const [wishForm, setWishForm] = useState({ name: "", price: "", priority: "medium" as WishlistItem["priority"], targetDate: "", category: "Lifestyle" });
 
-  const stateQuery = useQuery({ queryKey: ["nusa-artha-local-state"], queryFn: loadState, staleTime: Infinity });
+  const stateQuery = useQuery({
+    queryKey: ["finance-state", storageMode, spreadsheetId],
+    queryFn: () => loadFinanceState(storageMode, spreadsheetId),
+    staleTime: Infinity,
+    retry: false,
+  });
   const state = stateQuery.data ?? createInitialState();
   const saveMutation = useMutation({
-    mutationFn: saveState,
-    onSuccess: (next) => queryClient.setQueryData(["nusa-artha-local-state"], next),
+    mutationFn: (next: FinanceState) => saveFinanceState(storageMode, spreadsheetId, next),
+    onSuccess: (next) => queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], next),
     onError: () => toast.error("Data belum tersimpan. Coba lagi."),
   });
   const t = copy[state.locale];
@@ -136,16 +143,17 @@ export default function Home() {
     const items = state.transactions.filter((item) => monthKey(item.date) === key);
     return { month: new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", { month: "short" }).format(date), income: items.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, expense: items.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate };
   }), [state.locale, state.transactions, displayRate]);
-  const save = (next: FinanceState) => { queryClient.setQueryData(["nusa-artha-local-state"], next); saveMutation.mutate(next); };
+  const save = (next: FinanceState) => { queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], next); saveMutation.mutate(next); };
+  const healthReport = useMemo(() => runDataHealth(state), [state]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
     document.documentElement.lang = state.locale === "id" ? "id" : "en";
   }, [state.locale, state.theme]);
 
-  // Check onboarding gate AFTER all hooks have executed to conform with React Rules of Hooks
+  // Onboarding gate runs after every hook so the hook order never changes between renders.
   if (!profile || !profile.onboarded) {
-    return <OnboardingFlow onComplete={() => queryClient.invalidateQueries({ queryKey: ["nusa-artha-local-state"] })} />;
+    return <LandingPreview />;
   }
 
   const updateState = (updates: Partial<FinanceState>) => save({ ...state, ...updates });
@@ -335,7 +343,6 @@ export default function Home() {
   ];
   const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
-  const healthReport = useMemo(() => runDataHealth(state), [state]);
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -344,12 +351,12 @@ export default function Home() {
           <div className="mb-10 flex items-center gap-3 px-2"><div className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20"><CircleDollarSign size={22} /></div><div><p className="font-heading text-lg font-extrabold tracking-tight">Esplan</p><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Money, made clear</p></div></div>
           <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Workspace</p>
           <nav className="space-y-1" data-testid="desktop-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium ${tab === item.key ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"}`}><Icon size={18} className={`shrink-0 ${tab === item.key ? "text-primary" : ""}`} /><span>{item.label}</span>{tab === item.key && <ChevronRight size={14} className="ml-auto text-primary" />}</button>; })}</nav>
-          <div className="mt-auto rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">Data pribadi tersimpan di perangkat ini, bukan di server aplikasi.</p><div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div></div>
+          <div className="mt-auto rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
         </aside>
         <main className="min-w-0 flex-1 pb-24 lg:pb-8">
           <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-background/85 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-10" data-testid="app-header">
             <div className="flex items-center gap-3"><div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground lg:hidden"><CircleDollarSign size={19} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{tab === "overview" ? "Esplan / Financial Tracker" : `Esplan / ${navItems.find((item) => item.key === tab)?.label}`}</p><p className="font-heading text-sm font-bold lg:hidden">Esplan</p></div></div>
-            <div className="flex items-center gap-2 sm:gap-3">{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-9 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "Esplan"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white">{(state.profileName || "E").slice(0, 1).toUpperCase()}</div></div>
+            <div className="flex items-center gap-2 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => { void (async () => { if (storageMode === "sheets" && !isSignedIn()) { try { await authorize(true); } catch { toast.error("Login Google diperlukan untuk sinkronisasi."); return; } } await stateQuery.refetch(); })(); }} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-9 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "Esplan"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white">{(state.profileName || "E").slice(0, 1).toUpperCase()}</div></div>
           </header>
           <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
             {tab === "overview" && <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} accountName={accountName} />}
@@ -368,6 +375,21 @@ export default function Home() {
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
     </div>
+  );
+}
+
+function SyncPill({ mode, status, lastSyncTime, busy, onRefresh }: { mode: "local" | "sheets"; status: string; lastSyncTime: Date | null; busy: boolean; onRefresh: () => void }) {
+  if (mode !== "sheets") {
+    return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground sm:flex"><ShieldCheck size={13} /> Lokal</span>;
+  }
+  const spinning = busy || status === "syncing";
+  const tone = status === "error" ? "border-red-500/40 bg-red-500/10 text-red-400" : status === "offline" ? "border-amber-500/40 bg-amber-500/10 text-amber-500" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-500";
+  const label = spinning ? "Sinkron…" : status === "error" ? "Gagal sinkron" : status === "offline" ? "Offline" : lastSyncTime ? `Tersimpan ${lastSyncTime.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}` : "Terhubung";
+  return (
+    <button type="button" data-testid="sync-pill" onClick={onRefresh} title="Tarik ulang data dari spreadsheet" className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors ${tone}`}>
+      <RefreshCw size={12} className={spinning ? "animate-spin" : ""} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

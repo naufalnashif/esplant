@@ -1,371 +1,426 @@
-import type { FinanceState } from '@/lib/localDb';
-import { SheetsApiError, AuthError, RateLimitError, OfflineError } from './googleTypes';
+import type { FinanceState } from "./localDb";
+import { createInitialState } from "./localDb";
 
-const DISCOVERY_DOC = 'https://sheets.googleapis.com/$discovery/rest?version=v4';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file';
+/* ────────────────────────────────────────────────────────────────
+   Browser-only Google Sheets client.
 
-let tokenClient: google.accounts.oauth2.TokenClient | null = null;
-let googleApiLoaded = false;
-let authInitialized = false;
+   • Auth: Google Identity Services token client (no client secret,
+     no backend, no token ever leaves the user's browser session).
+   • Data: plain fetch against the Sheets REST API — no gapi bundle.
+   • Privacy: nothing is persisted anywhere except the user's own
+     spreadsheet + this browser's sessionStorage/localStorage.
+   ──────────────────────────────────────────────────────────────── */
 
-export async function loadGoogleApi(): Promise<void> {
-  if (googleApiLoaded) return;
-  
-  return new Promise((resolve, reject) => {
-    let gapiLoaded = false;
-    let gisLoaded = false;
+export const GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "").trim();
+export const isGoogleConfigured = (): boolean => GOOGLE_CLIENT_ID.length > 0;
 
-    const checkDone = () => {
-      if (gapiLoaded && gisLoaded) {
-        googleApiLoaded = true;
-        resolve();
-      }
-    };
+const SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive.file",
+].join(" ");
+const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
+const TOKEN_KEY = "esplan-google-token";
+const GIS_SRC = "https://accounts.google.com/gsi/client";
 
-    const gapiScript = document.createElement('script');
-    gapiScript.src = 'https://apis.google.com/js/api.js';
-    gapiScript.async = true;
-    gapiScript.defer = true;
-    gapiScript.onload = () => {
-      window.gapi.load('client', () => {
-        gapiLoaded = true;
-        checkDone();
-      });
-    };
-    gapiScript.onerror = () => reject(new Error('Failed to load GAPI script'));
-    document.body.appendChild(gapiScript);
-
-    const gisScript = document.createElement('script');
-    gisScript.src = 'https://accounts.google.com/gsi/client';
-    gisScript.async = true;
-    gisScript.defer = true;
-    gisScript.onload = () => {
-      gisLoaded = true;
-      checkDone();
-    };
-    gisScript.onerror = () => reject(new Error('Failed to load GIS script'));
-    document.body.appendChild(gisScript);
-  });
+export class SheetsError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "SheetsError";
+    this.status = status;
+  }
 }
 
-export async function initGoogleAuth(clientId: string): Promise<void> {
-  if (!googleApiLoaded) await loadGoogleApi();
-  if (authInitialized) return;
-
-  await window.gapi.client.init({
-    discoveryDocs: [DISCOVERY_DOC],
-  });
-
-  tokenClient = window.google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: SCOPES,
-    callback: () => {}, // overridden in signIn
-  });
-
-  authInitialized = true;
+export class AuthRequiredError extends Error {
+  constructor(message = "Google authorization required") {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
 }
 
-export function signIn(): Promise<google.accounts.oauth2.TokenResponse> {
-  return new Promise((resolve, reject) => {
-    if (!tokenClient) {
-      reject(new AuthError('Token client not initialized'));
+/* ───────────────────────── Token handling ───────────────────────── */
+
+interface StoredToken {
+  access_token: string;
+  expires_at: number;
+}
+
+const readStoredToken = (): StoredToken | null => {
+  try {
+    const raw = sessionStorage.getItem(TOKEN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredToken;
+    return parsed.expires_at > Date.now() + 30_000 ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+let token: StoredToken | null = readStoredToken();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let tokenClient: any = null;
+let gisPromise: Promise<void> | null = null;
+
+const storeToken = (next: StoredToken | null) => {
+  token = next;
+  try {
+    if (next) sessionStorage.setItem(TOKEN_KEY, JSON.stringify(next));
+    else sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* private mode — keep in memory only */
+  }
+};
+
+export const isSignedIn = (): boolean => Boolean(token && token.expires_at > Date.now() + 30_000);
+
+export const signOutGoogle = (): void => {
+  storeToken(null);
+};
+
+function loadGis(): Promise<void> {
+  if (gisPromise) return gisPromise;
+  gisPromise = new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).google?.accounts?.oauth2) {
+      resolve();
       return;
     }
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${GIS_SRC}"]`);
+    const script = existing ?? document.createElement("script");
+    script.src = GIS_SRC;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", () => resolve());
+    script.addEventListener("error", () => {
+      gisPromise = null;
+      reject(new SheetsError("Gagal memuat Google Identity Services"));
+    });
+    if (!existing) document.head.appendChild(script);
+  });
+  return gisPromise;
+}
 
-    tokenClient.callback = (resp: google.accounts.oauth2.TokenResponse) => {
-      if (resp.error) {
-        reject(new AuthError(resp.error));
-      } else {
-        resolve(resp);
-      }
-    };
+/**
+ * Requests an access token. `interactive` must be true when triggered by a
+ * user gesture (shows the Google account chooser); false attempts a silent
+ * refresh of an already granted scope.
+ */
+export async function authorize(interactive = true): Promise<string> {
+  if (!isGoogleConfigured()) throw new AuthRequiredError("VITE_GOOGLE_CLIENT_ID belum diisi");
+  if (isSignedIn()) return token!.access_token;
 
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+  await loadGis();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const oauth2 = (window as any).google?.accounts?.oauth2;
+  if (!oauth2) throw new SheetsError("Google Identity Services tidak tersedia");
+
+  return new Promise<string>((resolve, reject) => {
+    tokenClient = oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: SCOPES,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      callback: (resp: any) => {
+        if (resp?.error || !resp?.access_token) {
+          reject(new AuthRequiredError(resp?.error_description || resp?.error || "Login dibatalkan"));
+          return;
+        }
+        storeToken({
+          access_token: resp.access_token,
+          expires_at: Date.now() + Number(resp.expires_in ?? 3600) * 1000,
+        });
+        resolve(resp.access_token);
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      error_callback: (err: any) => {
+        const type = String(err?.type ?? "");
+        if (type === "popup_failed_to_open") {
+          reject(new AuthRequiredError("Popup Google diblokir browser. Izinkan popup lalu coba lagi."));
+          return;
+        }
+        reject(
+          new AuthRequiredError(
+            "Login Google tidak selesai. Jika jendela Google menampilkan error, pastikan alamat aplikasi ini sudah terdaftar di Authorized JavaScript origins pada OAuth Client Anda.",
+          ),
+        );
+      },
+    });
+    tokenClient.requestAccessToken({ prompt: interactive ? "" : "none" });
   });
 }
 
-export function signOut(): void {
-  const token = window.gapi.client.getToken();
-  if (token) {
-    window.gapi.client.setToken(null);
-  }
-}
+/* ───────────────────────── REST plumbing ───────────────────────── */
 
-export function isSignedIn(): boolean {
-  return !!window.gapi?.client?.getToken();
-}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function getAccessToken(): string | null {
-  return window.gapi?.client?.getToken()?.access_token || null;
-}
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (!navigator.onLine) throw new SheetsError("Perangkat sedang offline");
 
-async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
-  let attempt = 0;
-  while (attempt < maxRetries) {
-    try {
-      if (!navigator.onLine) throw new OfflineError();
-      return await operation();
-    } catch (error: any) {
-      attempt++;
-      if (error?.status === 429) {
-        if (attempt >= maxRetries) throw new RateLimitError();
-        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
-        continue;
-      }
-      if (error?.status >= 500 && attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
-        continue;
-      }
-      throw new SheetsApiError(error.message || 'API Error', error?.status);
-    }
-  }
-  throw new Error('Operation failed');
-}
-
-export async function createNewSpreadsheet(title: string): Promise<string> {
-  return withRetry(async () => {
-    const response = await window.gapi.client.sheets.spreadsheets.create({
-      resource: { properties: { title } },
-    });
-    const spreadsheetId = response.result.spreadsheetId;
-    await initializeSheetStructure(spreadsheetId);
-    return spreadsheetId;
-  });
-}
-
-export async function initializeSheetStructure(spreadsheetId: string): Promise<void> {
-  const sheets = [
-    { title: '_config', headers: ['key', 'value'] },
-    { title: 'accounts', headers: ['id', 'name', 'type', 'brand', 'balance', 'currency', 'openingBalance'] },
-    { title: 'transactions', headers: ['id', 'kind', 'date', 'description', 'category', 'accountId', 'amount', 'currency', 'baseAmount', 'tags'] },
-    { title: 'bills', headers: ['id', 'name', 'category', 'amount', 'currency', 'frequency', 'nextDueDate', 'remainingInstallments', 'active'] },
-    { title: 'debts', headers: ['id', 'name', 'person', 'type', 'total', 'paid', 'currency', 'dueDate', 'note'] },
-    { title: 'savings', headers: ['id', 'name', 'target', 'saved', 'currency', 'targetDate', 'color'] },
-    { title: 'wishlist', headers: ['id', 'name', 'price', 'currency', 'priority', 'targetDate', 'category', 'status'] },
-    { title: 'budgets', headers: ['id', 'category', 'limit', 'currency'] },
-    { title: 'categories', headers: ['id', 'name', 'archived'] }
-  ];
-
-  return withRetry(async () => {
-    // 1. Create sheets and delete Sheet1
-    const addSheetRequests = sheets.map(s => ({
-      addSheet: { properties: { title: s.title } }
-    }));
-    
-    // Attempt to delete default Sheet1 if it exists (usually sheetId 0)
-    addSheetRequests.push({
-      // @ts-ignore - deleteSheet expects sheetId
-      deleteSheet: { sheetId: 0 }
+  let lastError: SheetsError | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const accessToken = isSignedIn() ? token!.access_token : await authorize(false);
+    const res = await fetch(`${SHEETS_API}${path}`, {
+      ...init,
+      headers: {
+        ...(init.headers ?? {}),
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     });
 
-    try {
-      await window.gapi.client.sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        resource: { requests: addSheetRequests }
-      });
-    } catch(e: any) {
-      // Ignore if Sheet1 doesn't exist
-      console.warn('Batch update sheet creation (ignoring errors if sheet exists):', e);
+    if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T;
+
+    if (res.status === 401) {
+      storeToken(null);
+      if (attempt === 0) continue;
+      throw new AuthRequiredError("Sesi Google berakhir, hubungkan ulang");
     }
 
-    // 2. Set headers
-    const headerData = sheets.map(s => ({
-      range: `${s.title}!A1`,
-      values: [s.headers]
-    }));
+    const body = await res.json().catch(() => null);
+    const message =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (body as any)?.error?.message ?? `Google Sheets API error ${res.status}`;
+    lastError = new SheetsError(message, res.status);
 
-    await window.gapi.client.sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId,
-      resource: {
-        valueInputOption: 'RAW',
-        data: headerData
-      }
+    if (res.status === 429 || res.status >= 500) {
+      await sleep(2 ** attempt * 700);
+      continue;
+    }
+    throw lastError;
+  }
+  throw lastError ?? new SheetsError("Permintaan ke Google Sheets gagal");
+}
+
+/* ───────────────────────── Workbook schema ───────────────────────── */
+
+const TABS = {
+  config: "Config",
+  accounts: "Accounts",
+  transactions: "Transactions",
+  bills: "Bills",
+  debts: "Debts",
+  savings: "Savings",
+  wishlist: "Wishlist",
+  budgets: "Budgets",
+  categories: "Categories",
+} as const;
+
+type TabKey = keyof typeof TABS;
+
+const HEADERS: Record<TabKey, string[]> = {
+  config: ["key", "value"],
+  accounts: ["id", "name", "type", "brand", "balance", "currency", "openingBalance"],
+  transactions: ["id", "kind", "date", "description", "category", "accountId", "amount", "currency", "baseAmount", "tags"],
+  bills: ["id", "name", "category", "amount", "currency", "frequency", "nextDueDate", "remainingInstallments", "active"],
+  debts: ["id", "name", "person", "type", "total", "paid", "currency", "dueDate", "note"],
+  savings: ["id", "name", "target", "saved", "currency", "targetDate", "color"],
+  wishlist: ["id", "name", "price", "currency", "priority", "targetDate", "category", "status"],
+  budgets: ["id", "category", "limit", "currency"],
+  categories: ["id", "name", "archived"],
+};
+
+const TAB_KEYS = Object.keys(TABS) as TabKey[];
+const dataRange = (key: TabKey) => `'${TABS[key]}'!A2:Z`;
+
+/** Accepts a full spreadsheet URL or a bare ID and returns the ID. */
+export function extractSpreadsheetId(input: string): string {
+  const raw = input.trim();
+  const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  return raw.replace(/^\/+|\/+$/g, "");
+}
+
+export const spreadsheetUrl = (id: string) => `https://docs.google.com/spreadsheets/d/${id}/edit`;
+
+/** Creates every missing tab and (re)writes the header row. Idempotent. */
+export async function ensureStructure(spreadsheetId: string): Promise<string> {
+  const meta = await api<{
+    properties?: { title?: string };
+    sheets?: { properties?: { title?: string } }[];
+  }>(`/${spreadsheetId}?fields=properties.title,sheets.properties.title`);
+
+  const existing = new Set((meta.sheets ?? []).map((s) => s.properties?.title).filter(Boolean) as string[]);
+  const missing = TAB_KEYS.filter((key) => !existing.has(TABS[key]));
+
+  if (missing.length) {
+    await api(`/${spreadsheetId}:batchUpdate`, {
+      method: "POST",
+      body: JSON.stringify({
+        requests: missing.map((key) => ({ addSheet: { properties: { title: TABS[key] } } })),
+      }),
     });
+  }
+
+  await api(`/${spreadsheetId}/values:batchUpdate`, {
+    method: "POST",
+    body: JSON.stringify({
+      valueInputOption: "RAW",
+      data: TAB_KEYS.map((key) => ({ range: `'${TABS[key]}'!A1`, values: [HEADERS[key]] })),
+    }),
   });
+
+  return meta.properties?.title ?? "Spreadsheet";
 }
 
-export function stateToSheetData(state: FinanceState): Record<string, string[][]> {
-  const data: Record<string, string[][]> = {};
-
-  data['_config'] = [
-    ['profileName', state.profileName || ''],
-    ['baseCurrency', state.baseCurrency || 'USD'],
-    ['locale', state.locale || 'en'],
-    ['theme', state.theme || 'light'],
-    ['exchangeRates', JSON.stringify(state.exchangeRates || {})],
-    ['schedule', JSON.stringify(state.schedule || {})]
-  ];
-
-  data['accounts'] = state.accounts.map(a => [
-    a.id, a.name, a.type, a.brand, String(a.balance), a.currency, String(a.openingBalance || '')
-  ]);
-
-  data['transactions'] = state.transactions.map(t => [
-    t.id, t.kind, t.date, t.description, t.category, t.accountId, String(t.amount), t.currency, String(t.baseAmount), (t.tags || []).join('|')
-  ]);
-
-  data['bills'] = state.bills.map(b => [
-    b.id, b.name, b.category, String(b.amount), b.currency, b.frequency, b.nextDueDate, String(b.remainingInstallments || ''), String(b.active)
-  ]);
-
-  data['debts'] = state.debts.map(d => [
-    d.id, d.name, d.person, d.type, String(d.total), String(d.paid), d.currency, d.dueDate, d.note || ''
-  ]);
-
-  data['savings'] = state.savings.map(s => [
-    s.id, s.name, String(s.target), String(s.saved), s.currency, s.targetDate, s.color
-  ]);
-
-  data['wishlist'] = state.wishlist.map(w => [
-    w.id, w.name, String(w.price), w.currency, w.priority, w.targetDate, w.category, w.status
-  ]);
-
-  data['budgets'] = state.budgets.map(b => [
-    b.id, b.category, String(b.limit), b.currency
-  ]);
-
-  data['categories'] = state.categories.map(c => [
-    c.id, c.name, String(c.archived)
-  ]);
-
-  return data;
+/** Creates a brand new spreadsheet in the signed-in user's own Drive. */
+export async function createSpreadsheet(title: string): Promise<string> {
+  const created = await api<{ spreadsheetId: string }>("", {
+    method: "POST",
+    body: JSON.stringify({
+      properties: { title },
+      sheets: TAB_KEYS.map((key) => ({
+        properties: { title: TABS[key] },
+        data: [{ startRow: 0, startColumn: 0, rowData: [{ values: HEADERS[key].map((h) => ({ userEnteredValue: { stringValue: h } })) }] }],
+      })),
+    }),
+  });
+  return created.spreadsheetId;
 }
 
-export function sheetDataToState(data: Record<string, string[][]>): FinanceState {
-  const state: Partial<FinanceState> = {
-    accounts: [], transactions: [], bills: [], debts: [], savings: [], wishlist: [], budgets: [], categories: []
+/* ───────────────────────── State ⇄ rows mapping ───────────────────────── */
+
+const str = (value: unknown) => (value === undefined || value === null ? "" : String(value));
+const num = (value: string | undefined) => {
+  const parsed = Number(String(value ?? "").replace(/[^\d.,-]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+export function stateToRows(state: FinanceState): Record<TabKey, string[][]> {
+  return {
+    config: [
+      ["profileName", str(state.profileName)],
+      ["baseCurrency", str(state.baseCurrency)],
+      ["locale", str(state.locale)],
+      ["theme", str(state.theme)],
+      ["exchangeRates", JSON.stringify(state.exchangeRates ?? {})],
+      ["schedule", JSON.stringify(state.schedule ?? {})],
+    ],
+    accounts: state.accounts.map((a) => [a.id, a.name, a.type, str(a.brand), str(a.balance), a.currency, str(a.openingBalance)]),
+    transactions: state.transactions.map((t) => [
+      t.id, t.kind, t.date, t.description, t.category, t.accountId, str(t.amount), t.currency, str(t.baseAmount), (t.tags ?? []).join("|"),
+    ]),
+    bills: state.bills.map((b) => [
+      b.id, b.name, b.category, str(b.amount), b.currency, b.frequency, b.nextDueDate, str(b.remainingInstallments), str(b.active),
+    ]),
+    debts: state.debts.map((d) => [d.id, d.name, d.person, d.type, str(d.total), str(d.paid), d.currency, d.dueDate, str(d.note)]),
+    savings: state.savings.map((s) => [s.id, s.name, str(s.target), str(s.saved), s.currency, str(s.targetDate), str(s.color)]),
+    wishlist: state.wishlist.map((w) => [w.id, w.name, str(w.price), w.currency, w.priority, str(w.targetDate), w.category, w.status]),
+    budgets: state.budgets.map((b) => [b.id, b.category, str(b.limit), b.currency]),
+    categories: state.categories.map((c) => [c.id, c.name, str(c.archived)]),
   };
-
-  const configValues = data['_config'] || [];
-  configValues.forEach(row => {
-    if (row.length < 2) return;
-    const [key, value] = row;
-    if (key === 'profileName') state.profileName = value;
-    else if (key === 'baseCurrency') state.baseCurrency = value as any;
-    else if (key === 'locale') state.locale = value as any;
-    else if (key === 'theme') state.theme = value as any;
-    else if (key === 'exchangeRates') state.exchangeRates = value ? JSON.parse(value) : {};
-    else if (key === 'schedule') state.schedule = value ? JSON.parse(value) : {};
-  });
-
-  state.accounts = (data['accounts'] || []).map(r => ({
-    id: r[0], name: r[1], type: r[2] as any, brand: r[3], balance: Number(r[4] || 0), currency: r[5] as any, openingBalance: r[6] ? Number(r[6]) : undefined
-  }));
-
-  state.transactions = (data['transactions'] || []).map(r => ({
-    id: r[0], kind: r[1] as any, date: r[2], description: r[3], category: r[4], accountId: r[5], amount: Number(r[6] || 0), currency: r[7] as any, baseAmount: Number(r[8] || 0), tags: r[9] ? r[9].split('|') : []
-  }));
-
-  state.bills = (data['bills'] || []).map(r => ({
-    id: r[0], name: r[1], category: r[2], amount: Number(r[3] || 0), currency: r[4] as any, frequency: r[5] as any, nextDueDate: r[6], remainingInstallments: r[7] ? Number(r[7]) : undefined, active: r[8] === 'true'
-  }));
-
-  state.debts = (data['debts'] || []).map(r => ({
-    id: r[0], name: r[1], person: r[2], type: r[3] as any, total: Number(r[4] || 0), paid: Number(r[5] || 0), currency: r[6] as any, dueDate: r[7], note: r[8] || ''
-  }));
-
-  state.savings = (data['savings'] || []).map(r => ({
-    id: r[0], name: r[1], target: Number(r[2] || 0), saved: Number(r[3] || 0), currency: r[4] as any, targetDate: r[5], color: r[6]
-  }));
-
-  state.wishlist = (data['wishlist'] || []).map(r => ({
-    id: r[0], name: r[1], price: Number(r[2] || 0), currency: r[3] as any, priority: r[4] as any, targetDate: r[5], category: r[6], status: r[7] as any
-  }));
-
-  state.budgets = (data['budgets'] || []).map(r => ({
-    id: r[0], category: r[1], limit: Number(r[2] || 0), currency: r[3] as any
-  }));
-
-  state.categories = (data['categories'] || []).map(r => ({
-    id: r[0], name: r[1], archived: r[2] === 'true'
-  }));
-
-  return state as FinanceState;
 }
 
-async function fetchSheetCsv(spreadsheetId: string, sheetName: string): Promise<string[][]> {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const text = await res.text();
-    const lines = text.split(/\r?\n/).filter(Boolean);
-    const rows: string[][] = [];
-    for (const line of lines) {
-      const row = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-      rows.push(row.map(cell => cell.replace(/^"|"$/g, '').trim()));
+export function rowsToState(rows: Partial<Record<TabKey, string[][]>>): FinanceState {
+  const base = createInitialState();
+  const state: FinanceState = { ...base, categories: [] };
+
+  for (const row of rows.config ?? []) {
+    const [key, value] = [row[0], row[1] ?? ""];
+    try {
+      if (key === "profileName") state.profileName = value;
+      else if (key === "baseCurrency" && value) state.baseCurrency = value as FinanceState["baseCurrency"];
+      else if (key === "locale" && value) state.locale = value === "en" ? "en" : "id";
+      else if (key === "theme" && value) state.theme = value === "light" ? "light" : "dark";
+      else if (key === "exchangeRates" && value) state.exchangeRates = { ...base.exchangeRates, ...JSON.parse(value) };
+      else if (key === "schedule" && value) state.schedule = { ...base.schedule, ...JSON.parse(value) };
+    } catch {
+      /* malformed cell — keep default */
     }
-    return rows.length > 1 ? rows.slice(1) : [];
-  } catch {
-    return [];
-  }
-}
-
-export async function readFullState(spreadsheetId: string): Promise<FinanceState> {
-  const sheetNames = ['_config', 'accounts', 'transactions', 'bills', 'debts', 'savings', 'wishlist', 'budgets', 'categories'];
-  const ranges = sheetNames.map(t => `${t}!A2:Z`);
-  
-  if (window.gapi?.client?.sheets && isSignedIn()) {
-    return withRetry(async () => {
-      const res = await window.gapi.client.sheets.spreadsheets.values.batchGet({
-        spreadsheetId,
-        ranges
-      });
-
-      const data: Record<string, string[][]> = {};
-      res.result.valueRanges.forEach((vr, i) => {
-        const title = sheetNames[i];
-        data[title] = vr.values || [];
-      });
-
-      return sheetDataToState(data);
-    });
   }
 
-  // Fallback for non-OAuth mode (Spreadsheet Link & Email mode)
-  const data: Record<string, string[][]> = {};
-  for (const name of sheetNames) {
-    data[name] = await fetchSheetCsv(spreadsheetId, name);
-  }
-  return sheetDataToState(data);
-}
-
-export async function writeFullState(spreadsheetId: string, state: FinanceState): Promise<void> {
-  const data = stateToSheetData(state);
-  const updateData = Object.keys(data).map(title => ({
-    range: `${title}!A2:Z`,
-    values: data[title].length > 0 ? data[title] : [['', '', '', '', '', '', '', '', '', '']] // pad empty rows to clear
+  state.accounts = (rows.accounts ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], name: r[1] ?? "", type: (r[2] || "cash") as FinanceState["accounts"][number]["type"],
+    brand: r[3] ?? "", balance: num(r[4]), currency: (r[5] || state.baseCurrency) as FinanceState["baseCurrency"],
+    openingBalance: r[6] ? num(r[6]) : undefined,
   }));
 
-  return withRetry(async () => {
-    // We ideally should clear ranges first, but batchUpdate overwrites existing cells.
-    // However, if the new data is shorter, old data remains.
-    // For a robust clear, we can write a bunch of empty rows or call clear API, 
-    // but values.batchUpdate with enough empty strings can suffice.
-    // In production, we should call spreadsheets.values.clear before updating,
-    // but batchUpdate replaces values.
-    
-    await window.gapi.client.sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId,
-      resource: {
-        valueInputOption: 'RAW',
-        data: updateData
-      }
-    });
-  });
+  state.transactions = (rows.transactions ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], kind: r[1] === "income" ? "income" : "expense", date: r[2] ?? "", description: r[3] ?? "",
+    category: r[4] ?? "Other", accountId: r[5] ?? "", amount: num(r[6]),
+    currency: (r[7] || state.baseCurrency) as FinanceState["baseCurrency"], baseAmount: num(r[8]),
+    tags: r[9] ? r[9].split("|").filter(Boolean) : [],
+  }));
+
+  state.bills = (rows.bills ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], name: r[1] ?? "", category: r[2] ?? "Other", amount: num(r[3]),
+    currency: (r[4] || state.baseCurrency) as FinanceState["baseCurrency"],
+    frequency: r[5] === "weekly" ? "weekly" : "monthly", nextDueDate: r[6] ?? "",
+    remainingInstallments: r[7] ? num(r[7]) : undefined, active: r[8] !== "false",
+  }));
+
+  state.debts = (rows.debts ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], name: r[1] ?? "", person: r[2] ?? "", type: r[3] === "receivable" ? "receivable" : "debt",
+    total: num(r[4]), paid: num(r[5]), currency: (r[6] || state.baseCurrency) as FinanceState["baseCurrency"],
+    dueDate: r[7] ?? "", note: r[8] ?? "",
+  }));
+
+  state.savings = (rows.savings ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], name: r[1] ?? "", target: num(r[2]), saved: num(r[3]),
+    currency: (r[4] || state.baseCurrency) as FinanceState["baseCurrency"], targetDate: r[5] ?? "", color: r[6] || "#ffa116",
+  }));
+
+  state.wishlist = (rows.wishlist ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], name: r[1] ?? "", price: num(r[2]), currency: (r[3] || state.baseCurrency) as FinanceState["baseCurrency"],
+    priority: (["high", "medium", "low"].includes(r[4]) ? r[4] : "medium") as FinanceState["wishlist"][number]["priority"],
+    targetDate: r[5] ?? "", category: r[6] ?? "Lifestyle",
+    status: (["planning", "saving", "purchased"].includes(r[7]) ? r[7] : "planning") as FinanceState["wishlist"][number]["status"],
+  }));
+
+  state.budgets = (rows.budgets ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], category: r[1] ?? "Other", limit: num(r[2]), currency: (r[3] || state.baseCurrency) as FinanceState["baseCurrency"],
+  }));
+
+  const categories = (rows.categories ?? []).filter((r) => r[0]).map((r) => ({
+    id: r[0], name: r[1] ?? "", archived: r[2] === "true",
+  }));
+  state.categories = categories.length ? categories : base.categories;
+
+  return state;
 }
 
-let timeoutId: any = null;
-export function debouncedWriteState(spreadsheetId: string, state: FinanceState): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (timeoutId) clearTimeout(timeoutId);
-    timeoutId = setTimeout(async () => {
-      try {
-        await writeFullState(spreadsheetId, state);
-        resolve();
-      } catch (err) {
-        reject(err);
-      }
-    }, 2000);
+/* ───────────────────────── Read / write ───────────────────────── */
+
+export async function readState(spreadsheetId: string): Promise<FinanceState> {
+  const query = TAB_KEYS.map((key) => `ranges=${encodeURIComponent(dataRange(key))}`).join("&");
+  const fetchValues = () =>
+    api<{ valueRanges?: { values?: string[][] }[] }>(`/${spreadsheetId}/values:batchGet?${query}&majorDimension=ROWS`);
+
+  let result: { valueRanges?: { values?: string[][] }[] };
+  try {
+    result = await fetchValues();
+  } catch (error) {
+    // A tab is missing (fresh or hand-made spreadsheet) → build the schema, retry once.
+    if (error instanceof SheetsError && error.status === 400) {
+      await ensureStructure(spreadsheetId);
+      result = await fetchValues();
+    } else {
+      throw error;
+    }
+  }
+
+  const rows: Partial<Record<TabKey, string[][]>> = {};
+  TAB_KEYS.forEach((key, index) => {
+    rows[key] = result.valueRanges?.[index]?.values ?? [];
+  });
+  return rowsToState(rows);
+}
+
+export async function writeState(spreadsheetId: string, state: FinanceState): Promise<void> {
+  const rows = stateToRows(state);
+
+  // Clear first so deletions actually disappear from the sheet.
+  await api(`/${spreadsheetId}/values:batchClear`, {
+    method: "POST",
+    body: JSON.stringify({ ranges: TAB_KEYS.map(dataRange) }),
+  });
+
+  const data = TAB_KEYS
+    .filter((key) => rows[key].length > 0)
+    .map((key) => ({ range: `'${TABS[key]}'!A2`, values: rows[key] }));
+
+  if (!data.length) return;
+
+  await api(`/${spreadsheetId}/values:batchUpdate`, {
+    method: "POST",
+    body: JSON.stringify({ valueInputOption: "RAW", data }),
   });
 }
