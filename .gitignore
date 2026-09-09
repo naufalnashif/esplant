@@ -94,3 +94,9 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+launcher.sh
+*.duckdb
+backend/.env
+frontend/.env
+*.db
+*.sqlite
