@@ -31,11 +31,12 @@ export interface StorageContextValue {
 }
 
 const StorageContext = createContext<StorageContextValue | undefined>(undefined);
-const PROFILE_KEY = "esplan-user-profile";
+const PROFILE_KEY = "selfmanage-user-profile";
+const LEGACY_PROFILE_KEY = "esplan-user-profile";
 
 const readProfile = (): UserProfile | null => {
   try {
-    const raw = localStorage.getItem(PROFILE_KEY);
+    const raw = localStorage.getItem(PROFILE_KEY) ?? localStorage.getItem(LEGACY_PROFILE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<UserProfile> & { email?: string };
     if (!parsed || typeof parsed !== "object") return null;
@@ -82,6 +83,7 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
   const clearProfile = useCallback(() => {
     setProfileState(null);
     localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(LEGACY_PROFILE_KEY);
     signOutGoogle();
     setGoogleSignedIn(false);
   }, []);

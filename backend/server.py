@@ -14,9 +14,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Esplan is storage-less by design: financial data lives in the user's own Google
+# _self.manage is storage-less by design: financial data lives in the user's own Google
 # Spreadsheet (or their browser). The API therefore never receives or persists it.
-app = FastAPI(title="Esplan API")
+app = FastAPI(title="_self.manage API")
 api_router = APIRouter(prefix="/api")
 
 
@@ -27,7 +27,7 @@ async def health_check():
 
 @api_router.get("/")
 async def root():
-    return {"message": "Esplan Financial Tracker API", "persists_user_data": False}
+    return {"message": "_self.manage API", "persists_user_data": False}
 
 
 app.include_router(api_router)

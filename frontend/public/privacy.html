@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — _self.manage</title>
+    <meta name="description" content="Kebijakan privasi _self.manage: aplikasi tidak menyimpan data keuangan, email, atau token pengguna di server mana pun." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #1a1a1a;
+        color: #eff1f6;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap { max-width: 780px; margin: 0 auto; padding: 56px 22px 96px; }
+      .brand {
+        display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+        font-family: ui-monospace, "JetBrains Mono", SFMono-Regular, monospace;
+        font-size: 15px; letter-spacing: -0.02em; color: #eff1f6;
+      }
+      .brand span { color: #ffa116; }
+      .mark {
+        display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+        background: #ffa116; color: #1a1a1a; font-weight: 800; font-family: ui-monospace, monospace;
+      }
+      h1 { font-size: 34px; line-height: 1.15; letter-spacing: -0.03em; margin: 34px 0 8px; }
+      h2 { font-size: 17px; margin: 38px 0 10px; letter-spacing: -0.01em; }
+      p, li { color: #b9bec9; font-size: 14.5px; }
+      strong { color: #eff1f6; }
+      a { color: #ffa116; }
+      .meta { font-family: ui-monospace, monospace; font-size: 12px; color: #7f8694; }
+      ul { padding-left: 20px; }
+      li { margin: 6px 0; }
+      .card { border: 1px solid #3c3c3c; background: #282828; border-radius: 16px; padding: 20px 22px; margin: 22px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+      th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #3c3c3c; vertical-align: top; }
+      th { color: #eff1f6; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; }
+      td { color: #b9bec9; }
+      code { font-family: ui-monospace, monospace; font-size: 12.5px; color: #ffa116; }
+      footer { margin-top: 52px; border-top: 1px solid #3c3c3c; padding-top: 18px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <a class="brand" href="/"><span class="mark">_</span>_self<span>.manage</span></a>
+
+      <h1>Privacy Policy</h1>
+      <p class="meta">Terakhir diperbarui: 9 Juni 2026 · Berlaku untuk https://financial-tracker-v1.netlify.app</p>
+
+      <div class="card">
+        <p style="margin:0">
+          <strong>Ringkasnya:</strong> _self.manage berjalan sepenuhnya di browser Anda. Aplikasi ini
+          <strong>tidak memiliki server basis data</strong>. Catatan keuangan Anda ditulis langsung ke Google Spreadsheet
+          milik Anda sendiri, atau disimpan di penyimpanan lokal browser Anda. Kami tidak pernah menerima, melihat,
+          menjual, atau menyimpan data keuangan, alamat email, maupun token Google Anda.
+        </p>
+      </div>
+
+      <h2>1. Siapa kami</h2>
+      <p>
+        _self.manage ("aplikasi") adalah aplikasi web pencatat keuangan pribadi yang dikembangkan dan dioperasikan secara
+        perorangan. Aplikasi didistribusikan sebagai halaman statis dan dijalankan di peramban (browser) pengguna.
+      </p>
+
+      <h2>2. Data yang diakses</h2>
+      <table>
+        <tr>
+          <th>Data</th>
+          <th>Tujuan</th>
+          <th>Disimpan di server kami?</th>
+        </tr>
+        <tr>
+          <td>Isi Google Spreadsheet yang Anda pilih (transaksi, akun, anggaran, tagihan, target)</td>
+          <td>Membaca dan menulis catatan keuangan Anda saat Anda menambah, mengubah, atau menghapus data</td>
+          <td>Tidak. Data hanya berpindah antara browser Anda dan Google.</td>
+        </tr>
+        <tr>
+          <td>Access token Google (OAuth)</td>
+          <td>Mengotorisasi permintaan ke Google Sheets API atas nama Anda</td>
+          <td>Tidak. Token hanya berada di <code>sessionStorage</code> browser dan hilang saat tab ditutup.</td>
+        </tr>
+        <tr>
+          <td>ID spreadsheet &amp; nama panggilan (opsional)</td>
+          <td>Mengingat spreadsheet mana yang Anda pakai saat membuka aplikasi kembali</td>
+          <td>Tidak. Hanya di <code>localStorage</code> browser Anda.</td>
+        </tr>
+      </table>
+      <p>
+        Aplikasi tidak meminta, menyimpan, atau menampilkan alamat email Anda. Tidak ada pendaftaran akun, tidak ada
+        kata sandi, tidak ada profil pengguna di sisi kami.
+      </p>
+
+      <h2>3. Izin (scope) Google yang diminta</h2>
+      <ul>
+        <li>
+          <code>https://www.googleapis.com/auth/spreadsheets</code> — membaca dan menulis isi spreadsheet yang Anda pilih,
+          agar fitur tambah/ubah/hapus transaksi dapat bekerja.
+        </li>
+        <li>
+          <code>https://www.googleapis.com/auth/drive.file</code> — membuat berkas spreadsheet baru di Google Drive Anda
+          bila Anda memilih opsi "buat baru otomatis". Aplikasi tidak dapat melihat berkas Drive lain.
+        </li>
+      </ul>
+      <p>
+        Aplikasi tidak meminta izin untuk email, kontak, kalender, atau seluruh isi Drive Anda.
+      </p>
+
+      <h2>4. Kepatuhan Limited Use Google</h2>
+      <p>
+        Penggunaan dan pengiriman informasi yang diterima dari Google API oleh _self.manage mengikuti
+        <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer">Google API Services User Data Policy</a>,
+        termasuk persyaratan <strong>Limited Use</strong>. Secara khusus: data Google Anda hanya digunakan untuk
+        menyediakan fitur yang Anda minta di aplikasi, tidak dipakai untuk iklan, tidak dijual, tidak dibagikan ke pihak
+        ketiga, dan tidak dibaca oleh manusia mana pun.
+      </p>
+
+      <h2>5. Tidak ada pelacakan</h2>
+      <p>
+        Aplikasi tidak memasang cookie iklan, pixel, analitik pihak ketiga, maupun profil perilaku. Permintaan jaringan
+        hanya menuju domain Google (autentikasi dan Sheets API) serta penyedia hosting statis.
+      </p>
+
+      <h2>6. Penyimpanan &amp; keamanan</h2>
+      <ul>
+        <li>Semua komunikasi melalui HTTPS.</li>
+        <li>Access token bersifat sementara (±1 jam) dan tidak pernah dikirim ke server aplikasi.</li>
+        <li>Kepemilikan spreadsheet tetap sepenuhnya milik Anda, termasuk hak menghapusnya.</li>
+      </ul>
+
+      <h2>7. Mencabut akses &amp; menghapus data</h2>
+      <ul>
+        <li>
+          Cabut izin aplikasi kapan pun di
+          <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">myaccount.google.com/permissions</a>.
+        </li>
+        <li>Hapus data dengan menghapus spreadsheet Anda di Google Drive.</li>
+        <li>
+          Hapus jejak lokal dengan tombol "Lepas koneksi" di menu Pengaturan aplikasi, atau bersihkan data situs di
+          peramban Anda.
+        </li>
+      </ul>
+
+      <h2>8. Anak-anak</h2>
+      <p>Aplikasi tidak ditujukan bagi pengguna di bawah 13 tahun.</p>
+
+      <h2>9. Perubahan kebijakan</h2>
+      <p>
+        Perubahan kebijakan akan dipublikasikan di halaman ini beserta tanggal pembaruan. Perubahan material akan
+        ditampilkan di dalam aplikasi.
+      </p>
+
+      <h2>10. Kontak</h2>
+      <p>Pertanyaan tentang privasi: <a href="mailto:self.daily2026@gmail.com">self.daily2026@gmail.com</a></p>
+
+      <footer>
+        <p class="meta"><a href="/">← Kembali ke _self.manage</a> · <a href="/terms.html">Terms of Service</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -152,12 +152,69 @@
 
 .animate-rise-in { animation: rise-in 420ms ease-out both; }
 .animate-pulse-soft { animation: pulse-soft 2.6s ease-in-out infinite; }
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 620; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-draw-line {
+  stroke-dasharray: 620;
+  animation: draw-line 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: var(--card) !important;
+    color: var(--foreground) !important;
+  }
+
+  body :not(.print-area):not(.print-area *) {
+    visibility: hidden !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-area {
+    visibility: visible !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .print-area * {
+    overflow: visible !important;
+  }
+}
 .font-heading { font-family: 'Geist Variable', sans-serif; letter-spacing: -0.02em; }
 .font-data { font-family: 'JetBrains Mono Variable', monospace; }
 
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
-@media print {
-  body * { visibility: hidden !important; }
-  [data-testid="report-print-surface"], [data-testid="report-print-surface"] * { visibility: visible !important; }
-  [data-testid="report-print-surface"] { position: absolute; inset: 0; width: 100%; border: 0 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in, .animate-pulse-soft, .animate-draw-line { animation: none; }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "esplant-workspace",
+  "name": "selfmanage-workspace",
   "private": true,
   "description": "Root manifest so Netlify installs the Functions dependency (@netlify/blobs). Frontend deps live in frontend/package.json.",
   "dependencies": {

@@ -94,7 +94,7 @@ export function PDFReportModal({
     >
       <Card className="my-8 w-full max-w-3xl overflow-hidden border-border bg-card shadow-2xl">
         {/* Controls Bar (Not Printed) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 p-4 sm:p-5">
+        <div className="print-hide flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 p-4 sm:p-5">
           <div>
             <div className="flex items-center gap-2">
               <FileText size={18} className="text-primary" />
@@ -132,7 +132,7 @@ export function PDFReportModal({
         </div>
 
         {/* Period Selector Tabs (Not Printed) */}
-        <div className="flex items-center gap-1.5 border-b border-border/60 bg-background/50 px-5 py-3">
+        <div className="print-hide flex items-center gap-1.5 border-b border-border/60 bg-background/50 px-5 py-3">
           <span className="mr-2 text-xs font-bold text-muted-foreground">
             {isId ? "Filter Periode:" : "Period:"}
           </span>
@@ -156,13 +156,13 @@ export function PDFReportModal({
         {/* Printable PDF Surface */}
         <div
           data-testid="report-print-surface"
-          className="p-6 sm:p-8 space-y-6 text-foreground bg-card"
+          className="print-area p-6 sm:p-8 space-y-6 text-foreground bg-card"
         >
           {/* PDF Header */}
           <div className="flex items-start justify-between border-b border-border/80 pb-5">
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.25em] text-primary">
-                ESPLAN FINANCIAL TRACKER
+                _SELF.MANAGE
               </p>
               <h1 className="mt-1 font-heading text-2xl font-black tracking-tight">
                 {isId ? "Laporan Ringkasan Keuangan" : "Financial Summary Report"}
@@ -302,7 +302,7 @@ export function PDFReportModal({
 
           {/* Footer note */}
           <div className="border-t border-border/60 pt-3 flex justify-between items-center text-[10px] text-muted-foreground">
-            <span>Esplan Local Database · Confidential</span>
+            <span>_self.manage · Confidential</span>
             <span>{isId ? "Dokumen Resmi Keuangan Pribadi" : "Personal Financial Summary"}</span>
           </div>
         </div>
