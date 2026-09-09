@@ -29,6 +29,8 @@ import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { WishlistManager } from "@/components/WishlistManager";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { useStorage } from "@/lib/storageContext";
 import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 
@@ -84,6 +86,7 @@ const percent = (value: number, total: number) => total ? Math.min(100, Math.rou
 const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) => ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / rates[currency];
 
 export default function Home() {
+  const { profile } = useStorage();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [compareMonth, setCompareMonth] = useState(currentMonth);
@@ -139,6 +142,11 @@ export default function Home() {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
     document.documentElement.lang = state.locale === "id" ? "id" : "en";
   }, [state.locale, state.theme]);
+
+  // Check onboarding gate AFTER all hooks have executed to conform with React Rules of Hooks
+  if (!profile || !profile.onboarded) {
+    return <OnboardingFlow onComplete={() => queryClient.invalidateQueries({ queryKey: ["nusa-artha-local-state"] })} />;
+  }
 
   const updateState = (updates: Partial<FinanceState>) => save({ ...state, ...updates });
   const updateTransaction = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setTransactionForm((form) => ({ ...form, [event.target.name]: event.target.value }));

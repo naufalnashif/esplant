@@ -11,6 +11,9 @@ import {
   Upload,
   User,
   FileSpreadsheet,
+  Cloud,
+  Database,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,8 +21,171 @@ import { Card } from "@/components/ui/card";
 import type { FinanceState } from "@/lib/localDb";
 import { CategoryManager } from "@/components/CategoryManager";
 import { DataHealthPanel } from "@/components/DataHealthPanel";
+import { useStorage } from "@/lib/storageContext";
+import { readFullState, writeFullState } from "@/lib/googleSheets";
 
 type SettingsSubTab = "general" | "data";
+
+function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (nextState: FinanceState) => void }) {
+  const { profile, setProfile, setSyncStatus, lastSyncTime, setLastSyncTime } = useStorage();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const isId = state.locale === "id";
+
+  const handleManualSync = async () => {
+    if (!profile?.spreadsheetId || profile.storageMode !== "sheets") return;
+    setIsSyncing(true);
+    setSyncStatus("syncing");
+    try {
+      const remoteState = await readFullState(profile.spreadsheetId);
+      save(remoteState);
+      setSyncStatus("idle");
+      setLastSyncTime(new Date());
+      toast.success(isId ? "Data berhasil disinkronkan dari Google Sheets!" : "Successfully synced from Google Sheets!");
+    } catch (err) {
+      console.error("Sync error:", err);
+      setSyncStatus("error");
+      toast.error(isId ? "Gagal sinkronisasi dengan Google Sheets." : "Failed to sync with Google Sheets.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePushToSheets = async () => {
+    if (!profile?.spreadsheetId || profile.storageMode !== "sheets") return;
+    setIsSyncing(true);
+    setSyncStatus("syncing");
+    try {
+      await writeFullState(profile.spreadsheetId, state);
+      setSyncStatus("idle");
+      setLastSyncTime(new Date());
+      toast.success(isId ? "Data lokal berhasil di-push ke Google Sheets!" : "Local data pushed to Google Sheets!");
+    } catch (err) {
+      console.error("Push error:", err);
+      setSyncStatus("error");
+      toast.error(isId ? "Gagal mengirim data ke Google Sheets." : "Failed to push data to Google Sheets.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSwitchMode = (mode: "sheets" | "local") => {
+    if (!profile) return;
+    setProfile({ ...profile, storageMode: mode });
+    toast.success(
+      isId
+        ? `Mode penyimpanan diubah ke ${mode === "sheets" ? "Google Sheets" : "Lokal"}`
+        : `Storage mode changed to ${mode === "sheets" ? "Google Sheets" : "Local"}`
+    );
+  };
+
+  return (
+    <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/12 text-emerald-500">
+            <Database size={18} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Database Connection</p>
+            <h2 className="font-heading text-xl font-bold">{isId ? "Status & Koneksi Database" : "Database & Storage Mode"}</h2>
+          </div>
+        </div>
+        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+          profile?.storageMode === "sheets"
+            ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+            : "bg-blue-500/15 text-blue-500 border border-blue-500/30"
+        }`}>
+          {profile?.storageMode === "sheets" ? "Google Sheets" : "Lokal (Offline)"}
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        {profile?.storageMode === "sheets" ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border/60 bg-background/50 p-3.5">
+                <p className="text-xs text-muted-foreground mb-1">Spreadsheet ID</p>
+                {profile.spreadsheetId ? (
+                  <a
+                    href={profile.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${profile.spreadsheetId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-data font-bold text-primary hover:underline truncate block"
+                  >
+                    {profile.spreadsheetId} ↗
+                  </a>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">{isId ? "Belum terhubung" : "Not connected"}</p>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-background/50 p-3.5">
+                <p className="text-xs text-muted-foreground mb-1">{isId ? "Akun Google" : "Google Account"}</p>
+                <p className="text-xs font-bold text-foreground truncate">{profile.email || "—"}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+                {isId ? "Tarik Data dari Sheets" : "Pull from Sheets"}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePushToSheets}
+                disabled={isSyncing}
+                className="gap-2 border-primary/40 text-primary hover:bg-primary/10"
+              >
+                <Upload size={14} className={isSyncing ? "animate-spin" : ""} />
+                {isId ? "Push Data ke Sheets" : "Push to Sheets"}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleSwitchMode("local")}
+                className="text-xs text-muted-foreground hover:text-foreground ml-auto"
+              >
+                {isId ? "Ubah ke Mode Lokal" : "Switch to Local Mode"}
+              </Button>
+            </div>
+
+            {lastSyncTime && (
+              <p className="text-[11px] text-muted-foreground">
+                {isId ? "Terakhir sinkronisasi: " : "Last synced: "}{lastSyncTime.toLocaleTimeString()}
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {isId
+                ? "Saat ini Anda menggunakan mode lokal. Data disimpan secara aman di browser peranti ini (IndexedDB)."
+                : "You are using local storage mode. Data is stored safely in this browser (IndexedDB)."}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSwitchMode("sheets")}
+              className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <Cloud size={14} />
+              {isId ? "Aktifkan Sync Google Sheets" : "Enable Google Sheets Sync"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export function SettingsPanel({
   state,
@@ -239,6 +405,9 @@ export function SettingsPanel({
               </div>
             </div>
           </Card>
+
+          {/* Database & Storage Mode */}
+          <DatabaseConnectionCard state={state} save={save} />
 
           {/* Category Management */}
           <CategoryManager state={state} onSave={(categories) => updateState({ categories })} />

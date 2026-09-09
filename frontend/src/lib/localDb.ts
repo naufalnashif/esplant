@@ -210,6 +210,16 @@ export const saveLocalStateOnly = async (state: FinanceState): Promise<void> => 
   } catch {}
 };
 
+export const getUserProfileFromStorage = () => {
+  try {
+    const raw = localStorage.getItem("esplan-user-profile");
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 export const saveApiState = async (state: FinanceState) => {
   try {
     await fetch("/api/state", {
@@ -221,7 +231,24 @@ export const saveApiState = async (state: FinanceState) => {
 };
 
 export const loadState = async (): Promise<FinanceState> => {
-  // 1. Try loading from MongoDB API backend first
+  const profile = getUserProfileFromStorage();
+  if (profile?.storageMode === "sheets" && profile.spreadsheetId) {
+    try {
+      const { readFullState, isSignedIn } = await import("./googleSheets");
+      if (isSignedIn()) {
+        const sheetsState = await readFullState(profile.spreadsheetId);
+        const sanitized = sanitizeImportedState(sheetsState);
+        if (sanitized) {
+          await saveLocalStateOnly(sanitized);
+          return sanitized;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load from Google Sheets, falling back to local storage:", err);
+    }
+  }
+
+  // 1. Try loading from backend API if available
   try {
     const res = await fetch("/api/state");
     if (res.ok) {
@@ -270,6 +297,19 @@ export const loadState = async (): Promise<FinanceState> => {
 export const saveState = async (state: FinanceState): Promise<FinanceState> => {
   await saveLocalStateOnly(state);
   saveApiState(state);
+
+  const profile = getUserProfileFromStorage();
+  if (profile?.storageMode === "sheets" && profile.spreadsheetId) {
+    try {
+      const { debouncedWriteState, isSignedIn } = await import("./googleSheets");
+      if (isSignedIn()) {
+        debouncedWriteState(profile.spreadsheetId, state).catch((err) => {
+          console.error("Background Sheets sync failed:", err);
+        });
+      }
+    } catch {}
+  }
+
   return state;
 };
 
