@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import {
-  ArrowUpRight, CalendarClock, CircleDollarSign, FileSpreadsheet, Lock, RefreshCw, ShieldCheck,
+  ArrowUpRight, CalendarClock, FileSpreadsheet, Lock, RefreshCw, ShieldCheck,
   Sparkles, TrendingDown, TrendingUp, WalletCards,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { BrandMark } from "@/components/BrandMark";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 
 const flow = [
@@ -37,8 +37,46 @@ const features = [
   { icon: Lock, title: "Tanpa data pribadi tersimpan", body: "Tidak ada email, token, atau ID spreadsheet yang dikirim ke server aplikasi." },
 ];
 
-export function LandingPreview() {
-  const [showConnect, setShowConnect] = useState(false);
+const W = 300;
+const H = 112;
+const points = (key: "income" | "expense") => {
+  const values = flow.map((item) => item[key]);
+  const min = Math.min(...flow.map((f) => Math.min(f.income, f.expense))) - 0.8;
+  const max = Math.max(...flow.map((f) => Math.max(f.income, f.expense))) + 0.8;
+  return values.map((value, index) => [
+    (index / (values.length - 1)) * W,
+    H - ((value - min) / (max - min)) * (H - 12) - 6,
+  ] as const);
+};
+
+const smooth = (pts: readonly (readonly [number, number])[]) =>
+  pts.reduce((path, [x, y], index) => {
+    if (index === 0) return `M ${x} ${y}`;
+    const [px, py] = pts[index - 1];
+    const cx = (px + x) / 2;
+    return `${path} C ${cx} ${py} ${cx} ${y} ${x} ${y}`;
+  }, "");
+
+/** Dependency-free sparkline: keeps the first paint tiny. */
+function Sparkline() {
+  const income = points("income");
+  const expense = points("expense");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-hidden="true">
+      <defs>
+        <linearGradient id="landing-flow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2cbb5d" stopOpacity="0.34" />
+          <stop offset="100%" stopColor="#2cbb5d" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${smooth(income)} L ${W} ${H} L 0 ${H} Z`} fill="url(#landing-flow)" />
+      <path d={smooth(income)} fill="none" stroke="#2cbb5d" strokeWidth="2" strokeLinecap="round" className="animate-draw-line" />
+      <path d={smooth(expense)} fill="none" stroke="#ef4743" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 4" opacity="0.85" />
+    </svg>
+  );
+}
+
+export function LandingPreview() {  const [showConnect, setShowConnect] = useState(false);
 
   return (
     <div className="relative min-h-svh overflow-hidden bg-background text-foreground">
@@ -50,22 +88,26 @@ export function LandingPreview() {
       <div className="relative mx-auto max-w-[1180px] px-5 pb-20 pt-7 sm:px-8">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-              <CircleDollarSign size={21} />
-            </div>
-            <div>
-              <p className="font-heading text-lg font-extrabold leading-none tracking-tight">Esplan</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Money, made clear</p>
-            </div>
+            <BrandMark size="lg" showTagline />
           </div>
-          <Button
-            data-testid="landing-connect-header-button"
-            onClick={() => setShowConnect(true)}
-            className="h-10 gap-2 text-xs font-bold shadow-lg shadow-primary/20"
-          >
-            <FileSpreadsheet size={14} />
-            Hubungkan Spreadsheet
-          </Button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/privacy.html"
+              data-testid="landing-privacy-link"
+              className="hidden rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground sm:block"
+            >
+              Privasi
+            </a>
+            <Button
+              data-testid="landing-connect-header-button"
+              onClick={() => setShowConnect(true)}
+              className="h-10 gap-2 text-xs font-bold shadow-lg shadow-primary/20"
+            >
+              <FileSpreadsheet size={14} />
+              <span className="sm:hidden">Hubungkan</span>
+              <span className="hidden sm:inline">Hubungkan Spreadsheet</span>
+            </Button>
+          </div>
         </header>
 
         <section className="animate-rise-in mt-14 max-w-2xl">
@@ -73,11 +115,12 @@ export function LandingPreview() {
             <Sparkles size={11} /> Google Sheets sebagai database Anda
           </span>
           <h1 className="mt-5 font-heading text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
-            Catat keuangan tanpa menyerahkan data Anda.
+            Kelola uang di spreadsheet Anda sendiri.
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Ini pratinjau dashboard Esplan dengan data contoh. Hubungkan spreadsheet Anda untuk mulai mencatat — semua tambah,
-            ubah, dan hapus langsung tersimpan di Google Sheet milik Anda sendiri.
+            <span className="font-heading font-bold text-foreground">_self.manage</span> menulis setiap transaksi langsung ke
+            Google Spreadsheet milik Anda. Di bawah ini pratinjau dashboard dengan data contoh — hubungkan spreadsheet Anda
+            untuk mulai menambah, mengubah, dan menghapus data sungguhan.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Button
@@ -136,18 +179,7 @@ export function LandingPreview() {
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Smart snapshot</p>
               <p className="mt-2 font-heading text-lg font-bold">Arus kas 6 bulan</p>
               <div className="mt-5 h-[112px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={flow}>
-                    <defs>
-                      <linearGradient id="landing-flow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ffa116" stopOpacity={0.42} />
-                        <stop offset="100%" stopColor="#ffa116" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="income" stroke="#2cbb5d" strokeWidth={2} fill="url(#landing-flow)" isAnimationActive={false} />
-                    <Area type="monotone" dataKey="expense" stroke="#ef4743" strokeWidth={2} fill="transparent" isAnimationActive={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <Sparkline />
               </div>
               <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
                 <span className="flex items-center gap-1"><i className="size-2 rounded-full bg-emerald-400" /> Pemasukan</span>
@@ -202,6 +234,18 @@ export function LandingPreview() {
             Hubungkan Spreadsheet
           </Button>
         </section>
+
+        <footer className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-7 sm:flex-row">
+          <BrandMark size="sm" />
+          <div className="flex items-center gap-5 text-[11px] font-semibold text-muted-foreground">
+            <a href="/privacy.html" className="transition-colors hover:text-foreground" data-testid="footer-privacy-link">
+              Privacy Policy
+            </a>
+            <a href="/terms.html" className="transition-colors hover:text-foreground" data-testid="footer-terms-link">
+              Terms of Service
+            </a>
+          </div>
+        </footer>
       </div>
 
       <ConnectSheetDialog open={showConnect} onClose={() => setShowConnect(false)} />

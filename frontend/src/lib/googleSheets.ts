@@ -19,7 +19,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
 ].join(" ");
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
-const TOKEN_KEY = "esplan-google-token";
+const TOKEN_KEY = "selfmanage-google-token";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
 
 export class SheetsError extends Error {

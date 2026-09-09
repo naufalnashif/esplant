@@ -233,7 +233,7 @@ export function SettingsPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "esplant_template_transaksi.csv";
+    a.download = "selfmanage_template_transaksi.csv";
     a.click();
     URL.revokeObjectURL(url);
     toast.success(isId ? "Template CSV transaksi berhasil di-download." : "CSV template downloaded.");
@@ -257,7 +257,7 @@ export function SettingsPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "esplant_template_backup.json";
+    a.download = "selfmanage_template_backup.json";
     a.click();
     URL.revokeObjectURL(url);
     toast.success(isId ? "Template JSON berhasil di-download." : "JSON template downloaded.");
@@ -269,7 +269,7 @@ export function SettingsPanel({
       <div>
         <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Control room / settings</p>
         <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">
-          {isId ? "Pengaturan Esplan" : "Esplan Settings"}
+          {isId ? "Pengaturan _self.manage" : "_self.manage Settings"}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           {isId
@@ -544,7 +544,7 @@ export function SettingsPanel({
                   <code className="font-data bg-secondary px-1 py-0.5 rounded text-[10px]">income</code> (pemasukan).
                 </li>
                 <li>
-                  <strong className="text-foreground">Format JSON Backup:</strong> Menerima file backup full state Esplan atau array transaksi.
+                  <strong className="text-foreground">Format JSON Backup:</strong> Menerima file backup full state _self.manage atau array transaksi.
                 </li>
               </ul>
             </div>
