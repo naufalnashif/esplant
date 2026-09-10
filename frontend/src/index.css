@@ -153,6 +153,18 @@
 .animate-rise-in { animation: rise-in 420ms ease-out both; }
 .animate-pulse-soft { animation: pulse-soft 2.6s ease-in-out infinite; }
 
+/* Mobile bottom-sheet & drawer entrances (layout-only motion). */
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-sheet-up { animation: sheet-up 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-drawer-in { animation: drawer-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 @keyframes draw-line {
   from { stroke-dashoffset: 620; }
   to { stroke-dashoffset: 0; }
@@ -161,6 +173,34 @@
 .animate-draw-line {
   stroke-dasharray: 620;
   animation: draw-line 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Scroll-reveal: elements fade/slide up when they enter the viewport. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 620ms cubic-bezier(0.16, 1, 0.3, 1), transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Infinite logo marquee (two copies side by side, translate -50%). Pause on hover. */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee-scroll 32s linear infinite;
+}
+.marquee-track:hover .animate-marquee {
+  animation-play-state: paused;
+}
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
 }
 
 @media print {
@@ -190,6 +230,12 @@
     display: none !important;
   }
 
+  .print-sheet {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   .print-area {
     visibility: visible !important;
     position: absolute !important;
@@ -216,5 +262,6 @@
 
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-rise-in, .animate-pulse-soft, .animate-draw-line { animation: none; }
+  .animate-rise-in, .animate-pulse-soft, .animate-draw-line, .animate-marquee, .animate-sheet-up, .animate-drawer-in { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
 }

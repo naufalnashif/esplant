@@ -261,8 +261,8 @@ export function CommitmentsPanel({
       </div>
 
       {/* KPI Dashboard Section */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" data-testid="debt-dashboard">
-        <Card className="border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" data-testid="debt-dashboard">
+        <Card className="min-w-0 border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="grid size-10 place-items-center rounded-xl bg-red-500/12 text-red-400">
               <ArrowUpRight size={19} />
@@ -272,7 +272,7 @@ export function CommitmentsPanel({
             </Badge>
           </div>
           <p className="text-xs font-semibold text-muted-foreground">{isId ? "Total Utang Saya" : "Total Debt Owed"}</p>
-          <p className="mt-1 font-data text-2xl font-bold tracking-tight text-red-400" data-testid="kpi-total-debt">
+          <p className="mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-2xl text-red-400" data-testid="kpi-total-debt">
             {formatMoney(totalDebt, state.baseCurrency, state.locale, true)}
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">
@@ -280,7 +280,7 @@ export function CommitmentsPanel({
           </p>
         </Card>
 
-        <Card className="border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl">
+        <Card className="min-w-0 border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/12 text-emerald-400">
               <ArrowDownLeft size={19} />
@@ -290,7 +290,7 @@ export function CommitmentsPanel({
             </Badge>
           </div>
           <p className="text-xs font-semibold text-muted-foreground">{isId ? "Total Piutang Saya" : "Total Receivables"}</p>
-          <p className="mt-1 font-data text-2xl font-bold tracking-tight text-emerald-400" data-testid="kpi-total-receivables">
+          <p className="mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-2xl text-emerald-400" data-testid="kpi-total-receivables">
             {formatMoney(totalReceivables, state.baseCurrency, state.locale, true)}
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">
@@ -298,7 +298,7 @@ export function CommitmentsPanel({
           </p>
         </Card>
 
-        <Card className="border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl">
+        <Card className="min-w-0 border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="grid size-10 place-items-center rounded-xl bg-amber-500/12 text-amber-400">
               <CalendarClock size={19} />
@@ -308,7 +308,7 @@ export function CommitmentsPanel({
             </Badge>
           </div>
           <p className="text-xs font-semibold text-muted-foreground">{isId ? "Cicilan/Tagihan Aktif" : "Active Bills Due"}</p>
-          <p className="mt-1 font-data text-2xl font-bold tracking-tight text-amber-400" data-testid="kpi-total-bills">
+          <p className="mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-2xl text-amber-400" data-testid="kpi-total-bills">
             {formatMoney(totalBillsThisMonth, state.baseCurrency, state.locale, true)}
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">
@@ -316,7 +316,7 @@ export function CommitmentsPanel({
           </p>
         </Card>
 
-        <Card className="border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl">
+        <Card className="min-w-0 border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="grid size-10 place-items-center rounded-xl bg-indigo-500/12 text-indigo-400">
               <Landmark size={19} />
@@ -326,7 +326,7 @@ export function CommitmentsPanel({
             </Badge>
           </div>
           <p className="text-xs font-semibold text-muted-foreground">{isId ? "Total Tanggungan Net" : "Net Pending Obligations"}</p>
-          <p className="mt-1 font-data text-2xl font-bold tracking-tight text-foreground" data-testid="kpi-net-obligations">
+          <p className="mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-2xl text-foreground" data-testid="kpi-net-obligations">
             {formatMoney(netObligations, state.baseCurrency, state.locale, true)}
           </p>
           <p className="mt-2 text-[11px] text-muted-foreground">

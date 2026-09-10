@@ -9,8 +9,8 @@ import {
 import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, Check, ChevronRight,
   Landmark, LayoutDashboard,
-  Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck,
-  Sun, Target, TrendingDown, TrendingUp, WalletCards, X,
+  Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
+  Sun, Target, TrendingDown, TrendingUp, WalletCards,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,13 +32,19 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview } from "@/components/LandingPreview";
 import { BrandMark } from "@/components/BrandMark";
+import { BottomSheet } from "@/components/mobile/BottomSheet";
+import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
+import { MobileNav } from "@/components/mobile/MobileNav";
+import { MobileOverview } from "@/components/mobile/MobileOverview";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useStorage } from "@/lib/storageContext";
 import { authorize, isSignedIn } from "@/lib/googleSheets";
 import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
+import { CATEGORY_COLORS, useOverviewStats } from "@/lib/overviewStats";
+import { createSampleState } from "@/lib/sampleData";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
-const CATEGORY_COLORS = ["#ffa116", "#60a5fa", "#2cbb5d", "#ef4743", "#a78bfa", "#22d3ee"];
 const categoryFallbacks = ["Food", "Transport", "Housing", "Utilities", "Family", "Lifestyle", "Health", "Education"];
 const currentMonth = new Date().toISOString().slice(0, 7);
 
@@ -91,6 +97,7 @@ const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchange
 export default function Home() {
   const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime } = useStorage();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState<Tab>("overview");
   const [compareMonth, setCompareMonth] = useState(currentMonth);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -338,10 +345,12 @@ export default function Home() {
     toast.success(state.locale === "id" ? "Semua data dihapus. Mulai dari nol." : "All data erased. Starting from zero.");
   };
   const openAddTransaction = () => { setEditingTransaction(null); setTransactionForm((form) => ({ ...form, accountId: form.accountId || state.accounts[0]?.id || "" })); setShowTransactionForm(true); };
+  const loadSample = storageMode === "local" ? () => { save(createSampleState(state)); toast.success(state.locale === "id" ? "Data contoh dimuat. Hapus kapan saja lewat Pengaturan." : "Sample data loaded. Erase anytime from Settings."); } : undefined;
 
   const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
     { key: "overview", label: t.overview, icon: LayoutDashboard }, { key: "transactions", label: t.transactions, icon: ReceiptText }, { key: "commitments", label: t.commitments, icon: Landmark }, { key: "goals", label: t.goals, icon: Target }, { key: "accounts", label: t.accounts, icon: WalletCards }, { key: "settings", label: t.settings, icon: Settings2 },
   ];
+  const activeNavLabel = navItems.find((item) => item.key === tab)?.label ?? "";
   const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
 
@@ -355,24 +364,26 @@ export default function Home() {
           <div className="mt-auto rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
         </aside>
         <main className="min-w-0 flex-1 pb-24 lg:pb-8">
-          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-background/85 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-10" data-testid="app-header">
-            <div className="flex items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${navItems.find((item) => item.key === tab)?.label}`}</p><p className="font-heading text-sm font-bold lg:hidden">_self.manage</p></div></div>
-            <div className="flex items-center gap-2 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => { void (async () => { if (storageMode === "sheets" && !isSignedIn()) { try { await authorize(true); } catch { toast.error("Login Google diperlukan untuk sinkronisasi."); return; } } await stateQuery.refetch(); })(); }} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-9 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "_self.manage"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white">{(state.profileName || "S").slice(0, 1).toUpperCase()}</div></div>
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
+            <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => { void (async () => { if (storageMode === "sheets" && !isSignedIn()) { try { await authorize(true); } catch { toast.error("Login Google diperlukan untuk sinkronisasi."); return; } } await stateQuery.refetch(); })(); }} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "_self.manage"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white sm:size-9">{(state.profileName || "S").slice(0, 1).toUpperCase()}</div></div>
           </header>
-          <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-            {tab === "overview" && <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} accountName={accountName} />}
+          <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
+            {tab === "overview" && (isMobile
+              ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
+              : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={(accountId) => state.accounts.find((account) => account.id === accountId)?.name ?? "—"} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
             {tab === "commitments" && <CommitmentsPanel state={state} onSave={save} />}
             {tab === "goals" && <GoalsPanel state={state} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onCommit={commitSavings} />}
             {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
             {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onCsv={exportCsv} onJson={exportJson} onImport={importJson} onImportCsv={importCsv} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
-          {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></div>}
-          {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><InsightsPanel state={state} currentMonth={compareMonth} /></div>}
+          {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
+          {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><MobileDisclosure testid="mobile-insights-section" title={state.locale === "id" ? "Insight & rekomendasi" : "Insights & recommendations"} hint={state.locale === "id" ? "Kesehatan kas, tren kategori, budget" : "Cash health, category trends, budgets"} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><InsightsPanel state={state} currentMonth={compareMonth} /></MobileDisclosure></div>}
           {tab === "goals" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><WishlistManager state={state} onSave={save} /></div>}
         </main>
       </div>
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t border-border/70 bg-card/95 px-1 py-2 backdrop-blur-xl lg:hidden" data-testid="mobile-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`mobile-nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[9px] font-semibold transition-colors ${tab === item.key ? "text-primary" : "text-muted-foreground"}`}><Icon size={18} /><span className="max-w-full truncate px-0.5">{item.label}</span></button>; })}</nav>
+      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
     </div>
@@ -418,6 +429,7 @@ function Overview({
   setCompareMonth,
   onAdd,
   onNavigate,
+  onLoadSample,
   accountName,
 }: {
   state: FinanceState;
@@ -434,110 +446,12 @@ function Overview({
   setCompareMonth: (value: string) => void;
   onAdd: () => void;
   onNavigate: (tab: Tab) => void;
+  onLoadSample?: () => void;
   accountName: (id: string) => string;
 }) {
-  const isId = state.locale === "id";
-  const [periodFilter, setPeriodFilter] = useState<"today" | "week" | "month" | "year" | "all">("month");
+  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
   const [showMatrix, setShowMatrix] = useState(true);
-
-  const displayRate = state.exchangeRates[state.baseCurrency] || 1;
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const monthIso = todayIso.slice(0, 7);
-  const yearIso = todayIso.slice(0, 4);
-
-  // Week bounds (Monday to Sunday)
-  const getWeekBounds = (dateStr: string) => {
-    const d = new Date(`${dateStr}T00:00:00`);
-    const day = d.getDay();
-    const diffToMon = d.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(d.setDate(diffToMon));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return {
-      start: monday.toISOString().slice(0, 10),
-      end: sunday.toISOString().slice(0, 10),
-    };
-  };
-
-  const weekBounds = useMemo(() => getWeekBounds(todayIso), [todayIso]);
-
-  // Active bills
-  const activeBills = useMemo(() => {
-    return state.bills.filter(
-      (b) => b.active !== false && (b.remainingInstallments === undefined || b.remainingInstallments > 0)
-    );
-  }, [state.bills]);
-
-  // Filter bills according to active periodFilter (today, week, month, year, all)
-  const filteredBillsByPeriod = useMemo(() => {
-    return activeBills.filter((bill) => {
-      if (periodFilter === "all") return true;
-      if (periodFilter === "today") return bill.nextDueDate === todayIso;
-      if (periodFilter === "week") return bill.nextDueDate >= weekBounds.start && bill.nextDueDate <= weekBounds.end;
-      if (periodFilter === "month") return bill.nextDueDate.slice(0, 7) === monthIso;
-      if (periodFilter === "year") return bill.nextDueDate.slice(0, 4) === yearIso;
-      return true;
-    });
-  }, [activeBills, periodFilter, todayIso, weekBounds, monthIso, yearIso]);
-
-  const upcoming = useMemo(() => {
-    return [...filteredBillsByPeriod].sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate)).slice(0, 4);
-  }, [filteredBillsByPeriod]);
-
-  const periodCommitted = useMemo(() => {
-    return filteredBillsByPeriod.reduce(
-      (sum, bill) => sum + toBase(bill.amount, bill.currency, state.exchangeRates),
-      0
-    ) / displayRate;
-  }, [filteredBillsByPeriod, state.exchangeRates, state.baseCurrency, displayRate]);
-
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-
-  const monthOptions = useMemo(() => {
-    const options = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = d.toISOString().slice(0, 7);
-      const label = new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", {
-        month: "long",
-        year: "numeric",
-      }).format(d);
-      options.push({ value, label });
-    }
-    return options;
-  }, [state.locale]);
-
-  // Helper for computing income/expense/net for a transaction subset
-  const calcStats = (txs: Transaction[]) => {
-    const income = txs.filter((t) => t.kind === "income").reduce((s, t) => s + t.baseAmount, 0) / displayRate;
-    const expense = txs.filter((t) => t.kind === "expense").reduce((s, t) => s + t.baseAmount, 0) / displayRate;
-    return { income, expense, net: income - expense, count: txs.length };
-  };
-
-  const periodStats = useMemo(() => {
-    return {
-      today: calcStats(state.transactions.filter((t) => t.date === todayIso)),
-      week: calcStats(state.transactions.filter((t) => t.date >= weekBounds.start && t.date <= weekBounds.end)),
-      month: calcStats(state.transactions.filter((t) => t.date.slice(0, 7) === monthIso)),
-      year: calcStats(state.transactions.filter((t) => t.date.slice(0, 4) === yearIso)),
-      all: calcStats(state.transactions),
-    };
-  }, [state.transactions, todayIso, weekBounds, monthIso, yearIso, displayRate]);
-
-  // Selected period active stats
-  const activeStats = periodStats[periodFilter];
-
-  const periodLabels = {
-    today: isId ? "Hari ini" : "Today",
-    week: isId ? "Minggu ini" : "This Week",
-    month: isId ? "Bulan ini" : "This Month",
-    year: isId ? "Tahun ini" : "This Year",
-    all: isId ? "Semua Waktu" : "All Time",
-  };
-
-  const previousIncome = state.transactions.filter((item) => monthKey(item.date) === previousMonth(currentMonth) && item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const incomeDelta = previousIncome ? Math.round(((currentIncome - previousIncome) / previousIncome) * 100) : 0;
 
   return (
     <div className="animate-rise-in">
@@ -579,6 +493,12 @@ function Overview({
               <Button data-testid="onboarding-import-button" variant="outline" onClick={() => onNavigate("settings")} className="gap-2">
                 {isId ? "Impor JSON" : "Import JSON"}
               </Button>
+              {onLoadSample && (
+                <Button data-testid="onboarding-load-sample-button" variant="ghost" onClick={onLoadSample} className="gap-2 text-primary hover:text-primary">
+                  <Sparkles size={15} />
+                  {isId ? "Muat data contoh" : "Load sample data"}
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -997,62 +917,55 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
     : t.save;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" data-testid="transaction-modal">
-      <Card className="max-h-[92vh] w-full max-w-xl overflow-y-auto border-border bg-card p-5 shadow-2xl sm:p-7">
-        <div className="mb-6 flex items-start justify-between">
-          <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-              {editingTransaction ? (isId ? "Mode Edit" : "Edit Mode") : "Quick capture"}
-            </p>
-            <h2 className="font-heading text-2xl font-extrabold">{title}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isId ? "Data tersimpan ke database lokal & PostgreSQL." : "Validated locally, saved to database."}
-            </p>
-          </div>
-          <button type="button" data-testid="transaction-modal-close-button" onClick={onClose} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary">
-            <X size={17} />
-          </button>
+    <BottomSheet
+      open
+      onClose={onClose}
+      testid="transaction-modal"
+      eyebrow={editingTransaction ? (isId ? "Mode Edit" : "Edit Mode") : "Quick capture"}
+      title={title}
+      description={isId ? "Data tersimpan ke database lokal & PostgreSQL." : "Validated locally, saved to database."}
+      footer={
+        <div className="flex gap-2 sm:justify-end">
+          <Button data-testid="transaction-cancel-button" type="button" variant="ghost" onClick={onClose}>{t.cancel}</Button>
+          <Button data-testid="transaction-submit-button" type="submit" form="transaction-form" className="flex-1 gap-2 sm:flex-none"><Check size={16} />{submitText}</Button>
         </div>
-        <form onSubmit={onSubmit} data-testid="transaction-form" className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary/60 p-1">
-            <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "expense" ? "bg-card text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
-            <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-xs font-semibold text-muted-foreground">{t.amount} *</span>
-              <div className="flex gap-2">
-                <input data-testid="transaction-amount-input" required min="1" type="number" name="amount" value={form.amount} onChange={onChange} placeholder="0" className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary" />
-                <select data-testid="transaction-currency-select" name="currency" value={form.currency} onChange={onChange} className="h-11 rounded-lg border border-border bg-background px-3 text-xs font-bold">{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select>
-              </div>
-            </label>
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-xs font-semibold text-muted-foreground">{t.description} *</span>
-              <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, gaji, PLN token" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-muted-foreground">{t.category}</span>
-              <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{categories.map((category) => <option key={category}>{category}</option>)}</select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-muted-foreground">{t.account}</span>
-              <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-muted-foreground">{t.date}</span>
-              <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs" />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-muted-foreground">{t.tags}</span>
-              <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
-            </label>
-          </div>
-          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
-            <Button data-testid="transaction-cancel-button" type="button" variant="ghost" onClick={onClose}>{t.cancel}</Button>
-            <Button data-testid="transaction-submit-button" type="submit" className="gap-2"><Check size={16} />{submitText}</Button>
-          </div>
-        </form>
-      </Card>
-    </div>
+      }
+    >
+      <form id="transaction-form" onSubmit={onSubmit} data-testid="transaction-form" className="space-y-3 sm:space-y-4">
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary/60 p-1">
+          <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "expense" ? "bg-card text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
+          <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <label className="col-span-2 block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.amount} *</span>
+            <div className="flex gap-2">
+              <input data-testid="transaction-amount-input" required min="1" type="number" name="amount" value={form.amount} onChange={onChange} placeholder="0" className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary" />
+              <select data-testid="transaction-currency-select" name="currency" value={form.currency} onChange={onChange} className="h-11 rounded-lg border border-border bg-background px-3 text-xs font-bold">{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select>
+            </div>
+          </label>
+          <label className="col-span-2 block">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.description} *</span>
+            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, gaji, PLN token" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.category}</span>
+            <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{categories.map((category) => <option key={category}>{category}</option>)}</select>
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.account}</span>
+            <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.date}</span>
+            <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-xs" />
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.tags}</span>
+            <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+          </label>
+        </div>
+      </form>
+    </BottomSheet>
   );
 }

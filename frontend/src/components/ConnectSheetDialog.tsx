@@ -21,7 +21,7 @@ type Mode = "existing" | "new";
 const hasData = (state: { accounts: unknown[]; transactions: unknown[] }) =>
   state.accounts.length > 0 || state.transactions.length > 0;
 
-export function ConnectSheetDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ConnectSheetDialog({ open, onClose, onConnected }: { open: boolean; onClose: () => void; onConnected?: () => void }) {
   const { setProfile } = useStorage();
   const [mode, setMode] = useState<Mode>("existing");
   const [nickname, setNickname] = useState("");
@@ -41,8 +41,9 @@ export function ConnectSheetDialog({ open, onClose }: { open: boolean; onClose: 
         onboarded: true,
       });
       onClose();
+      onConnected?.();
     },
-    [nickname, onClose, setProfile],
+    [nickname, onClose, onConnected, setProfile],
   );
 
   const handleConnect = async () => {

@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only regression + feature testing for branding (title/favicon) and the four new documentation routes (/docs, /faq, /terms, /privacy). All 11 requested scenarios passed. No console errors, no page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "landing_title": "PASS - '_self.manage — Money, made clear'",
+    "favicon": "PASS - /favicon.svg loaded",
+    "landing_page_regression": "PASS - hero + KPIs render, no console errors",
+    "landing_nav_links": "PASS - landing-docs-link, landing-faq-link, landing-privacy-link all navigate correctly",
+    "footer_links": "PASS - footer-docs-link, footer-faq-link, footer-privacy-link, footer-terms-link all visible and functional",
+    "docs_route": "PASS - /docs shows docs-page",
+    "faq_route_search": "PASS - 10 FAQ items; 'kuota' filter -> 2 items; 'zzzzz' -> faq-empty visible",
+    "faq_expand_collapse": "PASS - toggle expands (1 answer) and collapses (0 answers)",
+    "terms_privacy_routes": "PASS - terms-page and privacy-page render",
+    "doc_top_nav": "PASS - doc-nav-docs/faq/privacy/terms all switch routes; doc-back-to-app returns to /",
+    "cross_links": "PASS - docs-faq-link -> /faq, terms-privacy-link -> /privacy, privacy-terms-link -> /terms",
+    "local_mode_regression": "PASS - landing-try-local-button opens dialog, connect-local-button enters workspace (loading state 'memuat workspace...' shown, landing dismissed)",
+    "doc_page_titles": "PASS - title remains '_self.manage — Money, made clear' on doc routes"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Doc pages inherit the global <title>. If per-page titles (e.g., 'FAQ — _self.manage') are desired for SEO/tab-clarity, consider adding a lightweight document.title effect in each doc page.",
+    "The catch-all route sending unknown paths to Workspace is fine, but a real 404 page would improve UX."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "N/A - single-user local app, no auth in scope",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Frontend preview URL: https://af5f1be4-55ae-4661-b15b-0d83f2a84a26.preview.emergentagent.com . All branding + docs data-testids are stable. Google Sheets OAuth is disabled (empty VITE_GOOGLE_CLIENT_ID); only local mode is testable. Local-mode entry via landing-try-local-button -> connect-local-button routes user to workspace which shows a 'memuat workspace...' loader briefly."
+}

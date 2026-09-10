@@ -87,18 +87,20 @@ export function PDFReportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 backdrop-blur-md sm:grid sm:place-items-center sm:overflow-y-auto sm:p-4"
       role="dialog"
       aria-modal="true"
       data-testid="pdf-report-modal"
     >
-      <Card className="my-8 w-full max-w-3xl overflow-hidden border-border bg-card shadow-2xl">
+      <button type="button" aria-label="Tutup" onClick={onClose} className="print-hide absolute inset-0 cursor-default" data-testid="pdf-report-modal-backdrop" />
+      <Card className="print-sheet animate-sheet-up relative flex max-h-[85svh] w-[calc(100%-16px)] flex-col overflow-hidden rounded-b-none rounded-t-3xl border-border bg-card shadow-2xl sm:my-8 sm:block sm:max-h-none sm:w-full sm:max-w-3xl sm:animate-none sm:rounded-xl">
+        <div className="print-hide mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" aria-hidden="true" />
         {/* Controls Bar (Not Printed) */}
-        <div className="print-hide flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 p-4 sm:p-5">
-          <div>
+        <div className="print-hide flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 p-3 sm:p-5">
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <FileText size={18} className="text-primary" />
-              <h2 className="font-heading text-lg font-extrabold">
+              <FileText size={18} className="shrink-0 text-primary" />
+              <h2 className="truncate font-heading text-base font-extrabold sm:text-lg">
                 {isId ? "Preview Ringkasan Finansial PDF" : "Financial PDF Report Preview"}
               </h2>
             </div>
@@ -109,11 +111,11 @@ export function PDFReportModal({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Button
               data-testid="trigger-print-pdf-button"
               onClick={handlePrint}
-              className="gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+              className="flex-1 gap-2 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:flex-none"
               size="sm"
             >
               <Printer size={15} />
@@ -124,7 +126,7 @@ export function PDFReportModal({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="size-8 rounded-lg"
+              className="size-9 shrink-0 rounded-lg sm:size-8"
             >
               <X size={16} />
             </Button>
@@ -132,8 +134,8 @@ export function PDFReportModal({
         </div>
 
         {/* Period Selector Tabs (Not Printed) */}
-        <div className="print-hide flex items-center gap-1.5 border-b border-border/60 bg-background/50 px-5 py-3">
-          <span className="mr-2 text-xs font-bold text-muted-foreground">
+        <div className="no-scrollbar print-hide flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border/60 bg-background/50 px-4 py-2.5 sm:px-5 sm:py-3">
+          <span className="mr-2 shrink-0 text-xs font-bold text-muted-foreground">
             {isId ? "Filter Periode:" : "Period:"}
           </span>
           {(["today", "week", "month", "year", "all"] as const).map((pKey) => (
@@ -142,7 +144,7 @@ export function PDFReportModal({
               type="button"
               data-testid={`report-period-${pKey}`}
               onClick={() => setPeriod(pKey)}
-              className={`rounded-lg px-3 py-1 text-xs font-bold transition-all ${
+              className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition-all ${
                 period === pKey
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -156,7 +158,7 @@ export function PDFReportModal({
         {/* Printable PDF Surface */}
         <div
           data-testid="report-print-surface"
-          className="print-area p-6 sm:p-8 space-y-6 text-foreground bg-card"
+          className="print-area min-h-0 flex-1 overflow-y-auto space-y-6 bg-card p-5 text-foreground sm:flex-none sm:overflow-visible sm:p-8"
         >
           {/* PDF Header */}
           <div className="flex items-start justify-between border-b border-border/80 pb-5">

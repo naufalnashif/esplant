@@ -32,8 +32,6 @@ dist
 
 # Environment files (comprehensive coverage)
 
-*.env
-!.env.example
 *token.json*
 *credentials.json*
 
@@ -42,7 +40,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-*.log
 dump.rdb
 
 # System files
@@ -83,20 +80,3 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
-
-# Testing workspace artifacts
-/tests/test-results/
-
-# overlay black-box crash/user-report dumps — session data, never history
-.emergent/recordings/
-.env
-.env.*
-credentials.json
-*.key
-.credentials
-launcher.sh
-*.duckdb
-backend/.env
-frontend/.env
-*.db
-*.sqlite
