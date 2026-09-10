@@ -1,0 +1,94 @@
+{
+  "project_name": "NusaArtha - Personal Financial Spent & Planning",
+  "archetype": "ARCHETYPE 1: ORGANIC & EARTHY mixed with SWISS HIGH-CONTRAST DATA",
+  "theme": "Dark and Light Mode toggle via next-themes / local state, default dark for sleek financial command center",
+  "typography": {
+    "font_family_heading": "Plus Jakarta Sans, Manrope, sans-serif",
+    "font_family_body": "Geist Variable, Inter, sans-serif",
+    "font_family_mono": "JetBrains Mono, IBM Plex Mono, monospace",
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg font-medium",
+      "body": "text-sm sm:text-base font-normal leading-relaxed",
+      "small_label": "text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+    }
+  },
+  "colors": {
+    "palette_mode": "Earthy FinTech Precision",
+    "light": {
+      "background": "#F8FAF9",
+      "foreground": "#0F172A",
+      "card": "#FFFFFF",
+      "card_border": "#E2E8F0",
+      "primary": "#0D9488",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#F1F5F9",
+      "accent_emerald": "#10B981",
+      "accent_rose": "#F43F5E",
+      "accent_amber": "#F59E0B",
+      "accent_indigo": "#6366F1"
+    },
+    "dark": {
+      "background": "#0B0F17",
+      "foreground": "#F8FAFC",
+      "card": "#131C2E",
+      "card_border": "#1E293B",
+      "primary": "#14B8A6",
+      "primary_foreground": "#0F172A",
+      "secondary": "#1E293B",
+      "accent_emerald": "#34D399",
+      "accent_rose": "#FB7185",
+      "accent_amber": "#FBBF24",
+      "accent_indigo": "#818CF8"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-background/80 border border-border/50",
+    "subtle_borders": "1px solid rgba(255, 255, 255, 0.08) in dark, 1px solid rgba(0, 0, 0, 0.08) in light",
+    "shadows": "shadow-sm hover:shadow-md transition-shadow duration-200",
+    "card_radius": "rounded-2xl"
+  },
+  "layout_strategy": {
+    "grid_mode": "High Density Bento Grid for Financial Analytics",
+    "spacing": "p-4 sm:p-6 lg:p-8 gap-4 sm:gap-6",
+    "mobile_first": true,
+    "responsive_sidebar": "Collapsible sidebar / bottom nav bar on mobile viewports"
+  },
+  "key_features_architecture": {
+    "storage": "Local-first IndexedDB (via Dexie.js or custom IndexedDB wrapper) with auto-save & JSON/CSV import/export",
+    "multi_currency": "Real-time & offline exchange rates support (IDR primary, USD, EUR, SGD, MYR, JPY, AUD) with dynamic rate overrides",
+    "bilingual": "Toggle ID (Bahasa Indonesia) / EN (English) stored in local preferences",
+    "accounts_and_sources": "Debit cards, Credit cards, E-Wallets (Gopay, OVO, Dana, ShopeePay), Cash, Investments with custom dynamic badges and validation",
+    "expense_income_entry": "Manual transaction logger with dynamic category dropdowns, tag selector, receipt image attachment, and OCR scan simulation/parser",
+    "bills_and_installments": "Recurring bill tracker & PayLater / Spinjam installment manager (e.g. Shopee PayLater 3/6/12x, PLN Token, Wifi, Kost, Parent allowance) with dynamic remaining installment count & price edits",
+    "debts_and_receivables": "Utang & Piutang module with payment logs, due date alerts, browser notifications, and WhatsApp reminder link generator",
+    "savings_celengan": "Savings goals with target date, visual progress ring, target allocation from accounts, and milestone badges",
+    "wishlist": "Item wishlist with priority tag, target URL, price, savings connection, and 'Buy Now / Converted to Expense' workflow",
+    "historical_comparison": "Side-by-side month-over-month (MoM) and week-over-week (WoW) comparison down to category level and individual item level",
+    "export_reports": "CSV export, JSON backup, printable PDF financial summary generated client-side",
+    "gmail_and_notifications": "Gmail OAuth 2.0 integration UI/Setup guide + simulated e-banking email notification parser (BCA, Mandiri, BRI, BNI, GoPay, OVO) for zero-backend security",
+    "scheduler_and_reminders": "Client-side daily/weekly/monthly email report scheduler (Webhook/Mailto integration option) + local Browser Notification reminders"
+  },
+  "image_urls": {
+    "dashboard_preview": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwxfHxwZXJzb25hbCUyMGZpbmFuY2UlMjBkYXNoYm9hcmQlMjBhbmFseXRpY3MlMjBjaGFydHxlbnwwfHx8fDE3ODg3ODgyMTl8MA&ixlib=rb-4.1.0&q=85",
+    "finance_analytics": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwyfHxwZXJzb25hbCUyMGZpbmFuY2UlMjBkYXNoYm9hcmQlMjBhbmFseXRpY3MlMjBjaGFydHxlbnwwfHx8fDE3ODg3ODgyMTl8MA&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Build a production-grade, highly responsive local-first personal financial management web app in TypeScript/React.",
+    "Ensure all interactive elements have explicit data-testid attributes (e.g. data-testid='add-transaction-button').",
+    "Implement bilingual translations (ID/EN) across all UI elements, labels, placehholders, charts, and export documents.",
+    "Ensure all data persists in local storage (IndexedDB) with pre-populated realistic Indonesian demo data (Gopay, BCA Debit, ShopeePayLater, Kost, PLN, Jajan, etc.) so the app is instantly rich upon first load.",
+    "Implement full filter/sort options across transactions (by date, category, account, type, tag, amount range).",
+    "Support Recharts interactive charts (Bar chart for category comparisons, Area chart for net worth growth, Donut chart for spending allocation).",
+    "Ensure complete responsive layout supporting mobile screens, tablets, and wide desktop displays with light and dark mode.",
+    "Integrate Shadcn primitives (Dialog, Select, Tabs, Popover, Calendar, Table, Badge, Button, Input) with custom styling."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": {
+    "contrast_and_accessibility": "Ensure all text meets APCA/WCAG standards. Never use pure transparent backgrounds for dropdowns, overlays, or floating headers.",
+    "testing_attributes": "All interactive elements MUST include kebab-case data-testid attributes.",
+    "toast_notifications": "Use sonner toast notifications for feedback on save, edit, delete, export, and reminder actions.",
+    "micro_interactions": "Add hover states, subtle scaling, and smooth motion transitions to cards and action buttons."
+  }
+}
