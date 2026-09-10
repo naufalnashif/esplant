@@ -1,0 +1,267 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Geist Variable', sans-serif;
+    --font-sans: 'Geist Variable', sans-serif;
+    --font-mono: 'JetBrains Mono Variable', monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: #f7f8fa;
+    --foreground: #262626;
+    --card: #ffffff;
+    --card-foreground: #262626;
+    --popover: #ffffff;
+    --popover-foreground: #262626;
+    --primary: #ffa116;
+    --primary-foreground: #1a1a1a;
+    --secondary: #f0f0f0;
+    --secondary-foreground: #262626;
+    --muted: #f0f0f0;
+    --muted-foreground: #737373;
+    --accent: #fff4e0;
+    --accent-foreground: #b26a00;
+    --destructive: #ef4743;
+    --border: #e5e5e5;
+    --input: #e5e5e5;
+    --ring: #ffa116;
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: #1a1a1a;
+    --foreground: #eff1f6;
+    --card: #282828;
+    --card-foreground: #eff1f6;
+    --popover: #282828;
+    --popover-foreground: #eff1f6;
+    --primary: #ffa116;
+    --primary-foreground: #1a1a1a;
+    --secondary: #333333;
+    --secondary-foreground: #eff1f6;
+    --muted: #303030;
+    --muted-foreground: #9e9e9e;
+    --accent: #3a2f18;
+    --accent-foreground: #ffc65c;
+    --destructive: #ef4743;
+    --border: #3c3c3c;
+    --input: #454545;
+    --ring: #ffa116;
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+  body {
+    min-width: 320px;
+    background-image: radial-gradient(circle at 80% -10%, rgba(255, 161, 22, 0.07), transparent 34rem);
+  }
+  button, a, input, select, textarea {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 161, 22, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 161, 22, 0.14); }
+}
+
+.animate-rise-in { animation: rise-in 420ms ease-out both; }
+.animate-pulse-soft { animation: pulse-soft 2.6s ease-in-out infinite; }
+
+/* Mobile bottom-sheet & drawer entrances (layout-only motion). */
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-sheet-up { animation: sheet-up 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-drawer-in { animation: drawer-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 620; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-draw-line {
+  stroke-dasharray: 620;
+  animation: draw-line 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Scroll-reveal: elements fade/slide up when they enter the viewport. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 620ms cubic-bezier(0.16, 1, 0.3, 1), transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Infinite logo marquee (two copies side by side, translate -50%). Pause on hover. */
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee-scroll 32s linear infinite;
+}
+.marquee-track:hover .animate-marquee {
+  animation-play-state: paused;
+}
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: var(--card) !important;
+    color: var(--foreground) !important;
+  }
+
+  body :not(.print-area):not(.print-area *) {
+    visibility: hidden !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-sheet {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .print-area {
+    visibility: visible !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .print-area * {
+    overflow: visible !important;
+  }
+}
+.font-heading { font-family: 'Geist Variable', sans-serif; letter-spacing: -0.02em; }
+.font-data { font-family: 'JetBrains Mono Variable', monospace; }
+
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in, .animate-pulse-soft, .animate-draw-line, .animate-marquee, .animate-sheet-up, .animate-drawer-in { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
