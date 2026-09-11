@@ -137,12 +137,46 @@ function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (n
             </Button>
           </div>
 
+          {needsReconnect && (
+            <div
+              className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/45 bg-amber-500/10 px-3 py-2.5"
+              data-testid="sheet-reconnect-banner"
+            >
+              <p className="min-w-0 flex-1 text-[11px] font-semibold leading-relaxed text-amber-500">
+                {isId
+                  ? "Sesi Google terputus, tapi spreadsheet Anda masih tersimpan. Data di bawah ini dari cache — klik sync ulang untuk menyambung kembali."
+                  : "The Google session lapsed, but your spreadsheet link is intact. The data below is cached — click re-sync to reconnect."}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="sheet-reconnect-button"
+                onClick={() => {
+                  void (async () => {
+                    const ok = await reconnect();
+                    toast[ok ? "success" : "error"](
+                      ok
+                        ? isId ? "Tersambung kembali ke Google." : "Reconnected to Google."
+                        : isId ? "Login Google belum berhasil." : "Google sign-in did not complete.",
+                    );
+                  })();
+                }}
+                className="shrink-0 gap-1.5 border-amber-500/50 text-xs text-amber-500 hover:bg-amber-500/15"
+              >
+                <RefreshCw size={13} />
+                {isId ? "Sync ulang" : "Re-sync"}
+              </Button>
+            </div>
+          )}
+
           <p className="text-[11px] text-muted-foreground">
-            {syncStatus === "error"
-              ? isId ? "Sinkronisasi terakhir gagal — coba tarik atau kirim ulang." : "Last sync failed — try pull or push again."
-              : lastSyncTime
-                ? `${isId ? "Terakhir sinkron: " : "Last synced: "}${lastSyncTime.toLocaleTimeString()}`
-                : isId ? "Perubahan tersimpan otomatis ke spreadsheet Anda." : "Changes are saved to your spreadsheet automatically."}
+            {needsReconnect || syncStatus === "disconnected"
+              ? isId ? "Terputus — klik sync ulang untuk menyambung lagi. Data lokal tetap aman." : "Disconnected — click re-sync to reconnect. Your local data is safe."
+              : syncStatus === "error"
+                ? isId ? "Sinkronisasi terakhir gagal — coba tarik atau kirim ulang." : "Last sync failed — try pull or push again."
+                : lastSyncTime
+                  ? `${isId ? "Terakhir sinkron: " : "Last synced: "}${lastSyncTime.toLocaleTimeString()}`
+                  : isId ? "Perubahan tersimpan otomatis ke spreadsheet Anda." : "Changes are saved to your spreadsheet automatically."}
           </p>
         </div>
       ) : (

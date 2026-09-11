@@ -237,9 +237,51 @@ frontend:
             NOTE for testing: an existing browser profile that already stored 12 categories keeps them — the
             8-category default only applies to a FRESH workspace (or after "Hapus semua data").
 
+  - task: "Paying a commitment records a transaction against the CHOSEN account, behind a confirmation dialog, atomically"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/lib/commitmentPayment.ts, frontend/src/components/PayCommitmentDialog.tsx, frontend/src/components/CommitmentsPanel.tsx, frontend/src/lib/localDb.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: false
+          agent: "user"
+          comment: "User report (Task 5): clicking 'Bayar' on a commitment reduces an account balance but the account on the recorded transaction is wrong because it is picked automatically. Wants a confirmation popup shaped like the add-transaction form, a real history entry, the balance reduced, the commitment status updated, and the whole thing atomic."
+        - working: "NA"
+          agent: "main"
+          comment: |
+            ROOT CAUSE: `payBillInstallment()` in CommitmentsPanel.tsx hardcoded `const account = state.accounts[0]`
+            and fired instantly with no confirmation — so the money was always booked against the FIRST account
+            regardless of where it really came from. Separately, `recordPayment()` for debts/receivables used a
+            `window.prompt` and only bumped `debt.paid`: it created NO transaction and never touched any balance,
+            so those payments were invisible in the history.
+            FIX:
+            1. NEW frontend/src/lib/commitmentPayment.ts — `applyCommitmentPayment()` is a PURE function that
+               validates first and then returns ONE fully rebuilt FinanceState containing all three mutations
+               (history entry + account balance + commitment status). The caller passes that single object to
+               `save()`, which persists the whole document in a single write, so either everything lands or
+               nothing does. The function never mutates its input (unit-tested), which is what prevents a
+               half-recorded payment. On any validation failure it returns {ok:false,error} and NOTHING is written.
+            2. NEW frontend/src/components/PayCommitmentDialog.tsx — confirmation popup built on the same
+               BottomSheet as the add-transaction form, with fields: Nominal (prefilled from the commitment /
+               outstanding balance), Kategori (prefilled from the commitment category, falls back to "Cicilan"),
+               Akun sumber (defaults to the account used for the PREVIOUS payment of this same commitment, else
+               the first account), Tanggal (today), Catatan (optional). Shows a live "saldo sebelum -> sesudah"
+               preview, a red warning when the balance would go negative, a "Bayar penuh" shortcut and a cap
+               for debts. Double-submit guarded by a `submitting` flag.
+            3. CommitmentsPanel now only OPENS the dialog (openBillPayment / openDebtPayment) and commits through
+               `confirmPayment`. Debt/receivable payments go through the exact same atomic path, and collecting a
+               RECEIVABLE is correctly booked as INCOME (balance goes up) instead of an expense.
+            4. localDb types gained optional, backward-compatible fields: Transaction.commitmentId,
+               Bill.lastPaidDate, Bill.paidInstallments, Debt.lastPaidDate. A "Sudah dibayar bulan ini" badge
+               (data-testid="bill-paid-this-month-<id>") now marks commitments already paid in the current month.
+            Covered by 22 new unit tests in frontend/src/lib/commitmentPayment.test.ts. Full suite: 38 passing.
+            `yarn typecheck` clean, `yarn lint` 0 errors.
+
 metadata:
   created_by: "main_agent"
-  version: "1.2"
+  version: "1.3"
   test_sequence: 1
   run_ui: true
 
@@ -250,6 +292,7 @@ test_plan:
     - "Chart grouping: rank 6+ categories collapse into a single Lainnya/Others slice"
     - "Comparison bar chart becomes a stacked bar chart when more than 1 category"
     - "Default categories reduced to 8 and active categories capped at 15"
+    - "Paying a commitment records a transaction against the CHOSEN account, behind a confirmation dialog, atomically"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -335,3 +378,48 @@ agent_communication:
         O. MOBILE (390x844): data-testid="mobile-category-donut" / "mobile-category-legend" must show the
            same <=6 slices including the custom category and "Lainnya".
         P. Report exact row counts, legend texts, data-chart-mode values and any browser console errors.
+
+        ============ TASK 5 — PAY COMMITMENT ============
+        Go to the Komitmen tab (data-testid="nav-commitments-button").
+        Q. THE REPORTED BUG (wrong account): the sample data seeds a "Cicilan HP" bill and 3 accounts. Note
+           every account balance first (Akun & saldo tab, data-testid="nav-accounts-button").
+           Click data-testid="bill-pay-installment-<billId>-button". A confirmation popup
+           (data-testid="pay-commitment-modal" / form data-testid="pay-commitment-form") MUST appear — the
+           payment must NOT be processed on click alone. Verify the popup prefills:
+             - data-testid="pay-commitment-amount-input" = the installment amount
+             - data-testid="pay-commitment-category-select" = the commitment's category
+             - data-testid="pay-commitment-account-select" = selectable list of ALL accounts
+             - data-testid="pay-commitment-date-input" = today
+             - data-testid="pay-commitment-note-input" = "Bayar <name>"
+           Now CHANGE the account to the SECOND or THIRD account (NOT the first one) and confirm with
+           data-testid="pay-commitment-confirm-button".
+           THEN ASSERT:
+             1. Transaksi tab shows a NEW expense row for that commitment with the CHOSEN account (not the
+                first account). Search the description in data-testid="transaction-search-input".
+             2. Akun & saldo: ONLY the chosen account's balance dropped by exactly the amount; the other
+                accounts are untouched. Before the fix the first account was always debited instead.
+             3. Komitmen tab: remaining installments decreased by 1, the due date rolled forward one month,
+                and a badge data-testid="bill-paid-this-month-<billId>" now reads "Sudah dibayar bulan ini".
+        R. CANCEL = no side effects: open the pay dialog again, change values, then click
+           data-testid="pay-commitment-cancel-button". Assert NO new transaction, NO balance change and NO
+           change to the remaining installments.
+        S. EDITABLE FIELDS honoured: pay again but edit the amount (e.g. 250000), the category (pick a
+           different one) and the date (yesterday). The created transaction must use exactly those values.
+        T. BALANCE PREVIEW: data-testid="pay-commitment-balance-preview" must show "before -> after" for the
+           selected account and update live when you change the account or the amount. Enter an amount larger
+           than the selected account's balance -> data-testid="pay-commitment-negative-warning" appears (it is
+           a warning, not a block).
+        U. VALIDATION / ATOMICITY: set the amount to 0 (or clear it) ->
+           data-testid="pay-commitment-confirm-button" must be DISABLED. Nothing may be written.
+        V. DEBT payment (previously a window.prompt that recorded NOTHING): create a Utang via the commitment
+           form, then click data-testid="debt-pay-<debtId>-button". The same popup must open with the amount
+           prefilled to the outstanding balance and data-testid="pay-commitment-fill-max-button" available.
+           Enter a PARTIAL amount, confirm, then assert (a) a new EXPENSE transaction exists, (b) the chosen
+           account balance dropped, (c) the debt's remaining amount decreased. Then try entering MORE than the
+           outstanding balance -> data-testid="pay-commitment-over-cap" shows and confirm is disabled.
+        W. RECEIVABLE collection must be INCOME: create a Piutang, click its pay button, confirm. The created
+           transaction must be an INCOME row and the chosen account balance must INCREASE (not decrease).
+        X. LAST-PAYMENT MEMORY: pay the same bill a second time — the account dropdown must default to the
+           account you used for the previous payment of that commitment, not accounts[0].
+        Y. Verify at mobile 390x844 too: the pay dialog must be usable and not overflow horizontally.
+        Z. Report the before/after balance of EVERY account, the created transaction rows and any console errors.

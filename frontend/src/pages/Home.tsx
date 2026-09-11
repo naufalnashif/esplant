@@ -20,7 +20,7 @@ import type {
   Transaction, TransactionKind, WishlistItem,
 } from "@/lib/localDb";
 import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
-import { loadFinanceState, saveFinanceState } from "@/lib/dataStore";
+import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync } from "@/lib/dataStore";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
@@ -38,7 +38,7 @@ import { MobileNav } from "@/components/mobile/MobileNav";
 import { MobileOverview } from "@/components/mobile/MobileOverview";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useStorage } from "@/lib/storageContext";
-import { authorize, isSignedIn } from "@/lib/googleSheets";
+import { isSignedIn } from "@/lib/googleSheets";
 import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, useOverviewStats } from "@/lib/overviewStats";
@@ -102,7 +102,7 @@ const percent = (value: number, total: number) => total ? Math.min(100, Math.rou
 const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) => ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / rates[currency];
 
 export default function Home() {
-  const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime } = useStorage();
+  const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime, reconnect, needsReconnect } = useStorage();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [tab, setTab] = useState<Tab>("overview");
@@ -160,6 +160,33 @@ export default function Home() {
     return { month: new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", { month: "short" }).format(date), income: items.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, expense: items.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate };
   }), [state.locale, state.transactions, displayRate]);
   const save = (next: FinanceState) => { queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], next); saveMutation.mutate(next); };
+
+  /*
+    One button for both jobs: if the Google session lapsed, re-auth interactively (only ever from
+    this click, never on page load), then flush anything that never reached the spreadsheet and
+    pull the latest rows. Nothing here signs the user out.
+  */
+  const handleSyncClick = async () => {
+    if (storageMode !== "sheets") {
+      await stateQuery.refetch();
+      return;
+    }
+    if (needsReconnect || !isSignedIn()) {
+      const ok = await reconnect();
+      if (!ok) {
+        toast.error(state.locale === "id" ? "Login Google diperlukan untuk sinkronisasi." : "Google sign-in is required to sync.");
+        return;
+      }
+    }
+    if (hasPendingSync()) {
+      try {
+        await retrySync(spreadsheetId, state);
+      } catch {
+        /* status pill already reflects the failure */
+      }
+    }
+    await stateQuery.refetch();
+  };
   const healthReport = useMemo(() => runDataHealth(state), [state]);
 
   useEffect(() => {
@@ -374,7 +401,7 @@ export default function Home() {
         <main className="min-w-0 flex-1 pb-24 lg:pb-8">
           <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => { void (async () => { if (storageMode === "sheets" && !isSignedIn()) { try { await authorize(true); } catch { toast.error("Login Google diperlukan untuk sinkronisasi."); return; } } await stateQuery.refetch(); })(); }} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "_self.manage"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white sm:size-9">{(state.profileName || "S").slice(0, 1).toUpperCase()}</div></div>
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "_self.manage"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white sm:size-9">{(state.profileName || "S").slice(0, 1).toUpperCase()}</div></div>
           </header>
           <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
             {tab === "overview" && (isMobile
@@ -403,10 +430,28 @@ function SyncPill({ mode, status, lastSyncTime, busy, onRefresh }: { mode: "loca
     return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground sm:flex"><ShieldCheck size={13} /> Lokal</span>;
   }
   const spinning = busy || status === "syncing";
-  const tone = status === "error" ? "border-red-500/40 bg-red-500/10 text-red-400" : status === "offline" ? "border-amber-500/40 bg-amber-500/10 text-amber-500" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-500";
-  const label = spinning ? "Sinkron…" : status === "error" ? "Gagal sinkron" : status === "offline" ? "Offline" : lastSyncTime ? `Tersimpan ${lastSyncTime.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}` : "Terhubung";
+  // "disconnected" keeps the cached workspace on screen and simply invites one click to re-auth —
+  // it is deliberately NOT a logout.
+  const tone = status === "disconnected"
+    ? "border-amber-500/50 bg-amber-500/12 text-amber-500"
+    : status === "error"
+      ? "border-red-500/40 bg-red-500/10 text-red-400"
+      : status === "offline"
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-500"
+        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-500";
+  const label = spinning
+    ? "Sinkron…"
+    : status === "disconnected"
+      ? "Terputus — klik untuk sync ulang"
+      : status === "error"
+        ? "Gagal sinkron"
+        : status === "offline"
+          ? "Offline"
+          : lastSyncTime
+            ? `Tersimpan ${lastSyncTime.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`
+            : "Terhubung";
   return (
-    <button type="button" data-testid="sync-pill" onClick={onRefresh} title="Tarik ulang data dari spreadsheet" className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors ${tone}`}>
+    <button type="button" data-testid="sync-pill" data-sync-status={spinning ? "syncing" : status} onClick={onRefresh} title={status === "disconnected" ? "Sesi Google terputus — klik untuk login ulang & sync" : "Tarik ulang data dari spreadsheet"} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors ${tone}`}>
       <RefreshCw size={12} className={spinning ? "animate-spin" : ""} />
       <span className="hidden sm:inline">{label}</span>
     </button>

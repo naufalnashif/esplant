@@ -19,8 +19,21 @@ const SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
 ].join(" ");
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
+const DRIVE_FILES_API = "https://www.googleapis.com/drive/v3/files";
 const TOKEN_KEY = "selfmanage-google-token";
 const GIS_SRC = "https://accounts.google.com/gsi/client";
+
+/**
+ * Naming convention for workspaces this app owns: `YYYYMMDD_SelfManageApp`.
+ * The keyword (not the date) is what makes older workspaces discoverable later.
+ */
+export const APP_SHEET_KEYWORD = "SelfManageApp";
+
+/** `20260911_SelfManageApp` for the given day (defaults to today, local time). */
+export const buildSpreadsheetTitle = (date: Date = new Date()): string => {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${APP_SHEET_KEYWORD}`;
+};
 
 export class SheetsError extends Error {
   status?: number;
@@ -45,12 +58,37 @@ interface StoredToken {
   expires_at: number;
 }
 
+/*
+  The token lives in localStorage, NOT sessionStorage: sessionStorage is wiped the moment the tab
+  closes, which is exactly what used to force a fresh interactive login on every visit. A Google
+  access token is valid for ~1 hour, so reopening the tab within that window needs no login at
+  all, and after it expires we try a SILENT refresh before ever bothering the user.
+*/
 const readStoredToken = (): StoredToken | null => {
-  try {
-    const raw = sessionStorage.getItem(TOKEN_KEY);
+  const parse = (raw: string | null): StoredToken | null => {
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredToken;
-    return parsed.expires_at > Date.now() + 30_000 ? parsed : null;
+    try {
+      const parsed = JSON.parse(raw) as StoredToken;
+      if (!parsed?.access_token || !Number.isFinite(parsed.expires_at)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  try {
+    const local = parse(localStorage.getItem(TOKEN_KEY));
+    if (local) return local.expires_at > Date.now() + 30_000 ? local : null;
+    // One-time migration from the old sessionStorage location.
+    const legacy = parse(sessionStorage.getItem(TOKEN_KEY));
+    if (legacy) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      if (legacy.expires_at > Date.now() + 30_000) {
+        localStorage.setItem(TOKEN_KEY, JSON.stringify(legacy));
+        return legacy;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -64,8 +102,9 @@ let gisPromise: Promise<void> | null = null;
 const storeToken = (next: StoredToken | null) => {
   token = next;
   try {
-    if (next) sessionStorage.setItem(TOKEN_KEY, JSON.stringify(next));
-    else sessionStorage.removeItem(TOKEN_KEY);
+    if (next) localStorage.setItem(TOKEN_KEY, JSON.stringify(next));
+    else localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
   } catch {
     /* private mode — keep in memory only */
   }
@@ -76,6 +115,22 @@ export const isSignedIn = (): boolean => Boolean(token && token.expires_at > Dat
 export const signOutGoogle = (): void => {
   storeToken(null);
 };
+
+/**
+ * Best-effort session restore for app start-up: reuses a still-valid cached token, otherwise
+ * tries ONE silent (`prompt: "none"`) refresh. Never shows a popup and never throws, so a failed
+ * restore degrades into "disconnected" instead of kicking the user back to a login screen.
+ */
+export async function restoreSession(): Promise<boolean> {
+  if (!isGoogleConfigured()) return false;
+  if (isSignedIn()) return true;
+  try {
+    await authorize(false);
+    return isSignedIn();
+  } catch {
+    return false;
+  }
+}
 
 function loadGis(): Promise<void> {
   if (gisPromise) return gisPromise;
@@ -152,13 +207,14 @@ export async function authorize(interactive = true): Promise<string> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Authenticated fetch with silent re-auth on 401 and backoff on 429/5xx. Absolute URL. */
+async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   if (!navigator.onLine) throw new SheetsError("Perangkat sedang offline");
 
   let lastError: SheetsError | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     const accessToken = isSignedIn() ? token!.access_token : await authorize(false);
-    const res = await fetch(`${SHEETS_API}${path}`, {
+    const res = await fetch(url, {
       ...init,
       headers: {
         ...(init.headers ?? {}),
@@ -170,6 +226,8 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T;
 
     if (res.status === 401) {
+      // The token is stale. Drop it and let the next attempt try a SILENT refresh; only if that
+      // also fails do we surface AuthRequiredError to the caller.
       storeToken(null);
       if (attempt === 0) continue;
       throw new AuthRequiredError("Sesi Google berakhir, hubungkan ulang");
@@ -178,7 +236,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const body = await res.json().catch(() => null);
     const message =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (body as any)?.error?.message ?? `Google Sheets API error ${res.status}`;
+      (body as any)?.error?.message ?? `Google API error ${res.status}`;
     lastError = new SheetsError(message, res.status);
 
     if (res.status === 429 || res.status >= 500) {
@@ -187,7 +245,48 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     throw lastError;
   }
-  throw lastError ?? new SheetsError("Permintaan ke Google Sheets gagal");
+  throw lastError ?? new SheetsError("Permintaan ke Google gagal");
+}
+
+const api = <T,>(path: string, init: RequestInit = {}): Promise<T> => request<T>(`${SHEETS_API}${path}`, init);
+
+/* ───────────────────────── Drive discovery ───────────────────────── */
+
+export interface DriveSpreadsheet {
+  id: string;
+  name: string;
+  createdTime: string;
+  modifiedTime: string;
+  webViewLink?: string;
+}
+
+const SPREADSHEET_MIME = "application/vnd.google-apps.spreadsheet";
+
+/**
+ * Lists the user's `*_SelfManageApp` spreadsheets, most recently modified first.
+ *
+ * Uses a CONTAINS match on the keyword rather than an exact name match, so workspaces created on
+ * an earlier date (e.g. 20260104_SelfManageApp) are still discovered today.
+ *
+ * Scope note: with `drive.file` the Drive API only returns files this app created or the user
+ * explicitly opened with it — which is precisely the set we want, and it means the app never gets
+ * visibility into the rest of the user's Drive. Hand-made spreadsheets will NOT appear here; the
+ * connect dialog keeps a manual link field as the escape hatch for those.
+ */
+export async function findAppSpreadsheets(keyword: string = APP_SHEET_KEYWORD): Promise<DriveSpreadsheet[]> {
+  const safeKeyword = keyword.replace(/['\\]/g, "");
+  const params = new URLSearchParams({
+    q: `name contains '${safeKeyword}' and mimeType = '${SPREADSHEET_MIME}' and trashed = false`,
+    fields: "files(id,name,createdTime,modifiedTime,webViewLink)",
+    orderBy: "modifiedTime desc",
+    pageSize: "50",
+    spaces: "drive",
+  });
+
+  const result = await request<{ files?: DriveSpreadsheet[] }>(`${DRIVE_FILES_API}?${params.toString()}`);
+  const files = (result.files ?? []).filter((file) => file?.id && file?.name);
+  // Drive honours orderBy, but sort defensively so the newest is always first in the picker.
+  return files.sort((a, b) => String(b.modifiedTime ?? "").localeCompare(String(a.modifiedTime ?? "")));
 }
 
 /* ───────────────────────── Workbook schema ───────────────────────── */
@@ -209,9 +308,11 @@ type TabKey = keyof typeof TABS;
 const HEADERS: Record<TabKey, string[]> = {
   config: ["key", "value"],
   accounts: ["id", "name", "type", "brand", "balance", "currency", "openingBalance"],
-  transactions: ["id", "kind", "date", "description", "category", "accountId", "amount", "currency", "baseAmount", "tags"],
-  bills: ["id", "name", "category", "amount", "currency", "frequency", "nextDueDate", "remainingInstallments", "active"],
-  debts: ["id", "name", "person", "type", "total", "paid", "currency", "dueDate", "note"],
+  // New columns are always APPENDED so spreadsheets written by an older build stay readable
+  // (their rows simply have empty trailing cells).
+  transactions: ["id", "kind", "date", "description", "category", "accountId", "amount", "currency", "baseAmount", "tags", "commitmentId"],
+  bills: ["id", "name", "category", "amount", "currency", "frequency", "nextDueDate", "remainingInstallments", "active", "lastPaidDate", "paidInstallments"],
+  debts: ["id", "name", "person", "type", "total", "paid", "currency", "dueDate", "note", "lastPaidDate"],
   savings: ["id", "name", "target", "saved", "currency", "targetDate", "color"],
   wishlist: ["id", "name", "price", "currency", "priority", "targetDate", "category", "status"],
   budgets: ["id", "category", "limit", "currency"],
@@ -276,6 +377,36 @@ export async function createSpreadsheet(title: string): Promise<string> {
   return created.spreadsheetId;
 }
 
+/**
+ * Creates today's `YYYYMMDD_SelfManageApp` workspace — but re-checks Drive first and REUSES an
+ * existing file whose name matches case-insensitively. That double-check is what stops a second
+ * (third, fourth...) spreadsheet from appearing when the user taps "Buat baru" repeatedly or
+ * reloads mid-flow.
+ */
+export async function createAppSpreadsheet(
+  date: Date = new Date(),
+): Promise<{ id: string; name: string; reused: boolean }> {
+  const title = buildSpreadsheetTitle(date);
+
+  let existing: DriveSpreadsheet[] = [];
+  try {
+    existing = await findAppSpreadsheets();
+  } catch {
+    // Drive lookup unavailable (API disabled / transient). Creating is still better than failing,
+    // and the name stays deterministic so the next successful lookup will find it.
+    existing = [];
+  }
+
+  const duplicate = existing.find((file) => file.name.trim().toLowerCase() === title.toLowerCase());
+  if (duplicate) {
+    await ensureStructure(duplicate.id);
+    return { id: duplicate.id, name: duplicate.name, reused: true };
+  }
+
+  const id = await createSpreadsheet(title);
+  return { id, name: title, reused: false };
+}
+
 /* ───────────────────────── State ⇄ rows mapping ───────────────────────── */
 
 const str = (value: unknown) => (value === undefined || value === null ? "" : String(value));
@@ -296,12 +427,12 @@ export function stateToRows(state: FinanceState): Record<TabKey, string[][]> {
     ],
     accounts: state.accounts.map((a) => [a.id, a.name, a.type, str(a.brand), str(a.balance), a.currency, str(a.openingBalance)]),
     transactions: state.transactions.map((t) => [
-      t.id, t.kind, t.date, t.description, t.category, t.accountId, str(t.amount), t.currency, str(t.baseAmount), (t.tags ?? []).join("|"),
+      t.id, t.kind, t.date, t.description, t.category, t.accountId, str(t.amount), t.currency, str(t.baseAmount), (t.tags ?? []).join("|"), str(t.commitmentId),
     ]),
     bills: state.bills.map((b) => [
-      b.id, b.name, b.category, str(b.amount), b.currency, b.frequency, b.nextDueDate, str(b.remainingInstallments), str(b.active),
+      b.id, b.name, b.category, str(b.amount), b.currency, b.frequency, b.nextDueDate, str(b.remainingInstallments), str(b.active), str(b.lastPaidDate), str(b.paidInstallments),
     ]),
-    debts: state.debts.map((d) => [d.id, d.name, d.person, d.type, str(d.total), str(d.paid), d.currency, d.dueDate, str(d.note)]),
+    debts: state.debts.map((d) => [d.id, d.name, d.person, d.type, str(d.total), str(d.paid), d.currency, d.dueDate, str(d.note), str(d.lastPaidDate)]),
     savings: state.savings.map((s) => [s.id, s.name, str(s.target), str(s.saved), s.currency, str(s.targetDate), str(s.color)]),
     wishlist: state.wishlist.map((w) => [w.id, w.name, str(w.price), w.currency, w.priority, str(w.targetDate), w.category, w.status]),
     budgets: state.budgets.map((b) => [b.id, b.category, str(b.limit), b.currency]),
@@ -338,6 +469,7 @@ export function rowsToState(rows: Partial<Record<TabKey, string[][]>>): FinanceS
     category: r[4] ?? "Other", accountId: r[5] ?? "", amount: num(r[6]),
     currency: (r[7] || state.baseCurrency) as FinanceState["baseCurrency"], baseAmount: num(r[8]),
     tags: r[9] ? r[9].split("|").filter(Boolean) : [],
+    commitmentId: r[10] || undefined,
   }));
 
   state.bills = (rows.bills ?? []).filter((r) => r[0]).map((r) => ({
@@ -345,12 +477,13 @@ export function rowsToState(rows: Partial<Record<TabKey, string[][]>>): FinanceS
     currency: (r[4] || state.baseCurrency) as FinanceState["baseCurrency"],
     frequency: r[5] === "weekly" ? "weekly" : "monthly", nextDueDate: r[6] ?? "",
     remainingInstallments: r[7] ? num(r[7]) : undefined, active: r[8] !== "false",
+    lastPaidDate: r[9] || undefined, paidInstallments: r[10] ? num(r[10]) : undefined,
   }));
 
   state.debts = (rows.debts ?? []).filter((r) => r[0]).map((r) => ({
     id: r[0], name: r[1] ?? "", person: r[2] ?? "", type: r[3] === "receivable" ? "receivable" : "debt",
     total: num(r[4]), paid: num(r[5]), currency: (r[6] || state.baseCurrency) as FinanceState["baseCurrency"],
-    dueDate: r[7] ?? "", note: r[8] ?? "",
+    dueDate: r[7] ?? "", note: r[8] ?? "", lastPaidDate: r[9] || undefined,
   }));
 
   state.savings = (rows.savings ?? []).filter((r) => r[0]).map((r) => ({

@@ -3,7 +3,12 @@ import { loadLocalState, saveLocalState, sanitizeImportedState, createInitialSta
 import { readState, writeState, isSignedIn, authorize, AuthRequiredError } from "./googleSheets";
 
 export type StorageMode = "local" | "sheets";
-export type SyncStatus = "idle" | "syncing" | "saved" | "error" | "offline";
+/**
+ * "disconnected" = the spreadsheet link is still configured but Google auth expired and a silent
+ * refresh did not work. The user keeps seeing their cached data and is offered a "sync ulang"
+ * action; they are NEVER signed out or bounced back to onboarding.
+ */
+export type SyncStatus = "idle" | "syncing" | "saved" | "error" | "offline" | "disconnected";
 
 type Listener = (status: SyncStatus, detail?: string) => void;
 
@@ -13,11 +18,17 @@ export const onSyncStatus = (next: Listener | null) => {
 };
 const emit = (status: SyncStatus, detail?: string) => listener?.(status, detail);
 
+const failureStatus = (error: unknown): SyncStatus => {
+  if (!navigator.onLine) return "offline";
+  return error instanceof AuthRequiredError ? "disconnected" : "error";
+};
+
 /** Reads the active workspace: the user's spreadsheet when connected, otherwise this browser. */
 export async function loadFinanceState(mode: StorageMode, spreadsheetId: string): Promise<FinanceState> {
   if (mode === "sheets" && spreadsheetId) {
     emit("syncing");
     try {
+      // Silent-only here: a popup on app start-up would be blocked by the browser anyway.
       if (!isSignedIn()) await authorize(false);
       const remote = await readState(spreadsheetId);
       const clean = sanitizeImportedState(remote) ?? createInitialState();
@@ -25,10 +36,9 @@ export async function loadFinanceState(mode: StorageMode, spreadsheetId: string)
       emit("saved");
       return clean;
     } catch (error) {
-      const offline = !navigator.onLine;
-      emit(offline ? "offline" : "error", error instanceof Error ? error.message : undefined);
-      if (error instanceof AuthRequiredError) throw error;
-      return loadLocalState(); // degrade to the mirror instead of a blank screen
+      emit(failureStatus(error), error instanceof Error ? error.message : undefined);
+      // Always degrade to the offline mirror — losing the session must not blank the workspace.
+      return loadLocalState();
     }
   }
   return loadLocalState();
@@ -44,16 +54,35 @@ async function flush(): Promise<void> {
   const job = pending;
   pending = null;
   emit("syncing");
+  let ok = false;
   try {
     if (!isSignedIn()) await authorize(false);
     await writeState(job.spreadsheetId, job.state);
     emit("saved");
+    ok = true;
   } catch (error) {
-    emit(!navigator.onLine ? "offline" : "error", error instanceof Error ? error.message : undefined);
+    emit(failureStatus(error), error instanceof Error ? error.message : undefined);
+    // Keep the unsent snapshot queued (unless a newer one arrived) so "sync ulang" can push it
+    // once the session is healthy again — the local mirror already holds the data.
+    if (!pending) pending = job;
   } finally {
     flushing = false;
-    if (pending) void flush();
   }
+  // Chain a newer snapshot only after a success, so a failing session cannot spin forever.
+  if (ok && pending) await flush();
+}
+
+/** True when a local change has not reached the spreadsheet yet. */
+export const hasPendingSync = (): boolean => pending !== null;
+
+/**
+ * Retries the queued snapshot after the user reconnects. Interactive auth is allowed here because
+ * it is always triggered by a click.
+ */
+export async function retrySync(spreadsheetId: string, state: FinanceState): Promise<void> {
+  if (!isSignedIn()) await authorize(true);
+  pending = pending ?? { spreadsheetId, state };
+  await flush();
 }
 
 /** Writes locally right away, then pushes to the spreadsheet (debounced, coalesced). */
