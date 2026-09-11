@@ -1,5 +1,5 @@
 import type { FinanceState } from "./localDb";
-import { loadLocalState, saveLocalState, sanitizeImportedState, createInitialState } from "./localDb";
+import { loadLocalState, saveLocalState, sanitizeImportedState, createInitialState, createErasedState } from "./localDb";
 import { readState, writeState, isSignedIn, authorize, AuthRequiredError } from "./googleSheets";
 
 export type StorageMode = "local" | "sheets";
@@ -106,4 +106,38 @@ export async function pushNow(spreadsheetId: string, state: FinanceState): Promi
   if (writeTimer) clearTimeout(writeTimer);
   pending = { spreadsheetId, state };
   await flush();
+}
+
+/**
+ * "Hapus semua data": wipes every financial record locally (localStorage + IndexedDB, both
+ * updated synchronously by saveLocalState) and, if a spreadsheet is connected, immediately clears
+ * it too instead of waiting on the normal 1.2s debounce — this is a destructive action, so the
+ * user needs to know right away whether the remote side actually succeeded. Categories and app
+ * settings are preserved by createErasedState.
+ */
+export async function eraseAllData(
+  mode: StorageMode,
+  spreadsheetId: string,
+  state: FinanceState,
+): Promise<{ state: FinanceState; sheetsError?: string }> {
+  const erased = createErasedState(state);
+  await saveLocalState(erased);
+
+  if (mode === "sheets" && spreadsheetId) {
+    // Drop any stale queued write so it cannot race the erase and resurrect old rows afterward.
+    if (writeTimer) clearTimeout(writeTimer);
+    writeTimer = null;
+    pending = null;
+    emit("syncing");
+    try {
+      if (!isSignedIn()) await authorize(false);
+      await writeState(spreadsheetId, erased);
+      emit("saved");
+    } catch (error) {
+      emit(failureStatus(error), error instanceof Error ? error.message : undefined);
+      return { state: erased, sheetsError: error instanceof Error ? error.message : "Gagal menghapus data di spreadsheet" };
+    }
+  }
+
+  return { state: erased };
 }

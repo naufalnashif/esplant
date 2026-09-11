@@ -20,7 +20,7 @@ import type {
   Transaction, TransactionKind, WishlistItem,
 } from "@/lib/localDb";
 import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
-import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync } from "@/lib/dataStore";
+import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync, eraseAllData } from "@/lib/dataStore";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
@@ -374,10 +374,36 @@ export default function Home() {
     };
     reader.readAsText(file);
   };
-  const eraseAll = () => {
-    if (!window.confirm(state.locale === "id" ? "Hapus SEMUA data di perangkat ini? Tindakan ini tidak bisa dibatalkan." : "Erase ALL data on this device? This cannot be undone.")) return;
-    save(createInitialState());
-    toast.success(state.locale === "id" ? "Semua data dihapus. Mulai dari nol." : "All data erased. Starting from zero.");
+  const eraseAll = async () => {
+    const confirmed = window.confirm(
+      state.locale === "id"
+        ? "Hapus SEMUA transaksi, akun, tagihan, utang, tabungan, wishlist, dan budget? Kategori dan pengaturan tetap tersimpan. Tindakan ini tidak bisa dibatalkan."
+        : "Erase ALL transactions, accounts, bills, debts, savings, wishlist, and budgets? Categories and settings are kept. This cannot be undone.",
+    );
+    if (!confirmed) return;
+    try {
+      const { state: erased, sheetsError } = await eraseAllData(storageMode, spreadsheetId, state);
+      queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], erased);
+      if (sheetsError) {
+        toast.error(
+          state.locale === "id"
+            ? `Data lokal terhapus, tapi gagal menghapus di spreadsheet: ${sheetsError}`
+            : `Local data erased, but failed to clear the spreadsheet: ${sheetsError}`,
+        );
+      } else {
+        toast.success(
+          state.locale === "id"
+            ? storageMode === "sheets"
+              ? "Semua data terhapus di perangkat ini dan di spreadsheet."
+              : "Semua data dihapus. Mulai dari nol."
+            : storageMode === "sheets"
+              ? "All data erased on this device and in the spreadsheet."
+              : "All data erased. Starting from zero.",
+        );
+      }
+    } catch {
+      toast.error(state.locale === "id" ? "Gagal menghapus data." : "Failed to erase data.");
+    }
   };
   const openAddTransaction = () => { setEditingTransaction(null); setTransactionForm((form) => ({ ...form, accountId: form.accountId || state.accounts[0]?.id || "" })); setShowTransactionForm(true); };
   const loadSample = storageMode === "local" ? () => { save(createSampleState(state)); toast.success(state.locale === "id" ? "Data contoh dimuat. Hapus kapan saja lewat Pengaturan." : "Sample data loaded. Erase anytime from Settings."); } : undefined;

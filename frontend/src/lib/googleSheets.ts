@@ -1,5 +1,5 @@
 import type { FinanceState } from "./localDb";
-import { createInitialState } from "./localDb";
+import { createInitialState, stripDummyData } from "./localDb";
 
 /* ────────────────────────────────────────────────────────────────
    Browser-only Google Sheets client.
@@ -538,7 +538,8 @@ export async function readState(spreadsheetId: string): Promise<FinanceState> {
 }
 
 export async function writeState(spreadsheetId: string, state: FinanceState): Promise<void> {
-  const rows = stateToRows(state);
+  // Sample/onboarding records are flagged isDummy and must never reach the user's spreadsheet.
+  const rows = stateToRows(stripDummyData(state));
 
   // Clear first so deletions actually disappear from the sheet.
   await api(`/${spreadsheetId}/values:batchClear`, {
