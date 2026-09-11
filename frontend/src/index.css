@@ -203,6 +203,28 @@
   mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
 }
 
+/* iOS pays a high compositing cost for several large blurs while scrolling. The mobile
+   presentation keeps the same surfaces and contrast without allocating those layers. */
+@media (max-width: 639px) {
+  .landing-page .landing-ambient {
+    display: none;
+  }
+
+  .landing-page .backdrop-blur-xl {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .landing-page .reveal {
+    transition-duration: 320ms;
+    will-change: auto;
+  }
+
+  .landing-page .animate-marquee {
+    animation-duration: 48s;
+  }
+}
+
 @media print {
   @page {
     size: A4;
