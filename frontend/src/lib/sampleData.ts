@@ -38,16 +38,16 @@ export const createSampleState = (base: FinanceState): FinanceState => {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   const accounts: Account[] = [
-    { id: "acc-bca", name: "BCA Tahapan", type: "debit", brand: "BCA", balance: 0, currency: "IDR", openingBalance: 9_850_000 },
-    { id: "acc-gopay", name: "GoPay", type: "ewallet", brand: "GoPay", balance: 0, currency: "IDR", openingBalance: 640_000 },
-    { id: "acc-cash", name: "Uang Tunai", type: "cash", brand: "Cash", balance: 0, currency: "IDR", openingBalance: 420_000 },
+    { id: "acc-bca", name: "BCA Tahapan", type: "debit", brand: "BCA", balance: 0, currency: "IDR", openingBalance: 9_850_000, isDummy: true },
+    { id: "acc-gopay", name: "GoPay", type: "ewallet", brand: "GoPay", balance: 0, currency: "IDR", openingBalance: 640_000, isDummy: true },
+    { id: "acc-cash", name: "Uang Tunai", type: "cash", brand: "Cash", balance: 0, currency: "IDR", openingBalance: 420_000, isDummy: true },
   ];
 
   const transactions: Transaction[] = [];
   let seed = 1;
   const push = (date: Date, tpl: Omit<Template, "day" | "every">, variance = 0.12) => {
     const amount = round(tpl.amount * (1 + (jitter(seed++) - 0.5) * 2 * variance));
-    transactions.push({ id: `tx-sample-${transactions.length + 1}`, kind: tpl.kind, date: iso(date), description: tpl.description, category: tpl.category, accountId: tpl.accountId, amount, currency: "IDR", baseAmount: amount, tags: tpl.tags });
+    transactions.push({ id: `tx-sample-${transactions.length + 1}`, kind: tpl.kind, date: iso(date), description: tpl.description, category: tpl.category, accountId: tpl.accountId, amount, currency: "IDR", baseAmount: amount, tags: tpl.tags, isDummy: true });
   };
   for (let offset = 5; offset >= 0; offset--) {
     const monthDate = new Date(today.getFullYear(), today.getMonth() - offset, 1);
@@ -85,10 +85,10 @@ export const createSampleState = (base: FinanceState): FinanceState => {
     return iso(candidate);
   };
   const bills: Bill[] = [
-    { id: "bill-sample-1", name: "Sewa kost", category: "Housing", amount: 1_500_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(2), active: true },
-    { id: "bill-sample-2", name: "Internet & listrik", category: "Utilities", amount: 350_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(5), active: true },
-    { id: "bill-sample-3", name: "Cicilan HP", category: "Lifestyle", amount: 425_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(20), remainingInstallments: 5, active: true },
-    { id: "bill-sample-4", name: "Langganan streaming", category: "Lifestyle", amount: 199_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(9), active: true },
+    { id: "bill-sample-1", name: "Sewa kost", category: "Housing", amount: 1_500_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(2), active: true, isDummy: true },
+    { id: "bill-sample-2", name: "Internet & listrik", category: "Utilities", amount: 350_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(5), active: true, isDummy: true },
+    { id: "bill-sample-3", name: "Cicilan HP", category: "Lifestyle", amount: 425_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(20), remainingInstallments: 5, active: true, isDummy: true },
+    { id: "bill-sample-4", name: "Langganan streaming", category: "Lifestyle", amount: 199_000, currency: "IDR", frequency: "monthly", nextDueDate: nextDue(9), active: true, isDummy: true },
   ];
   const plusDays = (days: number) => { const d = new Date(today); d.setDate(d.getDate() + days); return iso(d); };
 
@@ -101,22 +101,22 @@ export const createSampleState = (base: FinanceState): FinanceState => {
     transactions,
     bills,
     debts: [
-      { id: "debt-sample-1", name: "Pinjam untuk laptop", person: "Rizky", type: "debt", total: 2_500_000, paid: 1_000_000, currency: "IDR", dueDate: plusDays(45), note: "Dicicil 3x" },
-      { id: "debt-sample-2", name: "Patungan kado", person: "Dina", type: "receivable", total: 350_000, paid: 0, currency: "IDR", dueDate: plusDays(10), note: "" },
+      { id: "debt-sample-1", name: "Pinjam untuk laptop", person: "Rizky", type: "debt", total: 2_500_000, paid: 1_000_000, currency: "IDR", dueDate: plusDays(45), note: "Dicicil 3x", isDummy: true },
+      { id: "debt-sample-2", name: "Patungan kado", person: "Dina", type: "receivable", total: 350_000, paid: 0, currency: "IDR", dueDate: plusDays(10), note: "", isDummy: true },
     ],
     savings: [
-      { id: "saving-sample-1", name: "Dana darurat", target: 15_000_000, saved: 6_200_000, currency: "IDR", targetDate: plusDays(300), color: "#2cbb5d" },
-      { id: "saving-sample-2", name: "Liburan Bali", target: 5_000_000, saved: 1_250_000, currency: "IDR", targetDate: plusDays(150), color: "#60a5fa" },
+      { id: "saving-sample-1", name: "Dana darurat", target: 15_000_000, saved: 6_200_000, currency: "IDR", targetDate: plusDays(300), color: "#2cbb5d", isDummy: true },
+      { id: "saving-sample-2", name: "Liburan Bali", target: 5_000_000, saved: 1_250_000, currency: "IDR", targetDate: plusDays(150), color: "#60a5fa", isDummy: true },
     ],
     wishlist: [
-      { id: "wish-sample-1", name: "Mechanical keyboard", price: 1_200_000, currency: "IDR", priority: "medium", targetDate: plusDays(60), category: "Work", status: "planning" },
-      { id: "wish-sample-2", name: "Sepatu lari", price: 850_000, currency: "IDR", priority: "low", targetDate: plusDays(90), category: "Health", status: "saving" },
+      { id: "wish-sample-1", name: "Mechanical keyboard", price: 1_200_000, currency: "IDR", priority: "medium", targetDate: plusDays(60), category: "Work", status: "planning", isDummy: true },
+      { id: "wish-sample-2", name: "Sepatu lari", price: 850_000, currency: "IDR", priority: "low", targetDate: plusDays(90), category: "Health", status: "saving", isDummy: true },
     ],
     budgets: [
-      { id: "budget-sample-food", category: "Food", limit: 2_000_000, currency: "IDR" },
-      { id: "budget-sample-transport", category: "Transport", limit: 750_000, currency: "IDR" },
-      { id: "budget-sample-lifestyle", category: "Lifestyle", limit: 1_000_000, currency: "IDR" },
-      { id: "budget-sample-utilities", category: "Utilities", limit: 500_000, currency: "IDR" },
+      { id: "budget-sample-food", category: "Food", limit: 2_000_000, currency: "IDR", isDummy: true },
+      { id: "budget-sample-transport", category: "Transport", limit: 750_000, currency: "IDR", isDummy: true },
+      { id: "budget-sample-lifestyle", category: "Lifestyle", limit: 1_000_000, currency: "IDR", isDummy: true },
+      { id: "budget-sample-utilities", category: "Utilities", limit: 500_000, currency: "IDR", isDummy: true },
     ],
   };
 };

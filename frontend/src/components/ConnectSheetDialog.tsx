@@ -18,7 +18,7 @@ import {
   writeState,
   type DriveSpreadsheet,
 } from "@/lib/googleSheets";
-import { loadLocalState } from "@/lib/localDb";
+import { loadLocalState, stripDummyData } from "@/lib/localDb";
 
 /**
  * Connect flow: sign in first, then let the user PICK one of their existing
@@ -69,7 +69,9 @@ export function ConnectSheetDialog({ open, onClose, onConnected }: { open: boole
   const carryOverLocalData = async (spreadsheetId: string) => {
     const remote = await readState(spreadsheetId);
     if (hasData(remote)) return;
-    const local = await loadLocalState();
+    // Sample/onboarding data (isDummy) never counts as "real" local data to carry over — a
+    // freshly connected spreadsheet must start at 0 rows unless the user entered something real.
+    const local = stripDummyData(await loadLocalState());
     if (hasData(local)) await writeState(spreadsheetId, local);
   };
 
