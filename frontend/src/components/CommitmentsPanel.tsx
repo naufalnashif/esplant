@@ -10,14 +10,17 @@ import {
   CreditCard,
   History,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type * as React from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatMoney } from "@/lib/formatters";
-import type { Bill, CommitmentType, Debt, FinanceState, Transaction } from "@/lib/localDb";
+import type { Bill, CommitmentType, Debt, FinanceState } from "@/lib/localDb";
+import { DEFAULT_CATEGORIES } from "@/lib/localDb";
+import { applyCommitmentPayment, isPaidInMonth, type CommitmentPaymentInput } from "@/lib/commitmentPayment";
+import { PayCommitmentDialog, type PayCommitmentTarget } from "@/components/PayCommitmentDialog";
 
 export function CommitmentsPanel({
   state,
@@ -45,6 +48,23 @@ export function CommitmentsPanel({
   });
 
   const [showArchivedBills, setShowArchivedBills] = useState(false);
+
+  /** Commitment being paid — non-null means the confirmation dialog is open. */
+  const [payTarget, setPayTarget] = useState<PayCommitmentTarget | null>(null);
+
+  const thisMonth = new Date().toISOString().slice(0, 7);
+
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...DEFAULT_CATEGORIES,
+          ...state.categories.filter((item) => !item.archived).map((item) => item.name),
+          ...state.transactions.map((item) => item.category).filter(Boolean),
+        ]),
+      ),
+    [state.categories, state.transactions],
+  );
 
   // Active bills: active === true and remainingInstallments is undefined or > 0
   const activeBills = state.bills.filter(
@@ -107,70 +127,78 @@ export function CommitmentsPanel({
     );
   };
 
-  const payBillInstallment = (item: Bill) => {
-    const account = state.accounts[0];
-    if (!account) {
-      toast.error(isId ? "Tambahkan akun terlebih dahulu di tab Akun." : "Add an account first.");
+  /*
+    Paying used to fire immediately against `state.accounts[0]` — the recorded account almost
+    never matched the account the money actually left. Now the click only OPENS a confirmation
+    dialog; the write happens in `confirmPayment` below.
+  */
+  const openBillPayment = (item: Bill) => {
+    if (state.accounts.length === 0) {
+      toast.error(isId ? "Tambahkan akun terlebih dahulu di tab Akun & saldo." : "Add an account first.");
       return;
     }
-
-    const currentRem = item.remainingInstallments;
-    const nextRem = currentRem !== undefined ? currentRem - 1 : undefined;
-    const isCompleted = nextRem !== undefined && nextRem <= 0;
-
-    // Advance due date by 1 month
-    const dueDateObj = new Date(`${item.nextDueDate}T00:00:00`);
-    dueDateObj.setMonth(dueDateObj.getMonth() + 1);
-    const nextDueDate = dueDateObj.toISOString().slice(0, 10);
-
-    // Create automatic expense transaction
-    const newTx: Transaction = {
-      id: `tx-bill-${Date.now()}`,
-      kind: "expense",
-      date: new Date().toISOString().slice(0, 10),
-      description: `Bayar ${item.name} ${currentRem ? `(${currentRem}x sisa)` : ""}`.trim(),
+    const rem = item.remainingInstallments;
+    setPayTarget({
+      kind: "bill",
+      id: item.id,
+      name: item.name,
       category: item.category,
-      accountId: account.id,
       amount: item.amount,
       currency: item.currency,
-      baseAmount: item.amount * (state.exchangeRates[item.currency] || 1),
-      tags: ["cicilan", "bill-payment"],
-    };
-
-    // Update account balance
-    const accounts = state.accounts.map((acc) =>
-      acc.id === account.id ? { ...acc, balance: acc.balance - item.amount } : acc
-    );
-
-    // Update bills state
-    const bills = state.bills.map((b) => {
-      if (b.id !== item.id) return b;
-      if (isCompleted) {
-        return { ...b, remainingInstallments: 0, active: false };
-      }
-      return { ...b, remainingInstallments: nextRem, nextDueDate };
+      direction: "expense",
+      lastPaidDate: item.lastPaidDate,
+      subtitle:
+        rem === undefined
+          ? isId
+            ? `Tagihan rutin · jatuh tempo ${item.nextDueDate}`
+            : `Recurring bill · due ${item.nextDueDate}`
+          : isId
+            ? `Sisa ${rem}x cicilan · jatuh tempo ${item.nextDueDate}`
+            : `${rem} installments left · due ${item.nextDueDate}`,
     });
+  };
 
-    onSave({
-      ...state,
-      accounts,
-      bills,
-      transactions: [newTx, ...state.transactions],
-    });
-
-    if (isCompleted) {
-      toast.success(
-        isId
-          ? `🎉 Selamat! Cicilan "${item.name}" telah LUNAS dan otomatis selesai dari dashboard!`
-          : `🎉 Bill "${item.name}" fully paid and completed!`
-      );
-    } else {
-      toast.success(
-        isId
-          ? `Pembayaran cicilan "${item.name}" dicatat. Sisa: ${nextRem}x.`
-          : `Payment recorded. Remaining: ${nextRem}x.`
-      );
+  const openDebtPayment = (item: Debt) => {
+    if (state.accounts.length === 0) {
+      toast.error(isId ? "Tambahkan akun terlebih dahulu di tab Akun & saldo." : "Add an account first.");
+      return;
     }
+    const remaining = Math.max(0, item.total - item.paid);
+    if (remaining <= 0) {
+      toast.error(isId ? "Komitmen ini sudah lunas." : "This commitment is already settled.");
+      return;
+    }
+    const collecting = item.type === "receivable";
+    setPayTarget({
+      kind: "debt",
+      id: item.id,
+      name: item.name,
+      category: "",
+      amount: remaining,
+      maxAmount: remaining,
+      currency: item.currency,
+      direction: collecting ? "income" : "expense",
+      lastPaidDate: item.lastPaidDate,
+      subtitle: isId
+        ? `${collecting ? "Piutang dari" : "Utang ke"} ${item.person} · sisa ${formatMoney(remaining, item.currency, state.locale)}`
+        : `${collecting ? "Receivable from" : "Debt to"} ${item.person} · ${formatMoney(remaining, item.currency, state.locale)} left`,
+    });
+  };
+
+  /**
+   * Single commit point. `applyCommitmentPayment` validates and rebuilds the whole workspace, so
+   * the transaction entry, the account balance and the commitment status are persisted by ONE
+   * `onSave` write — a rejected payment changes nothing at all.
+   */
+  const confirmPayment = (input: CommitmentPaymentInput): boolean => {
+    const result = applyCommitmentPayment(state, input, { id: isId });
+    if (!result.ok) {
+      toast.error(result.error);
+      return false;
+    }
+    onSave(result.state);
+    toast.success(result.message);
+    return true;
   };
 
   const addDebt = (event: React.FormEvent) => {
@@ -213,26 +241,6 @@ export function CommitmentsPanel({
       ),
     });
     toast.success(isId ? "Utang/piutang diperbarui." : "Debt updated.");
-  };
-
-  const recordPayment = (item: Debt) => {
-    const remaining = item.total - item.paid;
-    const input = window.prompt(
-      isId
-        ? `Catat pembayaran untuk ${item.name} (Sisa: ${formatMoney(remaining, item.currency, state.locale)})`
-        : `Record payment for ${item.name} (Remaining: ${formatMoney(remaining, item.currency, state.locale)})`,
-      String(remaining)
-    );
-    if (!input) return;
-    const payAmount = Number(input);
-    if (!Number.isFinite(payAmount) || payAmount <= 0) return;
-
-    const nextPaid = Math.min(item.total, item.paid + payAmount);
-    onSave({
-      ...state,
-      debts: state.debts.map((d) => (d.id === item.id ? { ...d, paid: nextPaid } : d)),
-    });
-    toast.success(isId ? "Pembayaran dicatat." : "Payment recorded.");
   };
 
   const remove = (kind: "bill" | "debt", id: string) => {
@@ -395,6 +403,15 @@ export function CommitmentsPanel({
                             : isId ? `Kurang ${item.remainingInstallments} bulan lagi (${item.remainingInstallments}x)` : `${item.remainingInstallments}x remaining`}
                         </Badge>
                       )}
+                      {isPaidInMonth(item.lastPaidDate, thisMonth) && !isFinished && (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-500/30 bg-emerald-500/5 text-[9px] font-bold text-emerald-400"
+                          data-testid={`bill-paid-this-month-${item.id}`}
+                        >
+                          {isId ? "Sudah dibayar bulan ini" : "Paid this month"}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                       {item.category} · {isId ? "Jatuh Tempo" : "Due"}: {item.nextDueDate} · {item.remainingInstallments === undefined ? (isId ? "Tagihan Bulanan Rutin" : "Monthly Recurring") : ""}
@@ -411,7 +428,7 @@ export function CommitmentsPanel({
                       <button
                         type="button"
                         data-testid={`bill-pay-installment-${item.id}-button`}
-                        onClick={() => payBillInstallment(item)}
+                        onClick={() => openBillPayment(item)}
                         title={isId ? "Bayar 1x Cicilan" : "Pay 1x Installment"}
                         className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-extrabold text-emerald-400 hover:bg-emerald-500/20"
                       >
@@ -550,7 +567,7 @@ export function CommitmentsPanel({
                         <button
                           type="button"
                           data-testid={`debt-pay-${item.id}-button`}
-                          onClick={() => recordPayment(item)}
+                          onClick={() => openDebtPayment(item)}
                           title={isId ? "Catat Pembayaran" : "Record Payment"}
                           className="grid size-8 place-items-center rounded-lg text-emerald-400 hover:bg-emerald-500/10"
                         >
@@ -639,6 +656,16 @@ export function CommitmentsPanel({
           </form>
         </section>
       </div>
+
+      {payTarget && (
+        <PayCommitmentDialog
+          state={state}
+          target={payTarget}
+          categories={categoryOptions}
+          onClose={() => setPayTarget(null)}
+          onConfirm={confirmPayment}
+        />
+      )}
     </div>
   );
 }
