@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BrandMark } from "@/components/BrandMark";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { LandingDrawer } from "@/components/mobile/LandingDrawer";
 import { Reveal } from "@/components/Reveal";
 import { useDocumentTitle } from "@/hooks/useReveal";
 import { useStorage } from "@/lib/storageContext";
 
 const TESTER_URL = "https://s.id/selfmanage-register-tester";
-const FEEDBACK_URL = "https://s.id/selfmanage-feedback";
 
 /* ── Hero sparkline (dependency-free, keeps first paint light) ── */
 const flow = [
@@ -170,6 +170,7 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [showAllFaq, setShowAllFaq] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const onboarded = Boolean(profile?.onboarded);
 
   useEffect(() => {
@@ -409,11 +410,9 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
                       <UserPlus size={16} /> Ajukan Diri Jadi Tester
                     </Button>
                   </a>
-                  <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" data-testid="landing-feedback-button">
-                    <Button variant="outline" className="h-12 w-full gap-2 px-6 text-sm font-bold sm:w-auto">
+                  <Button type="button" variant="outline" onClick={() => setShowFeedback(true)} data-testid="landing-feedback-button" className="h-12 w-full gap-2 px-6 text-sm font-bold sm:w-auto">
                       <MessageSquarePlus size={16} /> Kirim Feedback
-                    </Button>
-                  </a>
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -493,7 +492,7 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
               <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Kontak & Beta</p>
               <ul className="space-y-2 text-sm font-semibold text-muted-foreground">
                 <li><a href={TESTER_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-2 transition-colors hover:text-foreground md:min-h-0" data-testid="footer-tester-link"><UserPlus size={13} /> Jadi Tester</a></li>
-                <li><a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-2 transition-colors hover:text-foreground md:min-h-0" data-testid="footer-feedback-link"><Send size={13} /> Kirim Feedback</a></li>
+                <li><button type="button" onClick={() => setShowFeedback(true)} className="inline-flex min-h-8 items-center gap-2 transition-colors hover:text-foreground md:min-h-0" data-testid="footer-feedback-link"><Send size={13} /> Kirim Feedback</button></li>
               </ul>
             </div>
           </div>
@@ -508,6 +507,7 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
 
       <LandingDrawer open={menuOpen} onClose={() => setMenuOpen(false)} menu={menu} onboarded={onboarded} onDemo={() => navigate("/demo")} onConnect={() => setShowConnect(true)} onDashboard={() => navigate("/dashboard")} />
       <ConnectSheetDialog open={showConnect} onClose={() => setShowConnect(false)} onConnected={() => navigate("/dashboard")} />
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </div>
   );
 }
