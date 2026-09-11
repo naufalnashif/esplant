@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Check, LoaderCircle, MessageSquareText, Send, ShieldCheck, Star } from "lucide-react";
+import { Check, ImagePlus, LoaderCircle, MessageSquareText, Send, ShieldCheck, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -22,29 +22,46 @@ const feedbackTypes = [
 export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const [type, setType] = useState("saran");
   const [rating, setRating] = useState(0);
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [fileError, setFileError] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
 
   useEffect(() => {
     if (!open) return;
     setStatus("idle");
+    setFileError("");
   }, [open]);
+
+  const chooseScreenshot = (file?: File) => {
+    setFileError("");
+    if (!file) { setScreenshot(null); return; }
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setFileError("Gunakan gambar PNG, JPG, atau WebP.");
+      setScreenshot(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError("Ukuran screenshot maksimal 5 MB.");
+      setScreenshot(null);
+      return;
+    }
+    setScreenshot(file);
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("sending");
     const form = event.currentTarget;
     try {
-      const fields = new URLSearchParams();
-      new FormData(form).forEach((value, key) => fields.append(key, String(value)));
       const response = await fetch("/__forms.html", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: fields.toString(),
+        body: new FormData(form),
       });
       if (!response.ok) throw new Error("Submission failed");
       form.reset();
       setType("saran");
       setRating(0);
+      setScreenshot(null);
       setStatus("success");
     } catch {
       setStatus("error");
@@ -53,7 +70,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100svh-1rem)] overflow-y-auto border border-border/80 bg-card p-0 shadow-2xl sm:max-w-[620px] sm:rounded-3xl">
+      <DialogContent className="flex max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] max-w-[620px] flex-col gap-0 overflow-hidden border border-border/80 bg-card p-0 shadow-2xl sm:max-h-[calc(100svh-2rem)] sm:rounded-3xl">
         {status === "success" ? (
           <div className="grid min-h-[390px] place-items-center px-7 py-12 text-center" data-testid="feedback-success">
             <div>
@@ -69,10 +86,10 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           </div>
         ) : (
           <>
-            <div className="relative overflow-hidden border-b border-border/70 bg-primary/[0.07] px-5 py-6 sm:px-8 sm:py-8">
+            <div className="relative shrink-0 overflow-hidden border-b border-border/70 bg-primary/[0.07] px-4 py-4 sm:px-8 sm:py-7">
               <div className="absolute -right-10 -top-16 size-40 rounded-full bg-primary/15 blur-3xl" />
               <DialogHeader className="relative pr-8">
-                <div className="mb-2 grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+                <div className="mb-1.5 grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 sm:mb-2 sm:size-10">
                   <MessageSquareText size={20} />
                 </div>
                 <DialogTitle className="font-heading text-xl font-extrabold sm:text-2xl">Ceritakan pengalaman Anda</DialogTitle>
@@ -82,7 +99,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
               </DialogHeader>
             </div>
 
-            <form name="product-feedback" method="POST" data-netlify="true" netlify-honeypot="bot-field" onSubmit={submit} className="space-y-6 px-5 py-6 sm:px-8" data-testid="feedback-form">
+            <form name="product-feedback" method="POST" encType="multipart/form-data" data-netlify="true" netlify-honeypot="bot-field" onSubmit={submit} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:space-y-6 sm:px-8 sm:py-6" data-testid="feedback-form">
               <input type="hidden" name="form-name" value="product-feedback" />
               <input type="hidden" name="rating" value={rating || "Tidak diisi"} />
               <p className="hidden" aria-hidden="true"><label>Jangan isi kolom ini <input name="bot-field" tabIndex={-1} autoComplete="off" /></label></p>
@@ -106,6 +123,45 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 <p className="mt-1.5 text-[11px] text-muted-foreground">Jangan sertakan kata sandi atau informasi keuangan sensitif.</p>
               </div>
 
+              <div>
+                <Label htmlFor="feedback-question">Ada pertanyaan untuk developer? <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+                <Textarea id="feedback-question" name="developer_question" maxLength={1000} rows={3} placeholder="Contoh: Apakah fitur pengingat otomatis sedang direncanakan?" className="mt-2 min-h-20 resize-y bg-background/60 px-3 py-3" />
+                <p className="mt-1.5 text-[11px] text-muted-foreground">Sertakan email di bawah jika Anda ingin mendapat balasan.</p>
+              </div>
+
+              <div>
+                <Label htmlFor="feedback-screenshot">Lampirkan screenshot <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+                <div className={`relative mt-2 rounded-xl border border-dashed p-3 transition-colors ${fileError ? "border-destructive/60 bg-destructive/[0.04]" : "border-border hover:border-primary/60 hover:bg-primary/[0.03]"}`}>
+                  <input
+                    id="feedback-screenshot"
+                    name="screenshot"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      chooseScreenshot(file);
+                      if (file && (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) event.target.value = "";
+                    }}
+                    className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                    aria-describedby="screenshot-help screenshot-error"
+                  />
+                  {screenshot ? (
+                    <div className="flex min-w-0 items-center gap-3 pr-10">
+                      <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><ImagePlus size={19} /></div>
+                      <div className="min-w-0"><p className="truncate text-sm font-bold">{screenshot.name}</p><p className="text-[11px] text-muted-foreground">{(screenshot.size / 1024 / 1024).toFixed(1)} MB · Ketuk untuk mengganti</p></div>
+                      <button type="button" aria-label="Hapus screenshot" onClick={(event) => { event.preventDefault(); event.stopPropagation(); chooseScreenshot(); const input = document.getElementById("feedback-screenshot") as HTMLInputElement | null; if (input) input.value = ""; }} className="absolute right-2 z-20 grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"><X size={17} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><ImagePlus size={19} /></div>
+                      <div><p className="text-sm font-bold">Pilih screenshot</p><p id="screenshot-help" className="text-[11px] text-muted-foreground">PNG, JPG, atau WebP · maks. 5 MB</p></div>
+                    </div>
+                  )}
+                </div>
+                {fileError && <p id="screenshot-error" role="alert" className="mt-1.5 text-xs text-destructive">{fileError}</p>}
+                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">Pastikan saldo, nomor rekening, dan data pribadi lain sudah disamarkan sebelum mengunggah.</p>
+              </div>
+
               <fieldset>
                 <legend className="text-sm font-bold">Seberapa mudah _self.manage digunakan? <span className="font-normal text-muted-foreground">(opsional)</span></legend>
                 <div className="mt-2 flex gap-1" aria-label="Penilaian kemudahan penggunaan">
@@ -124,7 +180,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
               {status === "error" && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">Masukan belum terkirim. Periksa koneksi lalu coba lagi.</p>}
 
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col-reverse gap-3 pb-[max(0px,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between">
                 <p className="flex items-center gap-2 text-[11px] text-muted-foreground"><ShieldCheck size={14} className="text-emerald-500" /> Dilindungi penyaring spam Netlify</p>
                 <Button type="submit" disabled={status === "sending"} className="h-11 gap-2 px-5 font-bold">
                   {status === "sending" ? <><LoaderCircle className="animate-spin" /> Mengirim…</> : <><Send /> Kirim masukan</>}
