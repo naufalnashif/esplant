@@ -19,7 +19,7 @@ import type {
   Account, CommitmentType, Currency, Debt, FinanceState, Locale, SavingsGoal,
   Transaction, TransactionKind, WishlistItem,
 } from "@/lib/localDb";
-import { createInitialState, sanitizeImportedState } from "@/lib/localDb";
+import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
 import { loadFinanceState, saveFinanceState } from "@/lib/dataStore";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
@@ -43,9 +43,14 @@ import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, useOverviewStats } from "@/lib/overviewStats";
 import { createSampleState } from "@/lib/sampleData";
+import {
+  buildCategoryChart, buildStackedSpend, seriesKey, OTHER_SLICE_COLOR,
+  type CategorySlice,
+} from "@/lib/categoryChart";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
-const categoryFallbacks = ["Food", "Transport", "Housing", "Utilities", "Family", "Lifestyle", "Health", "Education"];
+// Single source of truth with localDb so a fresh workspace and the dropdowns never disagree.
+const categoryFallbacks = DEFAULT_CATEGORIES;
 const currentMonth = new Date().toISOString().slice(0, 7);
 
 const copy = {
@@ -55,6 +60,7 @@ const copy = {
     totalBalance: "Total saldo", spent: "Pengeluaran bulan ini", income: "Pemasukan bulan ini", net: "Arus bersih", committed: "Komitmen aktif",
     vsLast: "vs bulan lalu", addTransaction: "Tambah transaksi", recent: "Aktivitas terbaru", seeAll: "Lihat semua",
     compare: "Bandingkan pengeluaran", category: "Kategori", thisMonth: "Bulan ini", lastMonth: "Bulan lalu", cashFlow: "Arus kas 6 bulan",
+    otherCategory: "Lainnya", topCategories: "5 kategori teratas + Lainnya",
     actionCenter: "Pusat aksi", dueSoon: "Segera jatuh tempo", save: "Simpan", cancel: "Batal", amount: "Nominal", description: "Deskripsi",
     type: "Tipe", expense: "Pengeluaran", incomeType: "Pemasukan", account: "Sumber dana", date: "Tanggal", tags: "Tag",
     noData: "Belum ada data untuk filter ini.", all: "Semua", search: "Cari transaksi", sort: "Urutkan", newest: "Terbaru", largest: "Nominal terbesar",
@@ -70,6 +76,7 @@ const copy = {
     totalBalance: "Total balance", spent: "Spent this month", income: "Income this month", net: "Net flow", committed: "Active commitments",
     vsLast: "vs last month", addTransaction: "Add transaction", recent: "Recent activity", seeAll: "See all",
     compare: "Spending comparison", category: "Category", thisMonth: "This month", lastMonth: "Last month", cashFlow: "6-month cash flow",
+    otherCategory: "Others", topCategories: "Top 5 categories + Others",
     actionCenter: "Action center", dueSoon: "Due soon", save: "Save", cancel: "Cancel", amount: "Amount", description: "Description",
     type: "Type", expense: "Expense", incomeType: "Income", account: "Funding source", date: "Date", tags: "Tags",
     noData: "No data for this filter yet.", all: "All", search: "Search transactions", sort: "Sort", newest: "Newest", largest: "Largest",
@@ -140,11 +147,12 @@ export default function Home() {
       && (filter.category === "all" || item.category === filter.category)
       && (filter.account === "all" || item.accountId === filter.account);
   }).sort((a, b) => filter.sort === "largest" ? b.baseAmount - a.baseAmount : b.date.localeCompare(a.date)), [filter, state.transactions]);
-  const categoryChart = useMemo(() => categories.slice(0, 7).map((category) => ({
-    category,
-    current: currentTransactions.filter((item) => item.kind === "expense" && item.category === category).reduce((sum, item) => sum + item.baseAmount, 0) / displayRate,
-    previous: previousTransactions.filter((item) => item.kind === "expense" && item.category === category).reduce((sum, item) => sum + item.baseAmount, 0) / displayRate,
-  })).filter((item) => item.current || item.previous), [categories, currentTransactions, previousTransactions, displayRate]);
+  // Derived from the real ledger (never from a fixed, sliced category list) so custom
+  // categories and "Education" show up; rank 6+ is folded into a single "Lainnya" slice.
+  const categoryChart = useMemo(
+    () => buildCategoryChart(currentTransactions, previousTransactions, displayRate, t.otherCategory),
+    [currentTransactions, previousTransactions, displayRate, t.otherCategory],
+  );
   const flowChart = useMemo(() => Array.from({ length: 6 }, (_, index) => {
     const date = new Date(); date.setMonth(date.getMonth() - (5 - index));
     const key = date.toISOString().slice(0, 7);
@@ -440,7 +448,7 @@ function Overview({
   committed: number;
   trendText: string;
   previousSpend: number;
-  categoryChart: { category: string; current: number; previous: number }[];
+  categoryChart: CategorySlice[];
   flowChart: { month: string; income: number; expense: number }[];
   currentMonth: string;
   setCompareMonth: (value: string) => void;
@@ -452,6 +460,12 @@ function Overview({
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
   const [showMatrix, setShowMatrix] = useState(true);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  // Stacking is only meaningful ACROSS categories, so a single-category month keeps the
+  // classic side-by-side "last month vs this month" bars.
+  const stacked = categoryChart.length > 1;
+  const stackedData = buildStackedSpend(categoryChart, t.lastMonth, t.thisMonth);
+  const sliceColor = (slice: CategorySlice, index: number) =>
+    slice.isOther ? OTHER_SLICE_COLOR : CATEGORY_COLORS[index % CATEGORY_COLORS.length];
 
   return (
     <div className="animate-rise-in">
@@ -714,6 +728,13 @@ function Overview({
               <h2 className="mt-1 font-heading text-xl font-bold">
                 {t.category} · {currentMonth}
               </h2>
+              {categoryChart.length > 0 && (
+                <p className="mt-1 text-[10px] font-semibold text-muted-foreground" data-testid="category-chart-hint">
+                  {stacked
+                    ? `${isId ? "Stacked per kategori" : "Stacked by category"} · ${t.topCategories}`
+                    : isId ? "Satu kategori — tampilan berdampingan" : "Single category — side-by-side view"}
+                </p>
+              )}
             </div>
             <select
               aria-label="Comparison month"
@@ -729,31 +750,75 @@ function Overview({
               ))}
             </select>
           </div>
-          <div className="h-[280px] w-full">
+          <div
+            className="h-[280px] w-full"
+            data-testid="category-bar-chart"
+            data-chart-mode={stacked ? "stacked" : "grouped"}
+            data-slice-count={categoryChart.length}
+          >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryChart} barGap={5}>
-                <CartesianGrid vertical={false} stroke="currentColor" opacity={0.08} />
-                <XAxis dataKey="category" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
-                <Tooltip
-                  contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
-                  formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
-                />
-                <Bar dataKey="previous" name={t.lastMonth} fill="#5f5f5f" radius={[5, 5, 0, 0]} />
-                <Bar dataKey="current" name={t.thisMonth} fill="#ffa116" radius={[5, 5, 0, 0]} />
-              </BarChart>
+              {stacked ? (
+                <BarChart data={stackedData} barGap={5}>
+                  <CartesianGrid vertical={false} stroke="currentColor" opacity={0.08} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
+                  <Tooltip
+                    contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
+                    formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
+                  />
+                  {categoryChart.map((slice, index) => (
+                    <Bar
+                      key={slice.key}
+                      dataKey={seriesKey(slice)}
+                      name={slice.category}
+                      stackId="spend"
+                      fill={sliceColor(slice, index)}
+                      radius={index === categoryChart.length - 1 ? [5, 5, 0, 0] : undefined}
+                    />
+                  ))}
+                </BarChart>
+              ) : (
+                <BarChart data={categoryChart} barGap={5}>
+                  <CartesianGrid vertical={false} stroke="currentColor" opacity={0.08} />
+                  <XAxis dataKey="category" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
+                  <Tooltip
+                    contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
+                    formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
+                  />
+                  <Bar dataKey="previous" name={t.lastMonth} fill="#5f5f5f" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="current" name={t.thisMonth} fill="#ffa116" radius={[5, 5, 0, 0]} />
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
-          <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <i className="size-2 rounded-full bg-primary" />
-              {t.thisMonth}
-            </span>
-            <span className="flex items-center gap-1">
-              <i className="size-2 rounded-full bg-neutral-500" />
-              {t.lastMonth}
-            </span>
-          </div>
+          {stacked ? (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-semibold text-muted-foreground" data-testid="category-bar-legend">
+              {categoryChart.map((slice, index) => (
+                <span
+                  key={slice.key}
+                  className="flex items-center gap-1"
+                  data-testid={`category-bar-legend-${slice.key}`}
+                  title={slice.isOther ? slice.members.join(", ") : slice.category}
+                >
+                  <i className="size-2 rounded-full" style={{ backgroundColor: sliceColor(slice, index) }} />
+                  {slice.category}
+                  {slice.isOther && ` (${slice.members.length})`}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <i className="size-2 rounded-full bg-primary" />
+                {t.thisMonth}
+              </span>
+              <span className="flex items-center gap-1">
+                <i className="size-2 rounded-full bg-neutral-500" />
+                {t.lastMonth}
+              </span>
+            </div>
+          )}
         </Card>
 
         <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
@@ -866,33 +931,42 @@ function Overview({
             </button>
           </div>
           <div className="flex items-center gap-4">
-            <div className="h-[150px] w-[150px]">
+            <div className="h-[150px] w-[150px]" data-testid="category-donut-chart" data-slice-count={categoryChart.length}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={categoryChart.length ? categoryChart : [{ category: "No data", current: 1 }]}
+                    data={categoryChart.length ? categoryChart : [{ key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] }]}
                     dataKey="current"
                     nameKey="category"
                     innerRadius={45}
                     outerRadius={68}
                     paddingAngle={3}
                   >
-                    {(categoryChart.length ? categoryChart : [{ category: "No data", current: 1 }]).map((item, index) => (
-                      <Cell key={item.category} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
+                    {(categoryChart.length ? categoryChart : [{ key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] }]).map((item, index) => (
+                      <Cell key={item.key} fill={sliceColor(item, index)} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              {categoryChart.slice(0, 4).map((item, index) => (
-                <div key={item.category} className="flex items-center gap-2">
-                  <span className="size-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium">{item.category}</span>
+            <div className="min-w-0 flex-1 space-y-2" data-testid="category-donut-legend">
+              {categoryChart.map((item, index) => (
+                <div
+                  key={item.key}
+                  className="flex items-center gap-2"
+                  data-testid={`category-donut-legend-${item.key}`}
+                  title={item.isOther ? item.members.join(", ") : item.category}
+                >
+                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: sliceColor(item, index) }} />
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                    {item.category}
+                    {item.isOther && <span className="ml-1 text-muted-foreground">({item.members.length})</span>}
+                  </span>
                   <span className="font-data text-[10px] text-muted-foreground">{percent(item.current, currentSpend)}%</span>
                 </div>
               ))}
+              {categoryChart.length === 0 && <p className="text-xs text-muted-foreground">{t.noData}</p>}
             </div>
           </div>
         </Card>

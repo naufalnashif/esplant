@@ -19,7 +19,10 @@ export function TransactionsPanel({ state, labels, categories, filteredTransacti
   const mobileItems = showAll ? filteredTransactions : filteredTransactions.slice(0, MOBILE_PREVIEW);
   const hiddenCount = filteredTransactions.length - mobileItems.length;
   const activeFilterCount = [filter.kind, filter.category, filter.account].filter((value) => value !== "all").length + (filter.sort !== "newest" ? 1 : 0);
-  const options = (values: string[]) => values.map((value) => { const account = state.accounts.find((item) => item.name === value); return <option key={value} value={account?.id ?? value} label={value} />; });
+  // Values MUST be the sentinels the ledger filter in Home.tsx compares against
+  // ("all" / "expense" / "income" / account id / "newest" / "largest") — never the
+  // translated label, otherwise resetting a filter silently matches nothing.
+  const options = (items: { value: string; label: string }[]) => items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>);
   const selectClass = "h-10 min-w-0 rounded-lg border border-border bg-background px-3 text-xs font-semibold";
 
   return <div className="animate-rise-in">
@@ -38,10 +41,10 @@ export function TransactionsPanel({ state, labels, categories, filteredTransacti
           </button>
         </div>
         <div className={`${showFilters ? "grid" : "hidden"} grid-cols-2 gap-2 md:contents`} data-testid="transaction-filter-group">
-          <select data-testid="transaction-kind-filter" value={filter.kind} onChange={(event) => setFilter((value) => ({ ...value, kind: event.target.value }))} className={selectClass}>{options([`${labels.all} · ${labels.type}`, labels.expense, labels.incomeType])}</select>
-          <select data-testid="transaction-category-filter" value={filter.category} onChange={(event) => setFilter((value) => ({ ...value, category: event.target.value }))} className={selectClass}>{options([`${labels.all} · ${labels.category}`, ...categories])}</select>
-          <select data-testid="transaction-account-filter" value={filter.account} onChange={(event) => setFilter((value) => ({ ...value, account: event.target.value }))} className={selectClass}>{options([`${labels.all} · ${labels.account}`, ...state.accounts.map((account) => account.name)])}</select>
-          <select data-testid="transaction-sort-filter" value={filter.sort} onChange={(event) => setFilter((value) => ({ ...value, sort: event.target.value }))} className={selectClass}>{options([labels.newest, labels.largest])}</select>
+          <select data-testid="transaction-kind-filter" value={filter.kind} onChange={(event) => setFilter((value) => ({ ...value, kind: event.target.value }))} className={selectClass}>{options([{ value: "all", label: `${labels.all} · ${labels.type}` }, { value: "expense", label: labels.expense }, { value: "income", label: labels.incomeType }])}</select>
+          <select data-testid="transaction-category-filter" value={filter.category} onChange={(event) => setFilter((value) => ({ ...value, category: event.target.value }))} className={selectClass}>{options([{ value: "all", label: `${labels.all} · ${labels.category}` }, ...categories.map((category) => ({ value: category, label: category }))])}</select>
+          <select data-testid="transaction-account-filter" value={filter.account} onChange={(event) => setFilter((value) => ({ ...value, account: event.target.value }))} className={selectClass}>{options([{ value: "all", label: `${labels.all} · ${labels.account}` }, ...state.accounts.map((account) => ({ value: account.id, label: account.name }))])}</select>
+          <select data-testid="transaction-sort-filter" value={filter.sort} onChange={(event) => setFilter((value) => ({ ...value, sort: event.target.value }))} className={selectClass}>{options([{ value: "newest", label: labels.newest }, { value: "largest", label: labels.largest }])}</select>
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground"><ListFilter size={14} /> {filteredTransactions.length} transactions shown · IndexedDB local</div>

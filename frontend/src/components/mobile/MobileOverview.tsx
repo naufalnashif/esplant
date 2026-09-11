@@ -11,6 +11,7 @@ import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import type { FinanceState } from "@/lib/localDb";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, toBase, useOverviewStats, type PeriodKey } from "@/lib/overviewStats";
+import { OTHER_SLICE_COLOR, type CategorySlice } from "@/lib/categoryChart";
 
 export interface OverviewLabels {
   hello: string; totalBalance: string; cashFlow: string; recent: string; seeAll: string; dueSoon: string; noData: string;
@@ -23,7 +24,7 @@ export interface MobileOverviewProps {
   totalBalance: number;
   currentSpend: number;
   currentIncome: number;
-  categoryChart: { category: string; current: number; previous: number }[];
+  categoryChart: CategorySlice[];
   flowChart: { month: string; income: number; expense: number }[];
   currentMonth: string;
   setCompareMonth: (value: string) => void;
@@ -71,7 +72,10 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
   const compareMax = Math.max(1, ...topCategories.flatMap((item) => [item.current, item.previous]));
   const previousTotal = categoryChart.reduce((sum, item) => sum + item.previous, 0);
   const money = (value: number) => formatMoney(value, state.baseCurrency, state.locale, true);
-  const pieData = categoryChart.length ? categoryChart : [{ category: "No data", current: 1, previous: 0 }];
+  const emptySlice: CategorySlice = { key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] };
+  const pieData: CategorySlice[] = categoryChart.length ? categoryChart : [emptySlice];
+  const sliceColor = (slice: CategorySlice, index: number) =>
+    slice.isOther ? OTHER_SLICE_COLOR : CATEGORY_COLORS[index % CATEGORY_COLORS.length];
 
   return (
     <div className="animate-rise-in space-y-4" data-testid="mobile-overview">
@@ -165,11 +169,11 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         <Card className="border-border/70 bg-card/75 p-3.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Allocation</p>
           <p className="mt-0.5 truncate font-heading text-sm font-bold">Where it goes</p>
-          <div className="relative mx-auto mt-2 h-[96px] w-[96px]">
+          <div className="relative mx-auto mt-2 h-[96px] w-[96px]" data-testid="mobile-category-donut" data-slice-count={categoryChart.length}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={pieData} dataKey="current" nameKey="category" innerRadius={30} outerRadius={44} paddingAngle={3} stroke="none">
-                  {pieData.map((item, index) => <Cell key={item.category} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />)}
+                  {pieData.map((item, index) => <Cell key={item.key} fill={sliceColor(item, index)} />)}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} formatter={(value) => money(Number(value))} />
               </PieChart>
@@ -178,10 +182,10 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
               <span className="font-data text-[9px] font-bold leading-tight">{money(currentSpend).replace("Rp ", "")}</span>
             </div>
           </div>
-          <div className="mt-2 space-y-1">
-            {categoryChart.slice(0, 3).map((item, index) => (
-              <div key={item.category} className="flex items-center gap-1.5 text-[10px]">
-                <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }} />
+          <div className="mt-2 space-y-1" data-testid="mobile-category-legend">
+            {categoryChart.map((item, index) => (
+              <div key={item.key} className="flex items-center gap-1.5 text-[10px]" data-testid={`mobile-category-legend-${item.key}`}>
+                <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: sliceColor(item, index) }} />
                 <span className="min-w-0 flex-1 truncate font-medium">{item.category}</span>
                 <span className="font-data text-muted-foreground">{currentSpend ? Math.min(100, Math.round((item.current / currentSpend) * 100)) : 0}%</span>
               </div>
@@ -203,7 +207,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
           </select>
           <div className="mt-2.5 space-y-2">
             {topCategories.map((item) => (
-              <div key={item.category}>
+              <div key={item.key}>
                 <div className="flex items-center justify-between gap-2 text-[10px]">
                   <span className="min-w-0 flex-1 truncate font-medium">{item.category}</span>
                   <span className="font-data text-muted-foreground">{money(item.current)}</span>

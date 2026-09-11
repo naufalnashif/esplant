@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Category, FinanceState } from "@/lib/localDb";
+import { MAX_ACTIVE_CATEGORIES } from "@/lib/localDb";
 
 export function CategoryManager({
   state,
@@ -27,9 +28,19 @@ export function CategoryManager({
     return counts;
   }, [state.transactions]);
 
+  const activeCount = state.categories.filter((item) => !item.archived).length;
+  const atLimit = activeCount >= MAX_ACTIVE_CATEGORIES;
+  const limitMessage = isId
+    ? `Maksimal ${MAX_ACTIVE_CATEGORIES} kategori aktif. Arsipkan atau hapus salah satu dulu.`
+    : `Maximum ${MAX_ACTIVE_CATEGORIES} active categories. Archive or delete one first.`;
+
   const add = () => {
     const name = newName.trim();
     if (!name) return;
+    if (atLimit) {
+      toast.error(limitMessage);
+      return;
+    }
     if (state.categories.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
       toast.error(isId ? "Kategori sudah ada." : "Category already exists.");
       return;
@@ -37,6 +48,15 @@ export function CategoryManager({
     onSave([...state.categories, { id: `category-${Date.now()}`, name, archived: false }]);
     setNewName("");
     toast.success(isId ? "Kategori baru ditambahkan." : "New category added.");
+  };
+
+  /** Un-archiving consumes an active slot, so it obeys the same ceiling as creating one. */
+  const restore = (item: Category) => {
+    if (atLimit) {
+      toast.error(limitMessage);
+      return;
+    }
+    onSave(state.categories.map((c) => (c.id === item.id ? { ...c, archived: false } : c)));
   };
 
   const rename = (item: Category) => {
@@ -91,8 +111,12 @@ export function CategoryManager({
         </div>
 
         <div className="flex items-center gap-1.5 self-start sm:self-auto">
-          <Badge variant="secondary" className="text-xs">
-            {state.categories.filter((c) => !c.archived).length} {isId ? "Aktif" : "Active"}
+          <Badge
+            variant={atLimit ? "outline" : "secondary"}
+            className={`text-xs ${atLimit ? "border-amber-500/50 text-amber-500" : ""}`}
+            data-testid="category-active-count"
+          >
+            {activeCount}/{MAX_ACTIVE_CATEGORIES} {isId ? "Aktif" : "Active"}
           </Badge>
           {state.categories.some((c) => c.archived) && (
             <Badge variant="outline" className="text-xs text-muted-foreground">
@@ -108,12 +132,13 @@ export function CategoryManager({
           <input
             data-testid="category-new-input"
             value={newName}
+            disabled={atLimit}
             onChange={(event) => setNewName(event.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-            placeholder={isId ? "+ Tambah kategori baru..." : "+ Add new category..."}
-            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+            placeholder={atLimit ? limitMessage : isId ? "+ Tambah kategori baru..." : "+ Add new category..."}
+            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-50"
           />
-          <Button data-testid="category-create-button" onClick={add} size="sm" className="h-9 gap-1.5 shrink-0 text-xs">
+          <Button data-testid="category-create-button" onClick={add} disabled={atLimit} size="sm" className="h-9 gap-1.5 shrink-0 text-xs">
             <Plus size={14} />
             {isId ? "Tambah" : "Add"}
           </Button>
@@ -154,6 +179,15 @@ export function CategoryManager({
           </button>
         </div>
       </div>
+
+      {atLimit && (
+        <p
+          className="mb-3 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-500"
+          data-testid="category-limit-note"
+        >
+          {limitMessage}
+        </p>
+      )}
 
       {/* Compact Chips Grid */}
       <div className="flex flex-wrap gap-2">
@@ -227,9 +261,7 @@ export function CategoryManager({
                       <button
                         type="button"
                         data-testid={`category-restore-${item.id}-button`}
-                        onClick={() =>
-                          onSave(state.categories.map((c) => (c.id === item.id ? { ...c, archived: false } : c)))
-                        }
+                        onClick={() => restore(item)}
                         title={isId ? "Pulihkan" : "Restore"}
                         className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
                       >

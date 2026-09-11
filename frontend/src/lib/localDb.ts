@@ -111,7 +111,15 @@ const DB_NAME = "esplant-financial-tracker";
 const STORE_NAME = "finance-state";
 const STATE_KEY = "current";
 
-export const DEFAULT_CATEGORIES = ["Food", "Transport", "Housing", "Utilities", "Family", "Lifestyle", "Health", "Education", "Salary", "Freelance", "Savings", "Other"];
+/*
+  Eight starter categories only — deliberately small so a fresh workspace is not flooded with
+  dropdown noise. Anything else (Freelance, Savings, Family, ...) is created by the user in
+  Settings -> Kelola Kategori, or picked up automatically from imported/synced history.
+*/
+export const DEFAULT_CATEGORIES = ["Food", "Transport", "Housing", "Utilities", "Lifestyle", "Health", "Education", "Salary"];
+
+/** Hard ceiling on ACTIVE (non-archived) categories a user may keep. Archive to free a slot. */
+export const MAX_ACTIVE_CATEGORIES = 15;
 
 const transactionDelta = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) =>
   ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / (rates[currency] || 1);
