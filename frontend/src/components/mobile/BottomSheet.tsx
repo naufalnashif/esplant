@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /** Mobile: bottom-sheet (max 85% tinggi, sticky header/footer, scroll internal). ≥sm: centered modal. */
@@ -34,7 +35,11 @@ export function BottomSheet({
 
   if (!open) return null;
 
-  return (
+  // Rendered via a portal straight into <body> — an ancestor with any CSS `transform` (e.g. the
+  // `.animate-rise-in` entrance animation used across dashboard panels) turns into a containing
+  // block for `position: fixed` descendants, which silently breaks viewport centering and made
+  // this sheet appear anchored to the panel's scroll position instead of the screen on desktop.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
@@ -73,6 +78,7 @@ export function BottomSheet({
           </footer>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

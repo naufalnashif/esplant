@@ -387,8 +387,8 @@ export function CommitmentsPanel({
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold">{item.name}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="min-w-0 max-w-full truncate text-sm font-semibold">{item.name}</p>
                       {item.remainingInstallments !== undefined && (
                         <Badge
                           variant="outline"
@@ -542,8 +542,8 @@ export function CommitmentsPanel({
                       {item.type === "debt" ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold">{item.name}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="min-w-0 max-w-full truncate text-sm font-semibold">{item.name}</p>
                         <Badge variant="outline" className={`text-[9px] ${item.type === "debt" ? "text-red-400 border-red-500/30" : "text-emerald-400 border-emerald-500/30"}`}>
                           {item.type === "debt" ? (isId ? "Saya Berutang" : "Debt") : (isId ? "Piutang Saya" : "Receivable")}
                         </Badge>
