@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Check, ImagePlus, LoaderCircle, MessageSquareText, Send, ShieldCheck, Star, X } from "lucide-react";
+import { Check, HelpCircle, ImagePlus, LoaderCircle, MessageSquareText, Send, ShieldCheck, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -24,12 +24,17 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
   const [rating, setRating] = useState(0);
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [showScreenshot, setShowScreenshot] = useState(false);
+  const [showQuestion, setShowQuestion] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
 
   useEffect(() => {
     if (!open) return;
     setStatus("idle");
     setFileError("");
+    setShowScreenshot(false);
+    setShowQuestion(false);
+    setScreenshot(null);
   }, [open]);
 
   const chooseScreenshot = (file?: File) => {
@@ -62,6 +67,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
       setType("saran");
       setRating(0);
       setScreenshot(null);
+      setShowScreenshot(false);
+      setShowQuestion(false);
       setStatus("success");
     } catch {
       setStatus("error");
@@ -70,7 +77,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100svh-1rem)] w-[calc(100%-1rem)] max-w-[620px] flex-col gap-0 overflow-hidden border border-border/80 bg-card p-0 shadow-2xl sm:max-h-[calc(100svh-2rem)] sm:rounded-3xl">
+      <DialogContent className="flex max-h-[calc(100svh-2rem)] w-[calc(100%-2rem)] max-w-[410px] flex-col gap-0 overflow-hidden rounded-2xl border border-border/80 bg-card p-0 shadow-2xl sm:max-h-[calc(100svh-3rem)] sm:w-[calc(100%-3rem)] sm:max-w-[680px] sm:rounded-3xl lg:max-w-[780px]">
         {status === "success" ? (
           <div className="grid min-h-[390px] place-items-center px-7 py-12 text-center" data-testid="feedback-success">
             <div>
@@ -86,7 +93,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
           </div>
         ) : (
           <>
-            <div className="relative shrink-0 overflow-hidden border-b border-border/70 bg-primary/[0.07] px-4 py-4 sm:px-8 sm:py-7">
+            <div className="relative shrink-0 overflow-hidden border-b border-border/70 bg-primary/[0.07] px-4 py-3.5 sm:px-8 sm:py-6">
               <div className="absolute -right-10 -top-16 size-40 rounded-full bg-primary/15 blur-3xl" />
               <DialogHeader className="relative pr-8">
                 <div className="mb-1.5 grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 sm:mb-2 sm:size-10">
@@ -99,7 +106,7 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
               </DialogHeader>
             </div>
 
-            <form name="product-feedback" method="POST" encType="multipart/form-data" data-netlify="true" netlify-honeypot="bot-field" onSubmit={submit} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:space-y-6 sm:px-8 sm:py-6" data-testid="feedback-form">
+            <form name="product-feedback" method="POST" encType="multipart/form-data" data-netlify="true" netlify-honeypot="bot-field" onSubmit={submit} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:space-y-5 sm:px-8 sm:py-6" data-testid="feedback-form">
               <input type="hidden" name="form-name" value="product-feedback" />
               <input type="hidden" name="rating" value={rating || "Tidak diisi"} />
               <p className="hidden" aria-hidden="true"><label>Jangan isi kolom ini <input name="bot-field" tabIndex={-1} autoComplete="off" /></label></p>
@@ -123,15 +130,32 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 <p className="mt-1.5 text-[11px] text-muted-foreground">Jangan sertakan kata sandi atau informasi keuangan sensitif.</p>
               </div>
 
-              <div>
-                <Label htmlFor="feedback-question">Ada pertanyaan untuk developer? <span className="font-normal text-muted-foreground">(opsional)</span></Label>
-                <Textarea id="feedback-question" name="developer_question" maxLength={1000} rows={3} placeholder="Contoh: Apakah fitur pengingat otomatis sedang direncanakan?" className="mt-2 min-h-20 resize-y bg-background/60 px-3 py-3" />
-                <p className="mt-1.5 text-[11px] text-muted-foreground">Sertakan email di bawah jika Anda ingin mendapat balasan.</p>
-              </div>
+              <fieldset className="border-t border-border/60 pt-4">
+                <legend className="px-1 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Tambahkan bila perlu</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${showScreenshot ? "border-primary bg-primary/[0.08] ring-1 ring-primary/20" : "border-border/80 hover:border-primary/50"}`}>
+                    <input type="checkbox" checked={showScreenshot} onChange={(event) => { setShowScreenshot(event.target.checked); if (!event.target.checked) { chooseScreenshot(); const input = document.getElementById("feedback-screenshot") as HTMLInputElement | null; if (input) input.value = ""; } }} className="size-4 shrink-0 accent-primary" />
+                    <ImagePlus size={17} className="shrink-0 text-primary" />
+                    <span><span className="block text-sm font-bold">Lampirkan screenshot</span><span className="block text-[11px] text-muted-foreground">Bantu tunjukkan kendala</span></span>
+                  </label>
+                  <label className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${showQuestion ? "border-primary bg-primary/[0.08] ring-1 ring-primary/20" : "border-border/80 hover:border-primary/50"}`}>
+                    <input type="checkbox" checked={showQuestion} onChange={(event) => setShowQuestion(event.target.checked)} className="size-4 shrink-0 accent-primary" />
+                    <HelpCircle size={17} className="shrink-0 text-primary" />
+                    <span><span className="block text-sm font-bold">Tanya developer</span><span className="block text-[11px] text-muted-foreground">Minta jawaban langsung</span></span>
+                  </label>
+                </div>
+              </fieldset>
 
-              <div>
-                <Label htmlFor="feedback-screenshot">Lampirkan screenshot <span className="font-normal text-muted-foreground">(opsional)</span></Label>
-                <div className={`relative mt-2 rounded-xl border border-dashed p-3 transition-colors ${fileError ? "border-destructive/60 bg-destructive/[0.04]" : "border-border hover:border-primary/60 hover:bg-primary/[0.03]"}`}>
+              {(showScreenshot || showQuestion) && <div className="grid animate-rise-in gap-4 rounded-2xl border border-primary/20 bg-primary/[0.035] p-3.5 sm:p-4 lg:grid-cols-2">
+              {showQuestion && <div className={showScreenshot ? "" : "lg:col-span-2"}>
+                <Label htmlFor="feedback-question">Pertanyaan untuk developer</Label>
+                <Textarea id="feedback-question" name="developer_question" maxLength={1000} rows={3} placeholder="Contoh: Apakah fitur pengingat otomatis sedang direncanakan?" className="mt-2 min-h-20 resize-y bg-background/70 px-3 py-3" />
+                <p className="mt-1.5 text-[11px] text-muted-foreground">Sertakan email jika Anda ingin mendapat balasan.</p>
+              </div>}
+
+              {showScreenshot && <div className={showQuestion ? "" : "lg:col-span-2"}>
+                <Label htmlFor="feedback-screenshot">Screenshot</Label>
+                <div className={`relative mt-2 rounded-xl border border-dashed bg-background/70 p-3 transition-colors ${fileError ? "border-destructive/60" : "border-border hover:border-primary/60"}`}>
                   <input
                     id="feedback-screenshot"
                     name="screenshot"
@@ -160,7 +184,8 @@ export function FeedbackDialog({ open, onOpenChange }: FeedbackDialogProps) {
                 </div>
                 {fileError && <p id="screenshot-error" role="alert" className="mt-1.5 text-xs text-destructive">{fileError}</p>}
                 <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">Pastikan saldo, nomor rekening, dan data pribadi lain sudah disamarkan sebelum mengunggah.</p>
-              </div>
+              </div>}
+              </div>}
 
               <fieldset>
                 <legend className="text-sm font-bold">Seberapa mudah _self.manage digunakan? <span className="font-normal text-muted-foreground">(opsional)</span></legend>
