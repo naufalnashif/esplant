@@ -382,7 +382,7 @@ export function CommitmentsPanel({
                       : "border-border/60 bg-background/35 hover:border-border/90"
                   }`}
                 >
-                  <div className={`grid size-9 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
+                  <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
                     <CreditCard size={16} />
                   </div>
 
@@ -413,17 +413,17 @@ export function CommitmentsPanel({
                         </Badge>
                       )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="truncate text-[11px] text-muted-foreground">
                       {item.category} · {isId ? "Jatuh Tempo" : "Due"}: {item.nextDueDate} · {item.remainingInstallments === undefined ? (isId ? "Tagihan Bulanan Rutin" : "Monthly Recurring") : ""}
                     </p>
                   </div>
 
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <span className="font-data text-xs font-bold">{formatMoney(item.amount, item.currency, state.locale)}</span>
                     <p className="text-[9px] text-muted-foreground">{isId ? "per bulan" : "per month"}</p>
                   </div>
 
-                  <div className="flex gap-1 pl-1">
+                  <div className="flex shrink-0 gap-1 pl-1">
                     {!isFinished && (
                       <button
                         type="button"
@@ -537,8 +537,8 @@ export function CommitmentsPanel({
 
               return (
                 <div key={item.id} className="rounded-xl border border-border/60 bg-background/35 p-3 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className={`grid size-9 place-items-center rounded-lg ${item.type === "debt" ? "bg-red-500/12 text-red-400" : "bg-emerald-500/12 text-emerald-400"}`}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${item.type === "debt" ? "bg-red-500/12 text-red-400" : "bg-emerald-500/12 text-emerald-400"}`}>
                       {item.type === "debt" ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -548,12 +548,12 @@ export function CommitmentsPanel({
                           {item.type === "debt" ? (isId ? "Saya Berutang" : "Debt") : (isId ? "Piutang Saya" : "Receivable")}
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="truncate text-[11px] text-muted-foreground">
                         {item.person} · {isId ? "Jatuh Tempo" : "Due"}: {item.dueDate}
                       </p>
                     </div>
 
-                    <div className="text-right">
+                    <div className="shrink-0 text-right">
                       <p className="font-data text-xs font-bold">
                         {formatMoney(remaining, item.currency, state.locale)}
                       </p>
@@ -562,7 +562,7 @@ export function CommitmentsPanel({
                       </p>
                     </div>
 
-                    <div className="flex gap-1 pl-1">
+                    <div className="flex shrink-0 gap-1 pl-1">
                       {!isFinished && (
                         <button
                           type="button"
