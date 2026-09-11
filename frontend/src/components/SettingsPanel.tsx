@@ -29,7 +29,7 @@ import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 type SettingsSubTab = "general" | "data";
 
 function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (nextState: FinanceState) => void }) {
-  const { profile, spreadsheetId, sheetUrl, disconnectSheet, lastSyncTime, syncStatus } = useStorage();
+  const { profile, spreadsheetId, sheetUrl, disconnectSheet, lastSyncTime, syncStatus, needsReconnect, reconnect } = useStorage();
   const [isSyncing, setIsSyncing] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const isId = state.locale === "id";
