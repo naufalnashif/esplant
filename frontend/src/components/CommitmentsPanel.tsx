@@ -3,6 +3,8 @@ import {
   ArrowUpRight,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Landmark,
   Pencil,
   Plus,
@@ -29,6 +31,8 @@ export function CommitmentsPanel({
   state: FinanceState;
   onSave: (next: FinanceState) => void;
 }) {
+  const BILL_PREVIEW_COUNT = 5;
+  const DEBT_PREVIEW_COUNT = 5;
   const isId = state.locale === "id";
   const [bill, setBill] = useState({
     name: "",
@@ -48,6 +52,8 @@ export function CommitmentsPanel({
   });
 
   const [showArchivedBills, setShowArchivedBills] = useState(false);
+  const [showAllBills, setShowAllBills] = useState(false);
+  const [showAllDebts, setShowAllDebts] = useState(false);
 
   /** Commitment being paid — non-null means the confirmation dialog is open. */
   const [payTarget, setPayTarget] = useState<PayCommitmentTarget | null>(null);
@@ -76,6 +82,10 @@ export function CommitmentsPanel({
   );
 
   const displayedBills = showArchivedBills ? state.bills : activeBills;
+  const hasMoreBills = displayedBills.length > BILL_PREVIEW_COUNT;
+  const visibleBills = showAllBills ? displayedBills : displayedBills.slice(0, BILL_PREVIEW_COUNT);
+  const hasMoreDebts = state.debts.length > DEBT_PREVIEW_COUNT;
+  const visibleDebts = showAllDebts ? state.debts : state.debts.slice(0, DEBT_PREVIEW_COUNT);
 
   // Calculate Metrics for Dashboard KPI Cards
   const totalDebt = state.debts
@@ -370,13 +380,15 @@ export function CommitmentsPanel({
           </div>
 
           <div className="space-y-3">
-            {displayedBills.map((item) => {
+            {visibleBills.map((item, index) => {
               const isFinished = item.active === false || (item.remainingInstallments !== undefined && item.remainingInstallments <= 0);
 
               return (
                 <div
                   key={item.id}
                   className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors ${
+                    index >= BILL_PREVIEW_COUNT ? "animate-rise-in" : ""
+                  } ${
                     isFinished
                       ? "border-dashed border-border/60 bg-muted/30 opacity-60"
                       : "border-border/60 bg-background/35 hover:border-border/90"
@@ -462,6 +474,27 @@ export function CommitmentsPanel({
                 {isId ? "Belum ada tagihan rutin atau cicilan aktif." : "No active recurring bills or installments."}
               </p>
             )}
+
+            {hasMoreBills && (
+              <button
+                type="button"
+                data-testid="bills-toggle-show-all"
+                onClick={() => setShowAllBills((value) => !value)}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
+              >
+                {showAllBills ? (
+                  <>
+                    {isId ? "Tampilkan lebih sedikit" : "Show less"}
+                    <ChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    {isId ? `Lihat semua (${displayedBills.length})` : `Show all (${displayedBills.length})`}
+                    <ChevronDown size={14} />
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Form Create Bill / Installment */}
@@ -530,13 +563,13 @@ export function CommitmentsPanel({
           </div>
 
           <div className="space-y-3">
-            {state.debts.map((item) => {
+            {visibleDebts.map((item, index) => {
               const remaining = Math.max(0, item.total - item.paid);
               const progress = item.total ? Math.min(100, Math.round((item.paid / item.total) * 100)) : 0;
               const isFinished = remaining === 0;
 
               return (
-                <div key={item.id} className="rounded-xl border border-border/60 bg-background/35 p-3 space-y-2">
+                <div key={item.id} className={`rounded-xl border border-border/60 bg-background/35 p-3 space-y-2 ${index >= DEBT_PREVIEW_COUNT ? "animate-rise-in" : ""}`}>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${item.type === "debt" ? "bg-red-500/12 text-red-400" : "bg-emerald-500/12 text-emerald-400"}`}>
                       {item.type === "debt" ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
@@ -608,6 +641,27 @@ export function CommitmentsPanel({
               <p className="py-6 text-center text-xs text-muted-foreground">
                 {isId ? "Belum ada catatan utang atau piutang." : "No debts or receivables recorded."}
               </p>
+            )}
+
+            {hasMoreDebts && (
+              <button
+                type="button"
+                data-testid="debts-toggle-show-all"
+                onClick={() => setShowAllDebts((value) => !value)}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
+              >
+                {showAllDebts ? (
+                  <>
+                    {isId ? "Tampilkan lebih sedikit" : "Show less"}
+                    <ChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    {isId ? `Lihat semua (${state.debts.length})` : `Show all (${state.debts.length})`}
+                    <ChevronDown size={14} />
+                  </>
+                )}
+              </button>
             )}
           </div>
 
