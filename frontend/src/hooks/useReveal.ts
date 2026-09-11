@@ -22,7 +22,9 @@ export function useReveal<T extends HTMLElement = HTMLDivElement>(threshold = 0.
           }
         }
       },
-      { threshold, rootMargin: "0px 0px -40px 0px" },
+      // Reveal before the element reaches the viewport. A negative bottom margin made fast
+      // mobile scrolling outrun React/IntersectionObserver and briefly show empty sections.
+      { threshold: 0.01, rootMargin: "160px 0px 280px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();

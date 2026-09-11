@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowUpRight, Banknote, BookOpen, Building2, ChevronDown, CreditCard, FileSpreadsheet,
@@ -8,14 +8,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BrandMark } from "@/components/BrandMark";
-import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
-import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { LandingDrawer } from "@/components/mobile/LandingDrawer";
 import { Reveal } from "@/components/Reveal";
 import { useDocumentTitle } from "@/hooks/useReveal";
 import { useStorage } from "@/lib/storageContext";
 
 const TESTER_URL = "https://s.id/selfmanage-register-tester";
+
+// These dialogs pull in authentication, upload, and modal dependencies. Keep them out of
+// the landing's critical bundle and fetch them only after the user asks to open one.
+const ConnectSheetDialog = lazy(() => import("@/components/ConnectSheetDialog").then((module) => ({ default: module.ConnectSheetDialog })));
+const FeedbackDialog = lazy(() => import("@/components/FeedbackDialog").then((module) => ({ default: module.FeedbackDialog })));
 
 /* ── Hero sparkline (dependency-free, keeps first paint light) ── */
 const flow = [
@@ -181,7 +184,7 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
   }, []);
 
   return (
-    <div id="top" className="relative min-h-svh overflow-hidden bg-background text-foreground">
+    <div id="top" className="landing-page relative min-h-svh overflow-hidden bg-background text-foreground">
       {/* JSON-LD for the landing (SoftwareApplication) */}
       <script
         type="application/ld+json"
@@ -198,7 +201,7 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
         }}
       />
 
-      <div className="pointer-events-none absolute inset-0">
+      <div className="landing-ambient pointer-events-none absolute inset-0">
         <div className="absolute -right-40 -top-52 size-[620px] rounded-full bg-primary/[0.07] blur-[130px]" />
         <div className="absolute -bottom-52 -left-40 size-[520px] rounded-full bg-emerald-500/[0.05] blur-[120px]" />
       </div>
@@ -506,8 +509,16 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
       </footer>
 
       <LandingDrawer open={menuOpen} onClose={() => setMenuOpen(false)} menu={menu} onboarded={onboarded} onDemo={() => navigate("/demo")} onConnect={() => setShowConnect(true)} onDashboard={() => navigate("/dashboard")} />
-      <ConnectSheetDialog open={showConnect} onClose={() => setShowConnect(false)} onConnected={() => navigate("/dashboard")} />
-      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
+      {showConnect && (
+        <Suspense fallback={null}>
+          <ConnectSheetDialog open onClose={() => setShowConnect(false)} onConnected={() => navigate("/dashboard")} />
+        </Suspense>
+      )}
+      {showFeedback && (
+        <Suspense fallback={null}>
+          <FeedbackDialog open onOpenChange={setShowFeedback} />
+        </Suspense>
+      )}
     </div>
   );
 }
