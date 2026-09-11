@@ -33,5 +33,5 @@
   "seed_data_creation": "None",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Frontend preview URL: https://af5f1be4-55ae-4661-b15b-0d83f2a84a26.preview.emergentagent.com . All branding + docs data-testids are stable. Google Sheets OAuth is disabled (empty VITE_GOOGLE_CLIENT_ID); only local mode is testable. Local-mode entry via landing-try-local-button -> connect-local-button routes user to workspace which shows a 'memuat workspace...' loader briefly."
+  "context_for_next_testing_agent": "Frontend preview URL: https://self-manage.preview.emergentagent.com . All branding + docs data-testids are stable. Google Sheets OAuth is disabled (empty VITE_GOOGLE_CLIENT_ID); only local mode is testable. Local-mode entry via landing-try-local-button -> connect-local-button routes user to workspace which shows a 'memuat workspace...' loader briefly."
 }

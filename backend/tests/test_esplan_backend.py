@@ -8,7 +8,7 @@ import os
 import httpx
 import pytest
 
-PUBLIC_URL = "https://1032d28b-a216-4a1a-b68f-60af37dc2c9c.preview.emergentagent.com"
+PUBLIC_URL = "https://self-manage.preview.emergentagent.com"
 BASE = os.environ.get("REACT_APP_BACKEND_URL", PUBLIC_URL).rstrip("/")
 
 
