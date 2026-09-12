@@ -54,6 +54,8 @@ export function CommitmentsPanel({
   const [showArchivedBills, setShowArchivedBills] = useState(false);
   const [showAllBills, setShowAllBills] = useState(false);
   const [showAllDebts, setShowAllDebts] = useState(false);
+  const [expandedBillIds, setExpandedBillIds] = useState<Record<string, boolean>>({});
+  const [expandedDebtIds, setExpandedDebtIds] = useState<Record<string, boolean>>({});
 
   /** Commitment being paid — non-null means the confirmation dialog is open. */
   const [payTarget, setPayTarget] = useState<PayCommitmentTarget | null>(null);
@@ -263,6 +265,11 @@ export function CommitmentsPanel({
     toast.success(isId ? "Berhasil dihapus." : `${kind} deleted.`);
   };
 
+  const toggleBillExpand = (id: string) =>
+    setExpandedBillIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleDebtExpand = (id: string) =>
+    setExpandedDebtIds((prev) => ({ ...prev, [id]: !prev[id] }));
+
   return (
     <div className="animate-rise-in space-y-6">
       {/* Header */}
@@ -382,11 +389,12 @@ export function CommitmentsPanel({
           <div className="space-y-3">
             {visibleBills.map((item, index) => {
               const isFinished = item.active === false || (item.remainingInstallments !== undefined && item.remainingInstallments <= 0);
+              const isExpanded = !!expandedBillIds[item.id];
 
               return (
                 <div
                   key={item.id}
-                  className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 transition-colors ${
+                  className={`rounded-xl border p-3 transition-colors ${
                     index >= BILL_PREVIEW_COUNT ? "animate-rise-in" : ""
                   } ${
                     isFinished
@@ -394,77 +402,100 @@ export function CommitmentsPanel({
                       : "border-border/60 bg-background/35 hover:border-border/90"
                   }`}
                 >
-                  <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
-                    <CreditCard size={16} />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="min-w-0 max-w-full truncate text-sm font-semibold">{item.name}</p>
-                      {item.remainingInstallments !== undefined && (
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] font-bold ${
-                            isFinished
-                              ? "border-emerald-500/30 text-emerald-400"
-                              : "border-amber-500/30 text-amber-400 bg-amber-500/5"
-                          }`}
-                        >
-                          {isFinished
-                            ? isId ? "🎉 LUNAS" : "COMPLETED"
-                            : isId ? `Kurang ${item.remainingInstallments} bulan lagi (${item.remainingInstallments}x)` : `${item.remainingInstallments}x remaining`}
-                        </Badge>
-                      )}
-                      {isPaidInMonth(item.lastPaidDate, thisMonth) && !isFinished && (
-                        <Badge
-                          variant="outline"
-                          className="border-emerald-500/30 bg-emerald-500/5 text-[9px] font-bold text-emerald-400"
-                          data-testid={`bill-paid-this-month-${item.id}`}
-                        >
-                          {isId ? "Sudah dibayar bulan ini" : "Paid this month"}
-                        </Badge>
-                      )}
+                  {/* Summary row — always visible, tap to reveal status badges & actions */}
+                  <button
+                    type="button"
+                    data-testid={`bill-toggle-${item.id}-button`}
+                    onClick={() => toggleBillExpand(item.id)}
+                    aria-expanded={isExpanded}
+                    className="flex w-full items-center gap-3 text-left"
+                  >
+                    <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
+                      <CreditCard size={16} />
                     </div>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {item.category} · {isId ? "Jatuh Tempo" : "Due"}: {item.nextDueDate} · {item.remainingInstallments === undefined ? (isId ? "Tagihan Bulanan Rutin" : "Monthly Recurring") : ""}
-                    </p>
-                  </div>
 
-                  <div className="shrink-0 text-right">
-                    <span className="font-data text-xs font-bold">{formatMoney(item.amount, item.currency, state.locale)}</span>
-                    <p className="text-[9px] text-muted-foreground">{isId ? "per bulan" : "per month"}</p>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="min-w-0 max-w-full truncate text-sm font-semibold">{item.name}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {item.category} · {isId ? "Jatuh Tempo" : "Due"}: {item.nextDueDate}
+                      </p>
+                    </div>
 
-                  <div className="flex shrink-0 gap-1 pl-1">
-                    {!isFinished && (
-                      <button
-                        type="button"
-                        data-testid={`bill-pay-installment-${item.id}-button`}
-                        onClick={() => openBillPayment(item)}
-                        title={isId ? "Bayar 1x Cicilan" : "Pay 1x Installment"}
-                        className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-extrabold text-emerald-400 hover:bg-emerald-500/20"
-                      >
-                        <CheckCircle2 size={13} />
-                        <span>{isId ? "Bayar 1x" : "Pay 1x"}</span>
-                      </button>
+                    <div className="shrink-0 text-right">
+                      <span className="font-data text-xs font-bold">{formatMoney(item.amount, item.currency, state.locale)}</span>
+                      <p className="text-[9px] text-muted-foreground">{isId ? "per bulan" : "per month"}</p>
+                    </div>
+
+                    {isExpanded ? (
+                      <ChevronUp size={16} className="shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
                     )}
-                    <button
-                      type="button"
-                      data-testid={`bill-edit-crud-${item.id}-button`}
-                      onClick={() => editBill(item)}
-                      className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      data-testid={`bill-delete-crud-${item.id}-button`}
-                      onClick={() => remove("bill", item.id)}
-                      className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  </button>
+
+                  {/* Expanded detail — status badges & actions, hidden by default */}
+                  {isExpanded && (
+                    <div className="mt-3 space-y-2.5 border-t border-border/50 pt-3">
+                      {(item.remainingInstallments !== undefined || isPaidInMonth(item.lastPaidDate, thisMonth)) && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {item.remainingInstallments !== undefined && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-bold ${
+                                isFinished
+                                  ? "border-emerald-500/30 text-emerald-400"
+                                  : "border-amber-500/30 text-amber-400 bg-amber-500/5"
+                              }`}
+                            >
+                              {isFinished
+                                ? isId ? "🎉 LUNAS" : "COMPLETED"
+                                : isId ? `Kurang ${item.remainingInstallments} bulan lagi (${item.remainingInstallments}x)` : `${item.remainingInstallments}x remaining`}
+                            </Badge>
+                          )}
+                          {isPaidInMonth(item.lastPaidDate, thisMonth) && !isFinished && (
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-500/30 bg-emerald-500/5 text-[9px] font-bold text-emerald-400"
+                              data-testid={`bill-paid-this-month-${item.id}`}
+                            >
+                              {isId ? "Sudah dibayar bulan ini" : "Paid this month"}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-1.5">
+                        {!isFinished && (
+                          <button
+                            type="button"
+                            data-testid={`bill-pay-installment-${item.id}-button`}
+                            onClick={() => openBillPayment(item)}
+                            title={isId ? "Bayar 1x Cicilan" : "Pay 1x Installment"}
+                            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-500/10 text-xs font-extrabold text-emerald-400 hover:bg-emerald-500/20"
+                          >
+                            <CheckCircle2 size={13} />
+                            <span>{isId ? "Bayar 1x" : "Pay 1x"}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          data-testid={`bill-edit-crud-${item.id}-button`}
+                          onClick={() => editBill(item)}
+                          className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          data-testid={`bill-delete-crud-${item.id}-button`}
+                          onClick={() => remove("bill", item.id)}
+                          className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -567,10 +598,18 @@ export function CommitmentsPanel({
               const remaining = Math.max(0, item.total - item.paid);
               const progress = item.total ? Math.min(100, Math.round((item.paid / item.total) * 100)) : 0;
               const isFinished = remaining === 0;
+              const isExpanded = !!expandedDebtIds[item.id];
 
               return (
-                <div key={item.id} className={`rounded-xl border border-border/60 bg-background/35 p-3 space-y-2 ${index >= DEBT_PREVIEW_COUNT ? "animate-rise-in" : ""}`}>
-                  <div className="flex flex-wrap items-center gap-3">
+                <div key={item.id} className={`rounded-xl border border-border/60 bg-background/35 p-3 space-y-2.5 ${index >= DEBT_PREVIEW_COUNT ? "animate-rise-in" : ""}`}>
+                  {/* Summary row — always visible, tap to reveal actions */}
+                  <button
+                    type="button"
+                    data-testid={`debt-toggle-${item.id}-button`}
+                    onClick={() => toggleDebtExpand(item.id)}
+                    aria-expanded={isExpanded}
+                    className="flex w-full items-center gap-3 text-left"
+                  >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${item.type === "debt" ? "bg-red-500/12 text-red-400" : "bg-emerald-500/12 text-emerald-400"}`}>
                       {item.type === "debt" ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
                     </div>
@@ -595,36 +634,12 @@ export function CommitmentsPanel({
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 gap-1 pl-1">
-                      {!isFinished && (
-                        <button
-                          type="button"
-                          data-testid={`debt-pay-${item.id}-button`}
-                          onClick={() => openDebtPayment(item)}
-                          title={isId ? "Catat Pembayaran" : "Record Payment"}
-                          className="grid size-8 place-items-center rounded-lg text-emerald-400 hover:bg-emerald-500/10"
-                        >
-                          <CheckCircle2 size={14} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        data-testid={`debt-edit-crud-${item.id}-button`}
-                        onClick={() => editDebt(item)}
-                        className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        data-testid={`debt-delete-crud-${item.id}-button`}
-                        onClick={() => remove("debt", item.id)}
-                        className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
+                    {isExpanded ? (
+                      <ChevronUp size={16} className="shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
+                    )}
+                  </button>
 
                   {/* Progress Bar */}
                   <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
@@ -633,6 +648,40 @@ export function CommitmentsPanel({
                       style={{ width: `${progress}%` }}
                     />
                   </div>
+
+                  {/* Expanded actions — hidden by default */}
+                  {isExpanded && (
+                    <div className="flex items-center gap-1.5 border-t border-border/50 pt-2.5">
+                      {!isFinished && (
+                        <button
+                          type="button"
+                          data-testid={`debt-pay-${item.id}-button`}
+                          onClick={() => openDebtPayment(item)}
+                          title={isId ? "Catat Pembayaran" : "Record Payment"}
+                          className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-500/10 text-xs font-extrabold text-emerald-400 hover:bg-emerald-500/20"
+                        >
+                          <CheckCircle2 size={13} />
+                          <span>{isId ? "Catat Pembayaran" : "Record Payment"}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        data-testid={`debt-edit-crud-${item.id}-button`}
+                        onClick={() => editDebt(item)}
+                        className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`debt-delete-crud-${item.id}-button`}
+                        onClick={() => remove("debt", item.id)}
+                        className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
