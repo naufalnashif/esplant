@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 
 export interface NavItem<K extends string> { key: K; label: string; icon: LucideIcon }
+export interface NavAction { key: string; label: string; icon: LucideIcon; href?: string; onClick?: () => void }
 
 /** Mobile bottom navigation: 4 primary tabs + "Lainnya" sheet, plus a floating add button. */
 export function MobileNav<K extends string>({
@@ -11,6 +12,7 @@ export function MobileNav<K extends string>({
   setTab,
   main,
   more,
+  actions,
   moreLabel,
   moreHint,
   showFab,
@@ -21,6 +23,7 @@ export function MobileNav<K extends string>({
   setTab: (tab: K) => void;
   main: NavItem<K>[];
   more: NavItem<K>[];
+  actions?: NavAction[];
   moreLabel: string;
   moreHint: string;
   showFab: boolean;
@@ -82,6 +85,23 @@ export function MobileNav<K extends string>({
             );
           })}
         </div>
+        {actions && actions.length > 0 && (
+          <div className="mt-3 space-y-1 border-t border-border/60 pt-3">
+            {actions.map((action) => {
+              const Icon = action.icon;
+              const className = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground";
+              return action.href ? (
+                <a key={action.key} href={action.href} target="_blank" rel="noopener noreferrer" data-testid={`mobile-nav-action-${action.key}`} className={className}>
+                  <Icon size={18} className="shrink-0" /><span>{action.label}</span>
+                </a>
+              ) : (
+                <button key={action.key} type="button" data-testid={`mobile-nav-action-${action.key}`} onClick={() => { action.onClick?.(); setMoreOpen(false); }} className={className}>
+                  <Icon size={18} className="shrink-0" /><span>{action.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </BottomSheet>
     </>
   );

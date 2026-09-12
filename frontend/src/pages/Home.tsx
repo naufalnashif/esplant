@@ -1,16 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, Check, ChevronRight,
-  Landmark, LayoutDashboard,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, CalendarClock, Check, ChevronRight,
+  Landmark, LayoutDashboard, MessageSquarePlus,
   Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
-  Sun, Target, TrendingDown, TrendingUp, WalletCards,
+  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,8 @@ import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { WishlistManager } from "@/components/WishlistManager";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
-import { LandingPreview } from "@/components/LandingPreview";
+import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { BrandMark } from "@/components/BrandMark";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
@@ -104,11 +106,13 @@ const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchange
 export default function Home() {
   const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime, reconnect, needsReconnect } = useStorage();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [tab, setTab] = useState<Tab>("overview");
   const [compareMonth, setCompareMonth] = useState(currentMonth);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [profileDraft, setProfileDraft] = useState("");
@@ -412,6 +416,11 @@ export default function Home() {
     { key: "overview", label: t.overview, icon: LayoutDashboard }, { key: "transactions", label: t.transactions, icon: ReceiptText }, { key: "commitments", label: t.commitments, icon: Landmark }, { key: "goals", label: t.goals, icon: Target }, { key: "accounts", label: t.accounts, icon: WalletCards }, { key: "settings", label: t.settings, icon: Settings2 },
   ];
   const activeNavLabel = navItems.find((item) => item.key === tab)?.label ?? "";
+  const moreActions = [
+    { key: "landing", label: state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page", icon: ArrowLeft, onClick: () => navigate("/") },
+    { key: "tester", label: "Join Tester", icon: UserPlus, href: TESTER_URL },
+    { key: "feedback", label: "Feedback", icon: MessageSquarePlus, onClick: () => setShowFeedback(true) },
+  ];
   const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
 
@@ -422,6 +431,11 @@ export default function Home() {
           <div className="mb-10 flex items-center gap-3 px-2"><BrandMark size="lg" showTagline /></div>
           <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Workspace</p>
           <nav className="space-y-1" data-testid="desktop-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium ${tab === item.key ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"}`}><Icon size={18} className={`shrink-0 ${tab === item.key ? "text-primary" : ""}`} /><span>{item.label}</span>{tab === item.key && <ChevronRight size={14} className="ml-auto text-primary" />}</button>; })}</nav>
+          <nav className="mt-4 space-y-1 border-t border-border/60 pt-4" data-testid="desktop-navigation-secondary">{moreActions.map((action) => { const Icon = action.icon; const className = "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"; return action.href ? (
+            <a key={action.key} href={action.href} target="_blank" rel="noopener noreferrer" data-testid={`sidebar-${action.key}-link`} className={className}><Icon size={18} className="shrink-0" /><span>{action.label}</span></a>
+          ) : (
+            <button key={action.key} type="button" data-testid={`sidebar-${action.key}-button`} onClick={action.onClick} className={className}><Icon size={18} className="shrink-0" /><span>{action.label}</span></button>
+          ); })}</nav>
           <div className="mt-auto rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
         </aside>
         <main className="min-w-0 flex-1 pb-24 lg:pb-8">
@@ -444,9 +458,10 @@ export default function Home() {
           {tab === "goals" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><WishlistManager state={state} onSave={save} /></div>}
         </main>
       </div>
-      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
+      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} actions={moreActions} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
+      {showFeedback && <FeedbackDialog open onOpenChange={setShowFeedback} />}
     </div>
   );
 }
