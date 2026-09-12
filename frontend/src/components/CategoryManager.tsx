@@ -19,6 +19,8 @@ export function CategoryManager({
   const [editingName, setEditingName] = useState("");
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "archived">("all");
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const CATEGORY_PREVIEW_COUNT = 8;
 
   const categoryUsageCount = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -93,6 +95,11 @@ export function CategoryManager({
     if (activeFilter === "archived") return c.archived;
     return true;
   });
+
+  const visibleCategories = showAllCategories
+    ? filteredCategories
+    : filteredCategories.slice(0, CATEGORY_PREVIEW_COUNT);
+  const hiddenCount = filteredCategories.length - visibleCategories.length;
 
   return (
     <section className="rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5" data-testid="category-manager">
@@ -190,48 +197,48 @@ export function CategoryManager({
       )}
 
       {/* Compact Chips Grid */}
-      <div className="flex flex-wrap gap-2">
-        {filteredCategories.map((item) => {
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {visibleCategories.map((item) => {
           const count = categoryUsageCount[item.name] || 0;
           const isEditing = editingId === item.id;
 
           return (
             <div
               key={item.id}
-              className={`group inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
+              className={`group inline-flex min-w-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
                 item.archived
                   ? "border-dashed border-border/60 bg-muted/40 opacity-60"
                   : "border-border/80 bg-card hover:border-primary/50 hover:bg-secondary/40 shadow-xs"
               }`}
             >
               {isEditing ? (
-                <div className="flex items-center gap-1">
+                <div className="flex min-w-0 flex-1 items-center gap-1">
                   <input
                     autoFocus
                     data-testid={`category-edit-${item.id}-input`}
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") rename(item); }}
-                    className="h-6 w-28 rounded border border-primary bg-background px-1.5 text-xs font-bold"
+                    className="h-6 w-full min-w-0 rounded border border-primary bg-background px-1.5 text-xs font-bold sm:w-28"
                   />
                   <button
                     type="button"
                     data-testid={`category-save-${item.id}-button`}
                     onClick={() => rename(item)}
-                    className="grid size-6 place-items-center rounded text-primary hover:bg-primary/20"
+                    className="grid size-6 shrink-0 place-items-center rounded text-primary hover:bg-primary/20"
                   >
                     <Check size={12} />
                   </button>
                 </div>
               ) : (
                 <>
-                  <span>{item.name}</span>
-                  <span className="rounded-full bg-secondary px-1.5 py-0.2 font-data text-[10px] text-muted-foreground font-bold">
+                  <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                  <span className="shrink-0 rounded-full bg-secondary px-1.5 py-0.2 font-data text-[10px] text-muted-foreground font-bold">
                     {count}
                   </span>
 
                   {/* Actions visible on hover/focus */}
-                  <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                  <div className="flex shrink-0 items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                     <button
                       type="button"
                       data-testid={`category-edit-${item.id}-button`}
@@ -286,11 +293,34 @@ export function CategoryManager({
         })}
 
         {filteredCategories.length === 0 && (
-          <p className="w-full py-4 text-center text-xs text-muted-foreground">
+          <p className="col-span-2 w-full py-4 text-center text-xs text-muted-foreground sm:w-full">
             {isId ? "Kategori tidak ditemukan." : "No categories found."}
           </p>
         )}
       </div>
+
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          data-testid="category-show-more-button"
+          onClick={() => setShowAllCategories(true)}
+          className="mt-3 w-full rounded-lg border border-dashed border-border/70 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+        >
+          {isId
+            ? `Tampilkan Semua (${filteredCategories.length})`
+            : `Show All (${filteredCategories.length})`}
+        </button>
+      )}
+      {showAllCategories && filteredCategories.length > CATEGORY_PREVIEW_COUNT && (
+        <button
+          type="button"
+          data-testid="category-show-less-button"
+          onClick={() => setShowAllCategories(false)}
+          className="mt-3 w-full rounded-lg border border-dashed border-border/70 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+        >
+          {isId ? "Sembunyikan" : "Show Less"}
+        </button>
+      )}
     </section>
   );
 }
