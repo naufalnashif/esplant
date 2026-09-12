@@ -87,7 +87,7 @@ export function PDFReportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 backdrop-blur-md sm:grid sm:place-items-center sm:overflow-y-auto sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:grid sm:place-items-center sm:overflow-y-auto sm:p-4"
       role="dialog"
       aria-modal="true"
       data-testid="pdf-report-modal"
