@@ -18,7 +18,8 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { FinanceState } from "@/lib/localDb";
+import type { EraseSelection, FinanceState } from "@/lib/localDb";
+import { EraseConfirmDialog } from "@/components/EraseConfirmDialog";
 import { CategoryManager } from "@/components/CategoryManager";
 import { DataHealthPanel } from "@/components/DataHealthPanel";
 import { useStorage } from "@/lib/storageContext";
@@ -234,12 +235,13 @@ export function SettingsPanel({
   onJson: () => void;
   onImport: (file: File) => void;
   onImportCsv?: (file: File) => void;
-  onErase: () => void;
+  onErase: (selection: EraseSelection) => void | Promise<void>;
   onPrint: () => void;
   save: (nextState: FinanceState) => void;
 }) {
   const isId = state.locale === "id";
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>("general");
+  const [showEraseConfirm, setShowEraseConfirm] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const csvFileRef = useRef<HTMLInputElement>(null);
 
@@ -546,7 +548,7 @@ export function SettingsPanel({
                 <button
                   type="button"
                   data-testid="erase-all-button"
-                  onClick={onErase}
+                  onClick={() => setShowEraseConfirm(true)}
                   className="ml-auto flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/8"
                 >
                   <Trash2 size={13} />
@@ -588,6 +590,8 @@ export function SettingsPanel({
           <DataHealthPanel state={state} onSave={save} />
         </div>
       )}
+
+      <EraseConfirmDialog open={showEraseConfirm} onOpenChange={setShowEraseConfirm} state={state} onConfirm={onErase} />
     </div>
   );
 }

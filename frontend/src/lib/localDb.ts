@@ -208,17 +208,44 @@ export const hasDummyData = (state: FinanceState): boolean =>
   state.wishlist.some((item) => item.isDummy) ||
   state.budgets.some((item) => item.isDummy);
 
-/** "Hapus semua data": wipes every financial record but keeps categories and app settings. */
-export const createErasedState = (state: FinanceState): FinanceState => ({
-  ...state,
-  accounts: [],
-  transactions: [],
-  bills: [],
-  debts: [],
-  savings: [],
-  wishlist: [],
-  budgets: [],
+export const ERASABLE_KEYS = ["transactions", "accounts", "bills", "debts", "savings", "wishlist", "budgets"] as const;
+export type ErasableKey = (typeof ERASABLE_KEYS)[number];
+export type EraseSelection = Record<ErasableKey, boolean>;
+
+export const fullEraseSelection = (): EraseSelection => ({
+  transactions: true,
+  accounts: true,
+  bills: true,
+  debts: true,
+  savings: true,
+  wishlist: true,
+  budgets: true,
 });
+
+export const hasEraseSelection = (selection: EraseSelection): boolean => ERASABLE_KEYS.some((key) => selection[key]);
+
+export const isFullEraseSelection = (selection: EraseSelection): boolean => ERASABLE_KEYS.every((key) => selection[key]);
+
+/** Wipes selected financial records but keeps categories and app settings. */
+export const createErasedState = (state: FinanceState, selection: EraseSelection = fullEraseSelection()): FinanceState => {
+  const next: FinanceState = {
+    ...state,
+    accounts: selection.accounts ? [] : state.accounts,
+    transactions: selection.transactions ? [] : state.transactions,
+    bills: selection.bills ? [] : state.bills,
+    debts: selection.debts ? [] : state.debts,
+    savings: selection.savings ? [] : state.savings,
+    wishlist: selection.wishlist ? [] : state.wishlist,
+    budgets: selection.budgets ? [] : state.budgets,
+  };
+  if (selection.transactions && !selection.accounts) {
+    next.accounts = next.accounts.map((account) => ({
+      ...account,
+      balance: account.openingBalance ?? account.balance,
+    }));
+  }
+  return next;
+};
 
 /** Validates and normalizes a JSON backup into a safe FinanceState (returns null when unusable). */
 export const sanitizeImportedState = (raw: unknown): FinanceState | null => {

@@ -1,9 +1,19 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { MoreHorizontal, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 
 export interface NavItem<K extends string> { key: K; label: string; icon: LucideIcon }
+export interface NavAction {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  testid: string;
+  href?: string;
+  external?: boolean;
+  onClick?: () => void;
+}
 
 /** Mobile bottom navigation: 4 primary tabs + "Lainnya" sheet, plus a floating add button. */
 export function MobileNav<K extends string>({
@@ -11,6 +21,7 @@ export function MobileNav<K extends string>({
   setTab,
   main,
   more,
+  moreActions = [],
   moreLabel,
   moreHint,
   showFab,
@@ -21,6 +32,7 @@ export function MobileNav<K extends string>({
   setTab: (tab: K) => void;
   main: NavItem<K>[];
   more: NavItem<K>[];
+  moreActions?: NavAction[];
   moreLabel: string;
   moreHint: string;
   showFab: boolean;
@@ -78,6 +90,41 @@ export function MobileNav<K extends string>({
               >
                 <span className={`grid size-9 place-items-center rounded-xl ${active ? "bg-primary/15 text-primary" : "bg-secondary text-muted-foreground"}`}><Icon size={18} /></span>
                 <span className="text-sm font-semibold leading-tight">{item.label}</span>
+              </button>
+            );
+          })}
+          {moreActions.map((item) => {
+            const Icon = item.icon;
+            const className = "flex min-h-[84px] flex-col items-start justify-between rounded-2xl border border-border/70 bg-background/40 p-4 text-left transition-colors hover:border-primary/50";
+            const inner = (
+              <>
+                <span className="grid size-9 place-items-center rounded-xl bg-secondary text-muted-foreground"><Icon size={18} /></span>
+                <span className="text-sm font-semibold leading-tight">{item.label}</span>
+              </>
+            );
+            if (item.href && item.external) {
+              return (
+                <a key={item.key} href={item.href} target="_blank" rel="noopener noreferrer" data-testid={item.testid} className={className}>
+                  {inner}
+                </a>
+              );
+            }
+            if (item.href) {
+              return (
+                <Link key={item.key} to={item.href} data-testid={item.testid} onClick={() => setMoreOpen(false)} className={className}>
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <button
+                key={item.key}
+                type="button"
+                data-testid={item.testid}
+                onClick={() => { item.onClick?.(); setMoreOpen(false); }}
+                className={className}
+              >
+                {inner}
               </button>
             );
           })}

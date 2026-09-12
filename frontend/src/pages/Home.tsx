@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type * as React from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
@@ -8,18 +9,18 @@ import {
 } from "recharts";
 import {
   ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, Check, ChevronRight,
-  Landmark, LayoutDashboard,
-  Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
-  Sun, Target, TrendingDown, TrendingUp, WalletCards,
+  Home as HomeIcon, Landmark, LayoutDashboard,
+  MessageSquarePlus, Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
+  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
   Account, CommitmentType, Currency, Debt, FinanceState, Locale, SavingsGoal,
-  Transaction, TransactionKind, WishlistItem,
+  Transaction, TransactionKind, WishlistItem, type EraseSelection,
 } from "@/lib/localDb";
-import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
+import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES, isFullEraseSelection } from "@/lib/localDb";
 import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync, eraseAllData } from "@/lib/dataStore";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
@@ -31,6 +32,7 @@ import { WishlistManager } from "@/components/WishlistManager";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview } from "@/components/LandingPreview";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { BrandMark } from "@/components/BrandMark";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
@@ -43,6 +45,7 @@ import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, useOverviewStats } from "@/lib/overviewStats";
 import { createSampleState } from "@/lib/sampleData";
+import { TESTER_URL } from "@/lib/links";
 import {
   buildCategoryChart, buildStackedSpend, seriesKey, OTHER_SLICE_COLOR,
   type CategorySlice,
@@ -115,6 +118,7 @@ export default function Home() {
   const [transactionForm, setTransactionForm] = useState({ kind: "expense" as TransactionKind, amount: "", description: "", category: "Food", accountId: "", currency: "IDR" as Currency, date: new Date().toISOString().slice(0, 10), tags: "" });
   const [debtForm, setDebtForm] = useState({ name: "", person: "", type: "debt" as CommitmentType, total: "", dueDate: new Date().toISOString().slice(0, 10) });
   const [wishForm, setWishForm] = useState({ name: "", price: "", priority: "medium" as WishlistItem["priority"], targetDate: "", category: "Lifestyle" });
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const stateQuery = useQuery({
     queryKey: ["finance-state", storageMode, spreadsheetId],
@@ -374,16 +378,11 @@ export default function Home() {
     };
     reader.readAsText(file);
   };
-  const eraseAll = async () => {
-    const confirmed = window.confirm(
-      state.locale === "id"
-        ? "Hapus SEMUA transaksi, akun, tagihan, utang, tabungan, wishlist, dan budget? Kategori dan pengaturan tetap tersimpan. Tindakan ini tidak bisa dibatalkan."
-        : "Erase ALL transactions, accounts, bills, debts, savings, wishlist, and budgets? Categories and settings are kept. This cannot be undone.",
-    );
-    if (!confirmed) return;
+  const eraseAll = async (selection: EraseSelection) => {
     try {
-      const { state: erased, sheetsError } = await eraseAllData(storageMode, spreadsheetId, state);
+      const { state: erased, sheetsError } = await eraseAllData(storageMode, spreadsheetId, state, selection);
       queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], erased);
+      const full = isFullEraseSelection(selection);
       if (sheetsError) {
         toast.error(
           state.locale === "id"
@@ -394,11 +393,19 @@ export default function Home() {
         toast.success(
           state.locale === "id"
             ? storageMode === "sheets"
-              ? "Semua data terhapus di perangkat ini dan di spreadsheet."
-              : "Semua data dihapus. Mulai dari nol."
+              ? full
+                ? "Semua data terhapus di perangkat ini dan di spreadsheet."
+                : "Data terpilih terhapus di perangkat ini dan di spreadsheet."
+              : full
+                ? "Semua data dihapus. Mulai dari nol."
+                : "Data terpilih dihapus."
             : storageMode === "sheets"
-              ? "All data erased on this device and in the spreadsheet."
-              : "All data erased. Starting from zero.",
+              ? full
+                ? "All data erased on this device and in the spreadsheet."
+                : "Selected data erased on this device and in the spreadsheet."
+              : full
+                ? "All data erased. Starting from zero."
+                : "Selected data erased.",
         );
       }
     } catch {
@@ -411,6 +418,12 @@ export default function Home() {
   const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
     { key: "overview", label: t.overview, icon: LayoutDashboard }, { key: "transactions", label: t.transactions, icon: ReceiptText }, { key: "commitments", label: t.commitments, icon: Landmark }, { key: "goals", label: t.goals, icon: Target }, { key: "accounts", label: t.accounts, icon: WalletCards }, { key: "settings", label: t.settings, icon: Settings2 },
   ];
+  const navActions = [
+    { key: "landing", label: state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page", icon: HomeIcon, testid: "nav-landing-button", href: "/" },
+    { key: "tester", label: "Join Tester", icon: UserPlus, testid: "nav-tester-button", href: TESTER_URL, external: true },
+    { key: "feedback", label: "Feedback", icon: MessageSquarePlus, testid: "nav-feedback-button", onClick: () => setShowFeedback(true) },
+  ];
+  const mobileNavActions = navActions.map((item) => ({ ...item, testid: `mobile-${item.testid}` }));
   const activeNavLabel = navItems.find((item) => item.key === tab)?.label ?? "";
   const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
@@ -422,6 +435,21 @@ export default function Home() {
           <div className="mb-10 flex items-center gap-3 px-2"><BrandMark size="lg" showTagline /></div>
           <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Workspace</p>
           <nav className="space-y-1" data-testid="desktop-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium ${tab === item.key ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"}`}><Icon size={18} className={`shrink-0 ${tab === item.key ? "text-primary" : ""}`} /><span>{item.label}</span>{tab === item.key && <ChevronRight size={14} className="ml-auto text-primary" />}</button>; })}</nav>
+          <div className="mt-6 space-y-1" data-testid="desktop-utility-nav">
+            <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{state.locale === "id" ? "Tautan" : "Links"}</p>
+            {navActions.map((item) => {
+              const Icon = item.icon;
+              const className = "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground";
+              const inner = (<><Icon size={18} className="shrink-0" /><span>{item.label}</span></>);
+              if (item.href && item.external) {
+                return <a key={item.key} href={item.href} target="_blank" rel="noopener noreferrer" data-testid={item.testid} className={className}>{inner}</a>;
+              }
+              if (item.href) {
+                return <Link key={item.key} to={item.href} data-testid={item.testid} className={className}>{inner}</Link>;
+              }
+              return <button key={item.key} type="button" data-testid={item.testid} onClick={item.onClick} className={className}>{inner}</button>;
+            })}
+          </div>
           <div className="mt-auto rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
         </aside>
         <main className="min-w-0 flex-1 pb-24 lg:pb-8">
@@ -444,9 +472,10 @@ export default function Home() {
           {tab === "goals" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><WishlistManager state={state} onSave={save} /></div>}
         </main>
       </div>
-      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
+      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} moreActions={mobileNavActions} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, tautan, dan pengaturan workspace." : "Accounts, links, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </div>
   );
 }

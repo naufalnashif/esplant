@@ -1,4 +1,4 @@
-import type { FinanceState } from "./localDb";
+import type { EraseSelection, FinanceState } from "./localDb";
 import { loadLocalState, saveLocalState, sanitizeImportedState, createInitialState, createErasedState } from "./localDb";
 import { readState, writeState, isSignedIn, authorize, AuthRequiredError } from "./googleSheets";
 
@@ -119,8 +119,9 @@ export async function eraseAllData(
   mode: StorageMode,
   spreadsheetId: string,
   state: FinanceState,
+  selection?: EraseSelection,
 ): Promise<{ state: FinanceState; sheetsError?: string }> {
-  const erased = createErasedState(state);
+  const erased = createErasedState(state, selection);
   await saveLocalState(erased);
 
   if (mode === "sheets" && spreadsheetId) {

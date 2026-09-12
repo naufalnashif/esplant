@@ -12,8 +12,7 @@ import { LandingDrawer } from "@/components/mobile/LandingDrawer";
 import { Reveal } from "@/components/Reveal";
 import { useDocumentTitle } from "@/hooks/useReveal";
 import { useStorage } from "@/lib/storageContext";
-
-const TESTER_URL = "https://s.id/selfmanage-register-tester";
+import { TESTER_URL } from "@/lib/links";
 
 // These dialogs pull in authentication, upload, and modal dependencies. Keep them out of
 // the landing's critical bundle and fetch them only after the user asks to open one.
