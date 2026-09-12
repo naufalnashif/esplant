@@ -93,7 +93,7 @@ export function PDFReportModal({
       data-testid="pdf-report-modal"
     >
       <button type="button" aria-label="Tutup" onClick={onClose} className="print-hide absolute inset-0 cursor-default" data-testid="pdf-report-modal-backdrop" />
-      <Card className="print-sheet animate-sheet-up relative flex max-h-[85svh] w-[calc(100%-16px)] flex-col overflow-hidden rounded-b-none rounded-t-3xl border-border bg-card shadow-2xl sm:my-8 sm:block sm:max-h-none sm:w-full sm:max-w-3xl sm:animate-none sm:rounded-xl">
+      <Card className="print-sheet animate-sheet-up relative flex max-h-[85svh] w-[calc(100%-16px)] flex-col overflow-hidden rounded-b-none rounded-t-3xl border-border bg-card shadow-2xl sm:my-8 sm:max-h-[88vh] sm:w-full sm:max-w-3xl sm:animate-none sm:rounded-xl print:max-h-none print:w-full print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
         <div className="print-hide mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" aria-hidden="true" />
         {/* Controls Bar (Not Printed) */}
         <div className="print-hide flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 p-3 sm:p-5">
@@ -158,7 +158,7 @@ export function PDFReportModal({
         {/* Printable PDF Surface */}
         <div
           data-testid="report-print-surface"
-          className="print-area min-h-0 flex-1 overflow-y-auto space-y-6 bg-card p-5 text-foreground sm:flex-none sm:overflow-visible sm:p-8"
+          className="print-area min-h-0 flex-1 overflow-y-auto space-y-6 bg-card p-5 text-foreground sm:p-8 print:h-auto print:max-h-none print:overflow-visible"
         >
           {/* PDF Header */}
           <div className="flex items-start justify-between border-b border-border/80 pb-5">
@@ -186,7 +186,7 @@ export function PDFReportModal({
           </div>
 
           {/* KPI Summary Grid */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 print:break-inside-avoid">
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-3.5 text-center">
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
                 {isId ? "Total Pemasukan" : "Total Income"}
@@ -231,7 +231,7 @@ export function PDFReportModal({
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {categoryBreakdown.map((row) => (
-                    <tr key={row.category} className="hover:bg-secondary/20">
+                    <tr key={row.category} className="hover:bg-secondary/20 print:break-inside-avoid">
                       <td className="px-3 py-2 font-semibold">{row.category}</td>
                       <td className="px-3 py-2 text-center text-muted-foreground">{row.count}</td>
                       <td className="px-3 py-2 text-right font-data font-bold text-red-400">
@@ -274,7 +274,7 @@ export function PDFReportModal({
                 </thead>
                 <tbody className="divide-y divide-border/40 font-medium">
                   {filteredTransactions.slice(0, 20).map((tx) => (
-                    <tr key={tx.id}>
+                    <tr key={tx.id} className="print:break-inside-avoid">
                       <td className="px-3 py-2 text-muted-foreground font-data text-[11px]">{tx.date}</td>
                       <td className="px-3 py-2 font-semibold">{tx.description}</td>
                       <td className="px-3 py-2 text-muted-foreground">{tx.category}</td>
