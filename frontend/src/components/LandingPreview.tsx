@@ -13,7 +13,7 @@ import { Reveal } from "@/components/Reveal";
 import { useDocumentTitle } from "@/hooks/useReveal";
 import { useStorage } from "@/lib/storageContext";
 
-const TESTER_URL = "https://s.id/selfmanage-register-tester";
+export const TESTER_URL = "https://s.id/selfmanage-register-tester";
 
 // These dialogs pull in authentication, upload, and modal dependencies. Keep them out of
 // the landing's critical bundle and fetch them only after the user asks to open one.
