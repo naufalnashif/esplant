@@ -15,7 +15,7 @@ export const GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID ?? 
 export const isGoogleConfigured = (): boolean => GOOGLE_CLIENT_ID.length > 0;
 
 const SCOPES = [
-  "https://www.googleapis.com/auth/spreadsheets",
+  // "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file",
 ].join(" ");
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
