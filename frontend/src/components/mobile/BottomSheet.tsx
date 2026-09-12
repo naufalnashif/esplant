@@ -41,7 +41,7 @@ export function BottomSheet({
   // this sheet appear anchored to the panel's scroll position instead of the screen on desktop.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
