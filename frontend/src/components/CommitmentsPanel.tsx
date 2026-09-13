@@ -40,6 +40,7 @@ export function CommitmentsPanel({
     category: "Utilities",
     amount: "",
     frequency: "monthly" as Bill["frequency"],
+    customInterval: "1",
     nextDueDate: new Date().toISOString().slice(0, 10),
     remainingInstallments: "",
   });
@@ -83,7 +84,20 @@ export function CommitmentsPanel({
     (b) => b.active === false || (b.remainingInstallments !== undefined && b.remainingInstallments <= 0),
   );
 
-  const displayedBills = showArchivedBills ? state.bills : activeBills;
+  // Bills paid this month: visually dim, sorted to the bottom
+  const paidThisMonthBills = activeBills.filter((b) => isPaidInMonth(b.lastPaidDate, thisMonth));
+  const unpaidActiveBills = activeBills.filter((b) => !isPaidInMonth(b.lastPaidDate, thisMonth));
+
+  // Sort each group by due date ascending
+  const sortByDue = (a: Bill, b: Bill) => a.nextDueDate.localeCompare(b.nextDueDate);
+  const sortedActiveBills = [
+    ...unpaidActiveBills.sort(sortByDue),
+    ...paidThisMonthBills.sort(sortByDue),
+  ];
+
+  const displayedBills = showArchivedBills
+    ? [...state.bills].sort(sortByDue)
+    : sortedActiveBills;
   const hasMoreBills = displayedBills.length > BILL_PREVIEW_COUNT;
   const visibleBills = showAllBills ? displayedBills : displayedBills.slice(0, BILL_PREVIEW_COUNT);
   const hasMoreDebts = state.debts.length > DEBT_PREVIEW_COUNT;
@@ -95,7 +109,8 @@ export function CommitmentsPanel({
   const totalReceivables = state.debts
     .filter((d) => d.type === "receivable")
     .reduce((sum, d) => sum + Math.max(0, d.total - d.paid), 0);
-  const totalBillsThisMonth = activeBills.reduce((sum, b) => sum + b.amount, 0);
+  // KPI: only count bills NOT yet paid this month
+  const totalBillsThisMonth = unpaidActiveBills.reduce((sum, b) => sum + b.amount, 0);
   const netObligations = totalDebt + totalBillsThisMonth - totalReceivables;
 
   const addBill = (event: React.FormEvent) => {
@@ -106,6 +121,8 @@ export function CommitmentsPanel({
       return;
     }
     const rem = bill.remainingInstallments.trim() ? Number(bill.remainingInstallments) : undefined;
+    const interval = Number(bill.customInterval);
+    const customInterval = Number.isFinite(interval) && interval > 0 ? interval : 1;
     const next: Bill = {
       id: `bill-${Date.now()}`,
       name: bill.name.trim(),
@@ -113,12 +130,13 @@ export function CommitmentsPanel({
       amount,
       currency: state.baseCurrency,
       frequency: bill.frequency,
+      customInterval,
       nextDueDate: bill.nextDueDate,
       remainingInstallments: rem,
       active: true,
     };
     onSave({ ...state, bills: [next, ...state.bills] });
-    setBill({ name: "", category: "Utilities", amount: "", frequency: "monthly", nextDueDate: new Date().toISOString().slice(0, 10), remainingInstallments: "" });
+    setBill({ name: "", category: "Utilities", amount: "", frequency: "monthly", customInterval: "1", nextDueDate: new Date().toISOString().slice(0, 10), remainingInstallments: "" });
     toast.success(isId ? rem ? `Cicilan "${next.name}" (${rem}x) ditambahkan.` : `Tagihan rutin "${next.name}" ditambahkan.` : `Bill "${next.name}" created.`);
   };
 
@@ -221,6 +239,22 @@ export function CommitmentsPanel({
       debts: kind === "debt" ? state.debts.filter((item) => item.id !== id) : state.debts,
     });
     toast.success(isId ? "Berhasil dihapus." : `${kind} deleted.`);
+  };
+
+  const formatFreq = (freq: string, interval?: number) => {
+    const i = interval || 1;
+    if (isId) {
+      if (freq === "daily") return i === 1 ? "Harian" : `Tiap ${i} Hari`;
+      if (freq === "weekly") return i === 1 ? "Mingguan" : `Tiap ${i} Minggu`;
+      if (freq === "monthly") return i === 1 ? "Bulanan" : `Tiap ${i} Bulan`;
+      if (freq === "yearly") return i === 1 ? "Tahunan" : `Tiap ${i} Tahun`;
+      return freq;
+    }
+    if (freq === "daily") return i === 1 ? "Daily" : `Every ${i} Days`;
+    if (freq === "weekly") return i === 1 ? "Weekly" : `Every ${i} Weeks`;
+    if (freq === "monthly") return i === 1 ? "Monthly" : `Every ${i} Months`;
+    if (freq === "yearly") return i === 1 ? "Yearly" : `Every ${i} Years`;
+    return freq;
   };
 
   return (
@@ -343,8 +377,10 @@ export function CommitmentsPanel({
                     key={item.id}
                     className={`rounded-2xl border transition-colors ${
                       isFinished
-                        ? "border-dashed border-border/50 bg-muted/20 opacity-60"
-                        : "border-border/60 bg-background/40"
+                        ? "border-dashed border-border/40 bg-muted/15 opacity-50"
+                        : paidThisMonth
+                          ? "border-dashed border-border/40 bg-muted/20 opacity-60"
+                          : "border-border/60 bg-background/40"
                     }`}
                   >
                     {/* Collapsed row — always visible */}
@@ -354,7 +390,11 @@ export function CommitmentsPanel({
                       aria-expanded={open}
                       className="flex w-full items-center gap-3 p-3 text-left"
                     >
-                      <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
+                      <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                        isFinished ? "bg-secondary text-muted-foreground"
+                        : paidThisMonth ? "bg-secondary/70 text-muted-foreground"
+                        : "bg-amber-500/12 text-amber-400"
+                      }`}>
                         <CreditCard size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -367,7 +407,7 @@ export function CommitmentsPanel({
                       <div className="shrink-0 text-right">
                         <p className="font-data text-[13px] font-bold">{formatMoney(item.amount, item.currency, state.locale)}</p>
                         {paidThisMonth && (
-                          <p className="text-[10px] font-semibold text-emerald-400">{isId ? "✓ Dibayar" : "✓ Paid"}</p>
+                          <p className="text-[10px] font-semibold text-emerald-400">{isId ? "✓ Sudah dibayar" : "✓ Paid"}</p>
                         )}
                         {isFinished && (
                           <p className="text-[10px] font-semibold text-emerald-400">{isId ? "🎉 Lunas" : "Done"}</p>
@@ -398,7 +438,7 @@ export function CommitmentsPanel({
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            {item.frequency === "monthly" ? (isId ? "Bulanan" : "Monthly") : (isId ? "Mingguan" : "Weekly")}
+                            {formatFreq(item.frequency, item.customInterval)}
                           </Badge>
                         </div>
 
@@ -469,11 +509,17 @@ export function CommitmentsPanel({
                     key={item.id}
                     className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${
                       isFinished
-                        ? "border-dashed border-border/50 bg-muted/20 opacity-60"
-                        : "border-border/60 bg-background/35 hover:border-border/90 hover:bg-background/60"
+                        ? "border-dashed border-border/40 bg-muted/15 opacity-50"
+                        : paidThisMonth
+                          ? "border-dashed border-border/40 bg-muted/20 opacity-55"
+                          : "border-border/60 bg-background/35 hover:border-border/90 hover:bg-background/60"
                     }`}
                   >
-                    <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
+                    <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${
+                      isFinished ? "bg-secondary text-muted-foreground"
+                      : paidThisMonth ? "bg-secondary/70 text-muted-foreground"
+                      : "bg-amber-500/12 text-amber-400"
+                    }`}>
                       <CreditCard size={15} />
                     </div>
 
@@ -494,7 +540,7 @@ export function CommitmentsPanel({
                       </div>
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
                         {item.category} · {isId ? "Jatuh tempo" : "Due"}: {item.nextDueDate}
-                        {item.remainingInstallments === undefined && ` · ${isId ? "Tagihan Bulanan Rutin" : "Monthly Recurring"}`}
+                        {item.remainingInstallments === undefined && ` · ${formatFreq(item.frequency, item.customInterval)}`}
                       </p>
                     </div>
 
@@ -584,25 +630,51 @@ export function CommitmentsPanel({
                 placeholder={isId ? "Nominal per bulan" : "Amount per month"}
                 className="h-10 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
               />
-              <input
-                data-testid="bill-date-input"
-                required
-                type="date"
-                value={bill.nextDueDate}
-                onChange={(e) => setBill((v) => ({ ...v, nextDueDate: e.target.value }))}
-                className="h-10 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
-              />
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground">{isId ? "Jatuh Tempo" : "Next Due Date"}</span>
+                <input
+                  data-testid="bill-date-input"
+                  required
+                  type="date"
+                  value={bill.nextDueDate}
+                  onChange={(e) => setBill((v) => ({ ...v, nextDueDate: e.target.value }))}
+                  className="h-10 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground">{isId ? "Ulangi Setiap (Frekuensi)" : "Repeat Every (Frequency)"}</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    data-testid="bill-interval-input"
+                    type="number"
+                    min="1"
+                    value={bill.customInterval}
+                    onChange={(e) => setBill((v) => ({ ...v, customInterval: e.target.value }))}
+                    className="h-10 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary text-center"
+                  />
+                  <select
+                    value={bill.frequency}
+                    onChange={(e) => setBill((v) => ({ ...v, frequency: e.target.value as Bill["frequency"] }))}
+                    className="col-span-2 h-10 rounded-lg border border-border bg-background px-3 text-xs font-medium outline-none focus:border-primary"
+                  >
+                    <option value="daily">{isId ? "Hari" : "Days"}</option>
+                    <option value="weekly">{isId ? "Minggu" : "Weeks"}</option>
+                    <option value="monthly">{isId ? "Bulan" : "Months"}</option>
+                    <option value="yearly">{isId ? "Tahun" : "Years"}</option>
+                  </select>
+                </div>
+              </div>
               <input
                 data-testid="bill-installments-input"
                 type="number"
                 min="1"
                 value={bill.remainingInstallments}
                 onChange={(e) => setBill((v) => ({ ...v, remainingInstallments: e.target.value }))}
-                placeholder={isId ? "Sisa bulan cicilan (opsional)" : "Remaining months (optional)"}
+                placeholder={isId ? "Sisa kali cicilan (opsional)" : "Remaining count (optional)"}
                 className="h-10 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
               />
               <p className="text-[10px] italic text-muted-foreground sm:col-span-2">
-                * {isId ? "Isi jumlah sisa cicilan (misal: 4). Setelah 4x dibayar, cicilan otomatis lunas." : "Specify remaining installments (e.g. 4). Auto-expires when completed."}
+                * {isId ? "Setel frekuensi pembayaran (misal: tiap 1 bulan). Isi sisa kali cicilan (opsional) agar otomatis lunas saat selesai." : "Set payment frequency (e.g. every 1 month). Specify remaining count (optional) to auto-expire."}
               </p>
               <div className="sm:col-span-2">
                 <Button data-testid="bill-create-button" type="submit" className="w-full gap-2">

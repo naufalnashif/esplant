@@ -84,6 +84,8 @@ export function PayCommitmentDialog({
   const signedDelta = target.direction === "income" ? amount : -amount;
   const balanceAfter = account && validAmount ? account.balance + signedDelta : account?.balance ?? 0;
   const goesNegative = target.direction === "expense" && validAmount && balanceAfter < 0;
+  // Bills: amount is fixed, never editable. Debts: editable with a cap.
+  const amountIsFixed = target.kind === "bill";
   const blocked = !validAmount || overCap || !account || !form.category.trim() || !form.date || submitting;
 
   const money = (value: number) => formatMoney(value, target.currency, state.locale);
@@ -154,20 +156,37 @@ export function PayCommitmentDialog({
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <label className="col-span-2 block">
             <span className={labelClass}>
-              {isId ? "Nominal" : "Amount"} * <span className="font-data text-muted-foreground">({target.currency})</span>
+              {isId ? "Nominal" : "Amount"}{" "}
+              <span className="font-data text-muted-foreground">({target.currency})</span>
+              {amountIsFixed && (
+                <span className="ml-2 rounded-md border border-border/60 bg-secondary/60 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {isId ? "Terkunci" : "Fixed"}
+                </span>
+              )}
             </span>
-            <input
-              data-testid="pay-commitment-amount-input"
-              required
-              type="number"
-              min="1"
-              step="any"
-              name="amount"
-              value={form.amount}
-              onChange={change}
-              className={`${fieldClass} font-data`}
-            />
-            {target.maxAmount !== undefined && (
+            {amountIsFixed ? (
+              /* Bill: amount is fixed — display only, never user-editable */
+              <div
+                className={`${fieldClass} flex items-center bg-secondary/40 font-data font-bold text-foreground cursor-not-allowed select-none`}
+                data-testid="pay-commitment-amount-display"
+              >
+                {money(amount)}
+              </div>
+            ) : (
+              /* Debt/receivable: user can enter a partial payment up to the cap */
+              <input
+                data-testid="pay-commitment-amount-input"
+                required
+                type="number"
+                min="1"
+                step="any"
+                name="amount"
+                value={form.amount}
+                onChange={change}
+                className={`${fieldClass} font-data`}
+              />
+            )}
+            {target.maxAmount !== undefined && !amountIsFixed && (
               <span className="mt-1 block text-[10px] font-semibold text-muted-foreground">
                 {isId ? "Maksimal" : "Max"} {money(target.maxAmount)}
                 <button
