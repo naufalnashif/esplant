@@ -83,7 +83,20 @@ export function CommitmentsPanel({
     (b) => b.active === false || (b.remainingInstallments !== undefined && b.remainingInstallments <= 0),
   );
 
-  const displayedBills = showArchivedBills ? state.bills : activeBills;
+  // Bills paid this month: visually dim, sorted to the bottom
+  const paidThisMonthBills = activeBills.filter((b) => isPaidInMonth(b.lastPaidDate, thisMonth));
+  const unpaidActiveBills = activeBills.filter((b) => !isPaidInMonth(b.lastPaidDate, thisMonth));
+
+  // Sort each group by due date ascending
+  const sortByDue = (a: Bill, b: Bill) => a.nextDueDate.localeCompare(b.nextDueDate);
+  const sortedActiveBills = [
+    ...unpaidActiveBills.sort(sortByDue),
+    ...paidThisMonthBills.sort(sortByDue),
+  ];
+
+  const displayedBills = showArchivedBills
+    ? [...state.bills].sort(sortByDue)
+    : sortedActiveBills;
   const hasMoreBills = displayedBills.length > BILL_PREVIEW_COUNT;
   const visibleBills = showAllBills ? displayedBills : displayedBills.slice(0, BILL_PREVIEW_COUNT);
   const hasMoreDebts = state.debts.length > DEBT_PREVIEW_COUNT;
@@ -95,7 +108,8 @@ export function CommitmentsPanel({
   const totalReceivables = state.debts
     .filter((d) => d.type === "receivable")
     .reduce((sum, d) => sum + Math.max(0, d.total - d.paid), 0);
-  const totalBillsThisMonth = activeBills.reduce((sum, b) => sum + b.amount, 0);
+  // KPI: only count bills NOT yet paid this month
+  const totalBillsThisMonth = unpaidActiveBills.reduce((sum, b) => sum + b.amount, 0);
   const netObligations = totalDebt + totalBillsThisMonth - totalReceivables;
 
   const addBill = (event: React.FormEvent) => {
@@ -343,8 +357,10 @@ export function CommitmentsPanel({
                     key={item.id}
                     className={`rounded-2xl border transition-colors ${
                       isFinished
-                        ? "border-dashed border-border/50 bg-muted/20 opacity-60"
-                        : "border-border/60 bg-background/40"
+                        ? "border-dashed border-border/40 bg-muted/15 opacity-50"
+                        : paidThisMonth
+                          ? "border-dashed border-border/40 bg-muted/20 opacity-60"
+                          : "border-border/60 bg-background/40"
                     }`}
                   >
                     {/* Collapsed row — always visible */}
@@ -354,7 +370,11 @@ export function CommitmentsPanel({
                       aria-expanded={open}
                       className="flex w-full items-center gap-3 p-3 text-left"
                     >
-                      <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
+                      <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                        isFinished ? "bg-secondary text-muted-foreground"
+                        : paidThisMonth ? "bg-secondary/70 text-muted-foreground"
+                        : "bg-amber-500/12 text-amber-400"
+                      }`}>
                         <CreditCard size={14} />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -367,7 +387,7 @@ export function CommitmentsPanel({
                       <div className="shrink-0 text-right">
                         <p className="font-data text-[13px] font-bold">{formatMoney(item.amount, item.currency, state.locale)}</p>
                         {paidThisMonth && (
-                          <p className="text-[10px] font-semibold text-emerald-400">{isId ? "✓ Dibayar" : "✓ Paid"}</p>
+                          <p className="text-[10px] font-semibold text-emerald-400">{isId ? "✓ Sudah dibayar" : "✓ Paid"}</p>
                         )}
                         {isFinished && (
                           <p className="text-[10px] font-semibold text-emerald-400">{isId ? "🎉 Lunas" : "Done"}</p>
@@ -469,11 +489,17 @@ export function CommitmentsPanel({
                     key={item.id}
                     className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${
                       isFinished
-                        ? "border-dashed border-border/50 bg-muted/20 opacity-60"
-                        : "border-border/60 bg-background/35 hover:border-border/90 hover:bg-background/60"
+                        ? "border-dashed border-border/40 bg-muted/15 opacity-50"
+                        : paidThisMonth
+                          ? "border-dashed border-border/40 bg-muted/20 opacity-55"
+                          : "border-border/60 bg-background/35 hover:border-border/90 hover:bg-background/60"
                     }`}
                   >
-                    <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
+                    <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${
+                      isFinished ? "bg-secondary text-muted-foreground"
+                      : paidThisMonth ? "bg-secondary/70 text-muted-foreground"
+                      : "bg-amber-500/12 text-amber-400"
+                    }`}>
                       <CreditCard size={15} />
                     </div>
 
