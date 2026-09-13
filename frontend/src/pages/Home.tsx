@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
@@ -49,6 +50,7 @@ import {
   buildCategoryChart, buildStackedSpend, seriesKey, OTHER_SLICE_COLOR,
   type CategorySlice,
 } from "@/lib/categoryChart";
+import { EraseConfirmModal, type EraseOptions } from "@/components/EraseConfirmModal";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
 // Single source of truth with localDb so a fresh workspace and the dropdowns never disagree.
@@ -113,6 +115,7 @@ export default function Home() {
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showEraseModal, setShowEraseModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [profileDraft, setProfileDraft] = useState("");
@@ -279,8 +282,283 @@ export default function Home() {
   const addSavings = (goal: SavingsGoal) => { const value = Number(window.prompt("Nominal tabungan", "250000")); if (!Number.isFinite(value) || value <= 0) return; save({ ...state, savings: state.savings.map((item) => item.id === goal.id ? { ...item, saved: Math.min(item.target, item.saved + value) } : item) }); toast.success("Tabungan diperbarui."); };
   void addSavings;
   const download = (filename: string, content: string, type: string) => { const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([content], { type })); link.download = filename; link.click(); URL.revokeObjectURL(link.href); };
-  const exportCsv = () => { const rows = [["date", "type", "description", "category", "amount", "currency", "tags"], ...state.transactions.map((item) => [item.date, item.kind, item.description, item.category, String(item.amount), item.currency, item.tags.join("|")])]; download("selfmanage-transactions.csv", `\uFEFF${rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(",")).join("\n")}`, "text/csv;charset=utf-8"); toast.success("CSV berhasil dibuat."); };
   const exportJson = () => { download("selfmanage-backup.json", JSON.stringify(state, null, 2), "application/json"); toast.success("Backup JSON berhasil dibuat."); };
+
+  const exportXlsx = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Transactions
+    const txRows = [
+      ["date", "type", "description", "category", "amount", "currency", "baseAmount", "tags", "accountId"],
+      ...state.transactions.map((t) => [
+        t.date, t.kind, t.description, t.category, t.amount, t.currency, t.baseAmount, t.tags.join("|"), t.accountId,
+      ]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(txRows), "Transactions");
+
+    // Sheet 2: Accounts
+    const accRows = [
+      ["id", "name", "type", "brand", "balance", "currency", "openingBalance"],
+      ...state.accounts.map((a) => [a.id, a.name, a.type, a.brand, a.balance, a.currency, a.openingBalance ?? a.balance]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(accRows), "Accounts");
+
+    // Sheet 3: Bills
+    const billRows = [
+      ["id", "name", "category", "amount", "currency", "frequency", "nextDueDate", "active", "remainingInstallments"],
+      ...state.bills.map((b) => [b.id, b.name, b.category, b.amount, b.currency, b.frequency, b.nextDueDate, b.active, b.remainingInstallments ?? ""]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(billRows), "Bills");
+
+    // Sheet 4: Debts
+    const debtRows = [
+      ["id", "name", "person", "type", "total", "paid", "currency", "dueDate", "note"],
+      ...state.debts.map((d) => [d.id, d.name, d.person, d.type, d.total, d.paid, d.currency, d.dueDate, d.note]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(debtRows), "Debts");
+
+    // Sheet 5: Savings
+    const savRows = [
+      ["id", "name", "target", "saved", "currency", "targetDate", "color"],
+      ...state.savings.map((s) => [s.id, s.name, s.target, s.saved, s.currency, s.targetDate, s.color]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(savRows), "Savings");
+
+    // Sheet 6: Wishlist
+    const wishRows = [
+      ["id", "name", "price", "currency", "priority", "targetDate", "category", "status"],
+      ...state.wishlist.map((w) => [w.id, w.name, w.price, w.currency, w.priority, w.targetDate, w.category, w.status]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wishRows), "Wishlist");
+
+    // Sheet 7: Budgets
+    const budgetRows = [
+      ["id", "category", "limit", "currency"],
+      ...state.budgets.map((b) => [b.id, b.category, b.limit, b.currency]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(budgetRows), "Budgets");
+
+    XLSX.writeFile(wb, "selfmanage-backup.xlsx");
+    toast.success(state.locale === "id" ? "Backup XLSX berhasil dibuat (7 sheet)." : "XLSX backup created (7 sheets).");
+  };
+
+  const importXlsx = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const isId = state.locale === "id";
+
+        // Helper: read a sheet as array-of-arrays
+        const readSheet = (name: string): string[][] => {
+          const ws = wb.Sheets[name];
+          if (!ws) return [];
+          return XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: "" }) as string[][];
+        };
+
+        const id = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+        const defaultAccount = state.accounts[0];
+
+        // --- Transactions sheet ---
+        const txSheet = readSheet("Transactions");
+        let importedTxCount = 0;
+        const newTransactions: Transaction[] = [];
+        if (txSheet.length > 1) {
+          const headers = (txSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < txSheet.length; i++) {
+            const row = txSheet[i] as string[];
+            const rawAmount = Number(row[col("amount")]);
+            const rawKind = String(row[col("type")] || row[col("kind")] || "expense").toLowerCase();
+            const kind: TransactionKind = rawKind === "income" ? "income" : "expense";
+            const currency = (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency);
+            const accountId = String(row[col("accountid")] || "") || defaultAccount?.id || "";
+            if (Number.isFinite(rawAmount) && rawAmount > 0) {
+              const baseAmount = rawAmount * (state.exchangeRates[currency] || 1);
+              newTransactions.push({
+                id: String(row[col("id")] || id()),
+                kind,
+                date: String(row[col("date")] || new Date().toISOString().slice(0, 10)),
+                description: String(row[col("description")] || "Import XLSX"),
+                category: String(row[col("category")] || "Food"),
+                accountId,
+                amount: rawAmount,
+                currency,
+                baseAmount,
+                tags: String(row[col("tags")] || "").split("|").map((t) => t.trim()).filter(Boolean),
+              });
+              importedTxCount++;
+            }
+          }
+        }
+
+        // --- Accounts sheet ---
+        const accSheet = readSheet("Accounts");
+        const newAccounts = state.accounts.length > 0 ? state.accounts : [];
+        if (accSheet.length > 1 && state.accounts.length === 0) {
+          const headers = (accSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < accSheet.length; i++) {
+            const row = accSheet[i] as string[];
+            const balance = Number(row[col("balance")]);
+            if (String(row[col("id")]) && String(row[col("name")])) {
+              newAccounts.push({
+                id: String(row[col("id")]),
+                name: String(row[col("name")]),
+                type: (String(row[col("type")] || "debit") as Account["type"]),
+                brand: String(row[col("brand")] || ""),
+                balance: Number.isFinite(balance) ? balance : 0,
+                currency: (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency),
+                openingBalance: Number(row[col("openingbalance")]) || 0,
+              });
+            }
+          }
+        }
+
+        // --- Bills sheet ---
+        const billSheet = readSheet("Bills");
+        const newBills = state.bills.length > 0 ? [...state.bills] : [];
+        if (billSheet.length > 1 && state.bills.length === 0) {
+          const headers = (billSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < billSheet.length; i++) {
+            const row = billSheet[i] as string[];
+            const amount = Number(row[col("amount")]);
+            if (String(row[col("name")]) && Number.isFinite(amount)) {
+              newBills.push({
+                id: String(row[col("id")] || id()),
+                name: String(row[col("name")]),
+                category: String(row[col("category")] || "Bills"),
+                amount,
+                currency: (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency),
+                frequency: (String(row[col("frequency")] || "monthly") as "monthly" | "weekly"),
+                nextDueDate: String(row[col("nextduedate")] || new Date().toISOString().slice(0, 10)),
+                active: String(row[col("active")]).toLowerCase() !== "false",
+                remainingInstallments: Number(row[col("remaininginstallments")]) || undefined,
+              });
+            }
+          }
+        }
+
+        // --- Debts sheet ---
+        const debtSheet = readSheet("Debts");
+        const newDebts = state.debts.length > 0 ? [...state.debts] : [];
+        if (debtSheet.length > 1 && state.debts.length === 0) {
+          const headers = (debtSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < debtSheet.length; i++) {
+            const row = debtSheet[i] as string[];
+            const total = Number(row[col("total")]);
+            if (String(row[col("name")]) && Number.isFinite(total)) {
+              newDebts.push({
+                id: String(row[col("id")] || id()),
+                name: String(row[col("name")]),
+                person: String(row[col("person")] || ""),
+                type: (String(row[col("type")] || "debt") as "debt" | "receivable"),
+                total,
+                paid: Number(row[col("paid")]) || 0,
+                currency: (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency),
+                dueDate: String(row[col("duedate")] || new Date().toISOString().slice(0, 10)),
+                note: String(row[col("note")] || ""),
+              });
+            }
+          }
+        }
+
+        // --- Savings sheet ---
+        const savSheet = readSheet("Savings");
+        const newSavings = state.savings.length > 0 ? [...state.savings] : [];
+        if (savSheet.length > 1 && state.savings.length === 0) {
+          const headers = (savSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < savSheet.length; i++) {
+            const row = savSheet[i] as string[];
+            const target = Number(row[col("target")]);
+            if (String(row[col("name")]) && Number.isFinite(target)) {
+              newSavings.push({
+                id: String(row[col("id")] || id()),
+                name: String(row[col("name")]),
+                target,
+                saved: Number(row[col("saved")]) || 0,
+                currency: (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency),
+                targetDate: String(row[col("targetdate")] || ""),
+                color: String(row[col("color")] || "#ffa116"),
+              });
+            }
+          }
+        }
+
+        // --- Wishlist sheet ---
+        const wishSheet = readSheet("Wishlist");
+        const newWishlist = state.wishlist.length > 0 ? [...state.wishlist] : [];
+        if (wishSheet.length > 1 && state.wishlist.length === 0) {
+          const headers = (wishSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < wishSheet.length; i++) {
+            const row = wishSheet[i] as string[];
+            const price = Number(row[col("price")]);
+            if (String(row[col("name")]) && Number.isFinite(price)) {
+              newWishlist.push({
+                id: String(row[col("id")] || id()),
+                name: String(row[col("name")]),
+                price,
+                currency: (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency),
+                priority: (String(row[col("priority")] || "medium") as "high" | "medium" | "low"),
+                targetDate: String(row[col("targetdate")] || ""),
+                category: String(row[col("category")] || "Lifestyle"),
+                status: (String(row[col("status")] || "planning") as "planning" | "saving" | "purchased"),
+              });
+            }
+          }
+        }
+
+        // --- Budgets sheet ---
+        const budgetSheet = readSheet("Budgets");
+        const newBudgets = state.budgets.length > 0 ? [...state.budgets] : [];
+        if (budgetSheet.length > 1 && state.budgets.length === 0) {
+          const headers = (budgetSheet[0] as string[]).map((h) => String(h).toLowerCase().trim());
+          const col = (name: string) => headers.indexOf(name);
+          for (let i = 1; i < budgetSheet.length; i++) {
+            const row = budgetSheet[i] as string[];
+            const limit = Number(row[col("limit")]);
+            if (String(row[col("category")]) && Number.isFinite(limit)) {
+              newBudgets.push({
+                id: String(row[col("id")] || id()),
+                category: String(row[col("category")]),
+                limit,
+                currency: (String(row[col("currency")] || state.baseCurrency).toUpperCase() as Currency),
+              });
+            }
+          }
+        }
+
+        const mergedTransactions = [...newTransactions, ...state.transactions];
+        save({
+          ...state,
+          accounts: newAccounts,
+          transactions: mergedTransactions,
+          bills: newBills,
+          debts: newDebts,
+          savings: newSavings,
+          wishlist: newWishlist,
+          budgets: newBudgets,
+        });
+
+        const parts: string[] = [];
+        if (importedTxCount > 0) parts.push(isId ? `${importedTxCount} transaksi` : `${importedTxCount} transactions`);
+        if (newAccounts.length > 0 && state.accounts.length === 0) parts.push(isId ? `${newAccounts.length} akun` : `${newAccounts.length} accounts`);
+        toast.success(
+          isId
+            ? `Import XLSX berhasil: ${parts.length > 0 ? parts.join(", ") : "data dimuat"}.`
+            : `XLSX imported: ${parts.length > 0 ? parts.join(", ") : "data loaded"}.`,
+        );
+      } catch {
+        toast.error(state.locale === "id" ? "Gagal membaca file XLSX." : "Failed to read XLSX file.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
   const importJson = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -293,117 +571,47 @@ export default function Home() {
     };
     reader.readAsText(file);
   };
-  const importCsv = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const text = String(reader.result);
-        const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-        if (lines.length <= 1) {
-          toast.error(state.locale === "id" ? "File CSV kosong atau tidak valid." : "CSV file is empty.");
-          return;
-        }
-        const defaultAccount = state.accounts[0];
-        if (!defaultAccount) {
-          toast.error(state.locale === "id" ? "Tambahkan akun terlebih dahulu." : "Add an account first.");
-          return;
-        }
-        const headers = lines[0].toLowerCase().replaceAll('"', '').split(',').map((h) => h.trim());
-        const dateIdx = headers.indexOf("date");
-        const kindIdx = headers.findIndex((h) => h === "type" || h === "kind");
-        const descIdx = headers.findIndex((h) => h === "description" || h === "desc");
-        const catIdx = headers.indexOf("category");
-        const amountIdx = headers.indexOf("amount");
-        const currencyIdx = headers.indexOf("currency");
-        const tagsIdx = headers.indexOf("tags");
 
-        const newTransactions: Transaction[] = [];
-        let totalDelta = 0;
-
-        for (let i = 1; i < lines.length; i++) {
-          const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(",");
-          const cleanRow = row.map((cell) => cell.replace(/^"|"$/g, "").trim());
-          const date = dateIdx >= 0 && cleanRow[dateIdx] ? cleanRow[dateIdx] : new Date().toISOString().slice(0, 10);
-          const rawKind = kindIdx >= 0 ? cleanRow[kindIdx]?.toLowerCase() : "expense";
-          const kind: TransactionKind = rawKind === "income" ? "income" : "expense";
-          const description = descIdx >= 0 ? cleanRow[descIdx] || "Impor CSV" : "Impor CSV";
-          const category = catIdx >= 0 ? cleanRow[catIdx] || "Food" : "Food";
-          const rawAmount = amountIdx >= 0 ? Number(cleanRow[amountIdx]) : 0;
-          const currency: Currency = (currencyIdx >= 0 && (cleanRow[currencyIdx] as Currency)) || state.baseCurrency;
-          const tags = tagsIdx >= 0 && cleanRow[tagsIdx] ? cleanRow[tagsIdx].split("|").map((t) => t.trim()).filter(Boolean) : ["csv-import"];
-
-          if (Number.isFinite(rawAmount) && rawAmount > 0) {
-            const baseAmount = toBase(rawAmount, currency, state.exchangeRates);
-            newTransactions.push({
-              id: `tx-csv-${Date.now()}-${i}`,
-              kind,
-              date,
-              description,
-              category,
-              accountId: defaultAccount.id,
-              amount: rawAmount,
-              currency,
-              baseAmount,
-              tags,
-            });
-            totalDelta += (kind === "expense" ? -1 : 1) * baseAmount;
-          }
-        }
-
-        if (newTransactions.length === 0) {
-          toast.error(state.locale === "id" ? "Tidak ada transaksi valid di CSV." : "No valid transactions in CSV.");
-          return;
-        }
-
-        const accounts = state.accounts.map((acc) =>
-          acc.id === defaultAccount.id
-            ? { ...acc, balance: acc.balance + totalDelta / (state.exchangeRates[acc.currency] || 1) }
-            : acc
-        );
-
-        save({
-          ...state,
-          accounts,
-          transactions: [...newTransactions, ...state.transactions],
-        });
-
-        toast.success(
-          state.locale === "id"
-            ? `Berhasil mengimpor ${newTransactions.length} transaksi dari CSV.`
-            : `Imported ${newTransactions.length} transactions from CSV.`
-        );
-      } catch {
-        toast.error(state.locale === "id" ? "Gagal membaca file CSV." : "Failed to read CSV.");
-      }
-    };
-    reader.readAsText(file);
+  const eraseAll = () => {
+    setShowEraseModal(true);
   };
-  const eraseAll = async () => {
-    const confirmed = window.confirm(
-      state.locale === "id"
-        ? "Hapus SEMUA transaksi, akun, tagihan, utang, tabungan, wishlist, dan budget? Kategori dan pengaturan tetap tersimpan. Tindakan ini tidak bisa dibatalkan."
-        : "Erase ALL transactions, accounts, bills, debts, savings, wishlist, and budgets? Categories and settings are kept. This cannot be undone.",
-    );
-    if (!confirmed) return;
+
+  const handleEraseConfirm = async (options: EraseOptions) => {
     try {
-      const { state: erased, sheetsError } = await eraseAllData(storageMode, spreadsheetId, state);
-      queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], erased);
-      if (sheetsError) {
-        toast.error(
-          state.locale === "id"
-            ? `Data lokal terhapus, tapi gagal menghapus di spreadsheet: ${sheetsError}`
-            : `Local data erased, but failed to clear the spreadsheet: ${sheetsError}`,
-        );
+      const erased = {
+        ...state,
+        transactions: options.transactions ? [] : state.transactions,
+        accounts: options.accounts ? [] : state.accounts,
+        bills: options.bills ? [] : state.bills,
+        debts: options.debts ? [] : state.debts,
+        savings: options.savings ? [] : state.savings,
+        wishlist: options.wishlist ? [] : state.wishlist,
+        budgets: options.budgets ? [] : state.budgets,
+      };
+      // If using sheets, also try to sync erasure
+      if (storageMode === "sheets" && spreadsheetId) {
+        const { state: sheetErased, sheetsError } = await eraseAllData(storageMode, spreadsheetId, state);
+        // Merge: keep sheet-erased shape but apply selective options on top
+        const merged = {
+          ...sheetErased,
+          transactions: options.transactions ? sheetErased.transactions : state.transactions,
+          accounts: options.accounts ? sheetErased.accounts : state.accounts,
+          bills: options.bills ? sheetErased.bills : state.bills,
+          debts: options.debts ? sheetErased.debts : state.debts,
+          savings: options.savings ? sheetErased.savings : state.savings,
+          wishlist: options.wishlist ? sheetErased.wishlist : state.wishlist,
+          budgets: options.budgets ? sheetErased.budgets : state.budgets,
+        };
+        queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], merged);
+        save(merged);
+        if (sheetsError) {
+          toast.error(state.locale === "id" ? `Data lokal terhapus, tapi gagal di spreadsheet: ${sheetsError}` : `Local erased, but spreadsheet failed: ${sheetsError}`);
+        } else {
+          toast.success(state.locale === "id" ? "Data yang dipilih berhasil dihapus." : "Selected data erased successfully.");
+        }
       } else {
-        toast.success(
-          state.locale === "id"
-            ? storageMode === "sheets"
-              ? "Semua data terhapus di perangkat ini dan di spreadsheet."
-              : "Semua data dihapus. Mulai dari nol."
-            : storageMode === "sheets"
-              ? "All data erased on this device and in the spreadsheet."
-              : "All data erased. Starting from zero.",
-        );
+        save(erased);
+        toast.success(state.locale === "id" ? "Data yang dipilih berhasil dihapus." : "Selected data erased successfully.");
       }
     } catch {
       toast.error(state.locale === "id" ? "Gagal menghapus data." : "Failed to erase data.");
@@ -451,7 +659,7 @@ export default function Home() {
             {tab === "commitments" && <CommitmentsPanel state={state} onSave={save} />}
             {tab === "goals" && <GoalsPanel state={state} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onCommit={commitSavings} />}
             {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
-            {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onCsv={exportCsv} onJson={exportJson} onImport={importJson} onImportCsv={importCsv} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
+            {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
           {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><MobileDisclosure testid="mobile-insights-section" title={state.locale === "id" ? "Insight & rekomendasi" : "Insights & recommendations"} hint={state.locale === "id" ? "Kesehatan kas, tren kategori, budget" : "Cash health, category trends, budgets"} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><InsightsPanel state={state} currentMonth={compareMonth} /></MobileDisclosure></div>}
@@ -462,6 +670,12 @@ export default function Home() {
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
       {showFeedback && <FeedbackDialog open onOpenChange={setShowFeedback} />}
+      <EraseConfirmModal
+        open={showEraseModal}
+        isId={state.locale === "id"}
+        onClose={() => setShowEraseModal(false)}
+        onConfirm={handleEraseConfirm}
+      />
     </div>
   );
 }
