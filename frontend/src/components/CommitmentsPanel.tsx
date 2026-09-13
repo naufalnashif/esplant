@@ -52,6 +52,9 @@ export function CommitmentsPanel({
     dueDate: new Date().toISOString().slice(0, 10),
   });
 
+  const [editingBillId, setEditingBillId] = useState<string | null>(null);
+  const [editingDebtId, setEditingDebtId] = useState<string | null>(null);
+
   const [showArchivedBills, setShowArchivedBills] = useState(false);
   const [showAllBills, setShowAllBills] = useState(false);
   const [showAllDebts, setShowAllDebts] = useState(false);
@@ -106,6 +109,8 @@ export function CommitmentsPanel({
       return;
     }
     const rem = bill.remainingInstallments.trim() ? Number(bill.remainingInstallments) : undefined;
+    const interval = Number(bill.customInterval);
+    const customInterval = Number.isFinite(interval) && interval > 0 ? interval : 1;
     const next: Bill = {
       id: `bill-${Date.now()}`,
       name: bill.name.trim(),
@@ -113,12 +118,13 @@ export function CommitmentsPanel({
       amount,
       currency: state.baseCurrency,
       frequency: bill.frequency,
+      customInterval,
       nextDueDate: bill.nextDueDate,
       remainingInstallments: rem,
       active: true,
     };
     onSave({ ...state, bills: [next, ...state.bills] });
-    setBill({ name: "", category: "Utilities", amount: "", frequency: "monthly", nextDueDate: new Date().toISOString().slice(0, 10), remainingInstallments: "" });
+    setBill({ name: "", category: "Utilities", amount: "", frequency: "monthly", customInterval: "1", nextDueDate: new Date().toISOString().slice(0, 10), remainingInstallments: "" });
     toast.success(isId ? rem ? `Cicilan "${next.name}" (${rem}x) ditambahkan.` : `Tagihan rutin "${next.name}" ditambahkan.` : `Bill "${next.name}" created.`);
   };
 
@@ -183,34 +189,68 @@ export function CommitmentsPanel({
     event.preventDefault();
     const total = Number(debt.total);
     if (!debt.name.trim() || !debt.person.trim() || !Number.isFinite(total) || total <= 0) return;
-    const next: Debt = {
-      id: `debt-${Date.now()}`,
-      name: debt.name.trim(),
-      person: debt.person.trim(),
-      type: debt.type,
-      total,
-      paid: 0,
-      currency: state.baseCurrency,
-      dueDate: debt.dueDate,
-      note: "",
-    };
-    onSave({ ...state, debts: [next, ...state.debts] });
+
+    if (editingDebtId) {
+      onSave({
+        ...state,
+        debts: state.debts.map((d) =>
+          d.id === editingDebtId
+            ? {
+              ...d,
+              name: debt.name.trim(),
+              person: debt.person.trim(),
+              type: debt.type,
+              total,
+              paid: Math.min(d.paid, total), // Ensure paid doesn't exceed new total
+              dueDate: debt.dueDate,
+            }
+            : d
+        ),
+      });
+      setEditingDebtId(null);
+      toast.success(isId ? "Utang/piutang diperbarui." : "Debt updated.");
+    } else {
+      const next: Debt = {
+        id: `debt-${Date.now()}`,
+        name: debt.name.trim(),
+        person: debt.person.trim(),
+        type: debt.type,
+        total,
+        paid: 0,
+        currency: state.baseCurrency,
+        dueDate: debt.dueDate,
+        note: "",
+      };
+      onSave({ ...state, debts: [next, ...state.debts] });
+      toast.success(isId ? "Komitmen utang/piutang ditambahkan." : "Debt or receivable created.");
+    }
     setDebt({ name: "", person: "", type: "debt", total: "", dueDate: new Date().toISOString().slice(0, 10) });
-    toast.success(isId ? "Komitmen utang/piutang ditambahkan." : "Debt or receivable created.");
   };
 
   const editBill = (item: Bill) => {
-    const value = Number(window.prompt(isId ? `Nominal baru untuk ${item.name}` : `New amount for ${item.name}`, String(item.amount)));
-    if (!Number.isFinite(value) || value <= 0) return;
-    onSave({ ...state, bills: state.bills.map((b) => b.id === item.id ? { ...b, amount: value } : b) });
-    toast.success(isId ? "Tagihan diperbarui." : "Bill updated.");
+    setEditingBillId(item.id);
+    setBill({
+      name: item.name,
+      category: item.category,
+      amount: String(item.amount),
+      frequency: item.frequency,
+      customInterval: String(item.customInterval || 1),
+      nextDueDate: item.nextDueDate,
+      remainingInstallments: item.remainingInstallments !== undefined ? String(item.remainingInstallments) : "",
+    });
+    document.getElementById("bill-form-section")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const editDebt = (item: Debt) => {
-    const value = Number(window.prompt(isId ? `Total baru untuk ${item.name}` : `New total for ${item.name}`, String(item.total)));
-    if (!Number.isFinite(value) || value <= 0) return;
-    onSave({ ...state, debts: state.debts.map((d) => d.id === item.id ? { ...d, total: value, paid: Math.min(d.paid, value) } : d) });
-    toast.success(isId ? "Utang/piutang diperbarui." : "Debt updated.");
+    setEditingDebtId(item.id);
+    setDebt({
+      name: item.name,
+      person: item.person,
+      type: item.type,
+      total: String(item.total),
+      dueDate: item.dueDate,
+    });
+    document.getElementById("debt-form-section")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const remove = (kind: "bill" | "debt", id: string) => {
@@ -341,11 +381,10 @@ export function CommitmentsPanel({
                 return (
                   <div
                     key={item.id}
-                    className={`rounded-2xl border transition-colors ${
-                      isFinished
+                    className={`rounded-2xl border transition-colors ${isFinished
                         ? "border-dashed border-border/50 bg-muted/20 opacity-60"
                         : "border-border/60 bg-background/40"
-                    }`}
+                      }`}
                   >
                     {/* Collapsed row — always visible */}
                     <button
@@ -467,11 +506,10 @@ export function CommitmentsPanel({
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${
-                      isFinished
+                    className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${isFinished
                         ? "border-dashed border-border/50 bg-muted/20 opacity-60"
                         : "border-border/60 bg-background/35 hover:border-border/90 hover:bg-background/60"
-                    }`}
+                      }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${isFinished ? "bg-secondary text-muted-foreground" : "bg-amber-500/12 text-amber-400"}`}>
                       <CreditCard size={15} />
@@ -560,11 +598,13 @@ export function CommitmentsPanel({
             </div>
           </div>
 
-          {/* Add Bill Form */}
-          <div className="border-t border-border/60 px-4 py-4 sm:px-6">
+          {/* Add/Edit Bill Form */}
+          <div id="bill-form-section" className="border-t border-border/60 px-4 py-4 sm:px-6">
             <form onSubmit={addBill} className="grid gap-2.5 sm:grid-cols-2">
               <p className="text-xs font-bold text-primary sm:col-span-2">
-                {isId ? "+ Tambah Tagihan / Cicilan Baru" : "+ Add New Bill or Installment"}
+                {editingBillId
+                  ? isId ? "✎ Edit Tagihan / Cicilan" : "✎ Edit Bill or Installment"
+                  : isId ? "+ Tambah Tagihan / Cicilan Baru" : "+ Add New Bill or Installment"}
               </p>
               <input
                 data-testid="bill-name-input"
@@ -604,10 +644,22 @@ export function CommitmentsPanel({
               <p className="text-[10px] italic text-muted-foreground sm:col-span-2">
                 * {isId ? "Isi jumlah sisa cicilan (misal: 4). Setelah 4x dibayar, cicilan otomatis lunas." : "Specify remaining installments (e.g. 4). Auto-expires when completed."}
               </p>
-              <div className="sm:col-span-2">
-                <Button data-testid="bill-create-button" type="submit" className="w-full gap-2">
-                  <Plus size={14} />
-                  {isId ? "Simpan Cicilan / Tagihan" : "Save Bill / Installment"}
+              <div className="flex gap-2 sm:col-span-2">
+                {editingBillId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingBillId(null);
+                      setBill({ name: "", category: "Utilities", amount: "", frequency: "monthly", customInterval: "1", nextDueDate: new Date().toISOString().slice(0, 10), remainingInstallments: "" });
+                    }}
+                  >
+                    {isId ? "Batal" : "Cancel"}
+                  </Button>
+                )}
+                <Button data-testid="bill-create-button" type="submit" className="flex-1 gap-2">
+                  {!editingBillId && <Plus size={14} />}
+                  {editingBillId ? (isId ? "Simpan Perubahan" : "Save Changes") : (isId ? "Simpan Cicilan / Tagihan" : "Save Bill / Installment")}
                 </Button>
               </div>
             </form>
@@ -836,11 +888,13 @@ export function CommitmentsPanel({
             </div>
           </div>
 
-          {/* Add Debt Form */}
-          <div className="border-t border-border/60 px-4 py-4 sm:px-6">
+          {/* Add/Edit Debt Form */}
+          <div id="debt-form-section" className="border-t border-border/60 px-4 py-4 sm:px-6">
             <form onSubmit={addDebt} className="grid gap-2.5 sm:grid-cols-2">
               <p className="text-xs font-bold text-primary sm:col-span-2">
-                {isId ? "+ Tambah Catatan Utang / Piutang" : "+ Add Debt or Receivable"}
+                {editingDebtId
+                  ? isId ? "✎ Edit Utang / Piutang" : "✎ Edit Debt or Receivable"
+                  : isId ? "+ Tambah Utang / Piutang Baru" : "+ Add New Debt or Receivable"}
               </p>
               <input
                 data-testid="commitment-name-input"
@@ -877,10 +931,22 @@ export function CommitmentsPanel({
                 placeholder={isId ? "Total nominal" : "Total amount"}
                 className="h-10 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
               />
-              <div className="sm:col-span-2">
-                <Button data-testid="commitment-create-button" type="submit" className="w-full gap-2">
-                  <Plus size={14} />
-                  {isId ? "Tambah Catatan" : "Create"}
+              <div className="flex gap-2 sm:col-span-2">
+                {editingDebtId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingDebtId(null);
+                      setDebt({ name: "", person: "", type: "debt", total: "", dueDate: new Date().toISOString().slice(0, 10) });
+                    }}
+                  >
+                    {isId ? "Batal" : "Cancel"}
+                  </Button>
+                )}
+                <Button data-testid="commitment-create-button" type="submit" className="flex-1 gap-2">
+                  {!editingDebtId && <Plus size={14} />}
+                  {editingDebtId ? (isId ? "Simpan Perubahan" : "Save Changes") : (isId ? "Tambah Catatan" : "Create")}
                 </Button>
               </div>
             </form>

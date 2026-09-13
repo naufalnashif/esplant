@@ -122,6 +122,7 @@ export default function Home() {
   const [transactionForm, setTransactionForm] = useState({ kind: "expense" as TransactionKind, amount: "", description: "", category: "Food", accountId: "", currency: "IDR" as Currency, date: new Date().toISOString().slice(0, 10), tags: "" });
   const [debtForm, setDebtForm] = useState({ name: "", person: "", type: "debt" as CommitmentType, total: "", dueDate: new Date().toISOString().slice(0, 10) });
   const [wishForm, setWishForm] = useState({ name: "", price: "", priority: "medium" as WishlistItem["priority"], targetDate: "", category: "Lifestyle" });
+  const [editingWishId, setEditingWishId] = useState<string | null>(null);
 
   const stateQuery = useQuery({
     queryKey: ["finance-state", storageMode, spreadsheetId],
@@ -241,8 +242,26 @@ export default function Home() {
   const handleAddWish = (event: React.FormEvent) => {
     event.preventDefault(); const price = Number(wishForm.price);
     if (!wishForm.name.trim() || !Number.isFinite(price) || price <= 0) { toast.error("Lengkapi nama wishlist dan harga valid."); return; }
-    const wish: WishlistItem = { id: id(), name: wishForm.name.trim(), price, currency: state.baseCurrency, priority: wishForm.priority, targetDate: wishForm.targetDate, category: wishForm.category, status: "planning" };
-    save({ ...state, wishlist: [wish, ...state.wishlist] }); setWishForm({ name: "", price: "", priority: "medium", targetDate: "", category: "Lifestyle" }); toast.success("Wishlist ditambahkan.");
+    
+    if (editingWishId) {
+      save({
+        ...state,
+        wishlist: state.wishlist.map(w => w.id === editingWishId ? { ...w, name: wishForm.name.trim(), price, priority: wishForm.priority, targetDate: wishForm.targetDate, category: wishForm.category } : w)
+      });
+      setEditingWishId(null);
+      toast.success(state.locale === "id" ? "Wishlist diperbarui." : "Wishlist updated.");
+    } else {
+      const wish: WishlistItem = { id: id(), name: wishForm.name.trim(), price, currency: state.baseCurrency, priority: wishForm.priority, targetDate: wishForm.targetDate, category: wishForm.category, status: "planning" };
+      save({ ...state, wishlist: [wish, ...state.wishlist] });
+      toast.success("Wishlist ditambahkan.");
+    }
+    setWishForm({ name: "", price: "", priority: "medium", targetDate: "", category: "Lifestyle" });
+  };
+  const handleEditWish = (item: WishlistItem) => {
+    setEditingWishId(item.id);
+    setWishForm({ name: item.name, price: String(item.price), priority: item.priority, targetDate: item.targetDate, category: item.category });
+    setTab("goals"); // Ensure we are on goals tab
+    setTimeout(() => document.getElementById("wishlist-form-section")?.scrollIntoView({ behavior: "smooth" }), 100);
   };
   const saveBudget = (category: string, limit: number) => {
     const existing = state.budgets.find((budget) => budget.category === category);
@@ -262,7 +281,24 @@ export default function Home() {
     toast.success(state.locale === "id" ? `Budget ${category} dihapus.` : `${category} budget deleted.`);
   };
   const addAccount = (account: Account) => { save({ ...state, accounts: [...state.accounts, { ...account, openingBalance: account.balance }] }); toast.success(state.locale === "id" ? "Akun baru ditambahkan." : "New account added."); };
-  const adjustAccount = (account: Account) => { const next = Number(window.prompt(`Saldo baru untuk ${account.name}`, String(account.balance))); if (!Number.isFinite(next)) return; save({ ...state, accounts: state.accounts.map((item) => item.id === account.id ? { ...item, balance: next, openingBalance: (item.openingBalance ?? item.balance) + (next - item.balance) } : item) }); toast.success("Saldo akun diperbarui."); };
+  const adjustAccount = (account: Account) => {
+    save({
+      ...state,
+      accounts: state.accounts.map((item) => {
+        if (item.id === account.id) {
+          // Adjust opening balance if balance changed
+          const balanceDiff = account.balance - item.balance;
+          return {
+            ...item,
+            ...account,
+            openingBalance: (item.openingBalance ?? item.balance) + balanceDiff,
+          };
+        }
+        return item;
+      }),
+    });
+    toast.success(state.locale === "id" ? "Akun berhasil diperbarui." : "Account updated.");
+  };
   const removeAccount = (account: Account) => { if (state.transactions.some((item) => item.accountId === account.id)) { toast.error(state.locale === "id" ? "Akun dengan transaksi tidak dapat dihapus." : "Accounts with transactions cannot be removed."); return; } save({ ...state, accounts: state.accounts.filter((item) => item.id !== account.id) }); toast.success("Akun dihapus."); };
   const commitSavings = (goal: SavingsGoal, amount: number, direction: "deposit" | "withdraw") => {
     const account = state.accounts.find((item) => item.type === "debit" && item.balance > 0) ?? state.accounts[0];
@@ -657,13 +693,13 @@ export default function Home() {
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={(accountId) => state.accounts.find((account) => account.id === accountId)?.name ?? "—"} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
             {tab === "commitments" && <CommitmentsPanel state={state} onSave={save} />}
-            {tab === "goals" && <GoalsPanel state={state} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onCommit={commitSavings} />}
+            {tab === "goals" && <GoalsPanel state={state} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onCommit={commitSavings} editingWishId={editingWishId} setEditingWishId={setEditingWishId} />}
             {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
             {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
           {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><MobileDisclosure testid="mobile-insights-section" title={state.locale === "id" ? "Insight & rekomendasi" : "Insights & recommendations"} hint={state.locale === "id" ? "Kesehatan kas, tren kategori, budget" : "Cash health, category trends, budgets"} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><InsightsPanel state={state} currentMonth={compareMonth} /></MobileDisclosure></div>}
-          {tab === "goals" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><WishlistManager state={state} onSave={save} /></div>}
+          {tab === "goals" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><WishlistManager state={state} onSave={save} onEdit={handleEditWish} /></div>}
         </main>
       </div>
       <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} actions={moreActions} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
