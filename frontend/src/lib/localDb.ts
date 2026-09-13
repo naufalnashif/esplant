@@ -40,7 +40,9 @@ export interface Bill {
   category: string;
   amount: number;
   currency: Currency;
-  frequency: "weekly" | "monthly";
+  frequency: "daily" | "weekly" | "monthly" | "yearly";
+  /** Optional multiplier for frequency, e.g. 3 for "Every 3 months". Defaults to 1. */
+  customInterval?: number;
   nextDueDate: string;
   remainingInstallments?: number;
   active: boolean;
