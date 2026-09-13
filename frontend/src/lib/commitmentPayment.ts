@@ -35,12 +35,28 @@ export type CommitmentPaymentResult =
   | { ok: false; error: string };
 
 /** Advances a due date by one billing cycle without mutating the input. */
-export const advanceDueDate = (date: string, frequency: Bill["frequency"]): string => {
-  const next = new Date(`${date}T00:00:00`);
-  if (Number.isNaN(next.getTime())) return date;
-  if (frequency === "weekly") next.setDate(next.getDate() + 7);
-  else next.setMonth(next.getMonth() + 1);
-  return next.toISOString().slice(0, 10);
+export const advanceDueDate = (date: string, frequency: Bill["frequency"], customInterval?: number): string => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const [year, month, day] = date.split("-").map(Number);
+  const next = new Date(year, month - 1, day);
+  const interval = customInterval && customInterval > 0 ? customInterval : 1;
+
+  if (frequency === "daily") {
+    next.setDate(next.getDate() + interval);
+  } else if (frequency === "weekly") {
+    next.setDate(next.getDate() + 7 * interval);
+  } else if (frequency === "monthly") {
+    next.setMonth(next.getMonth() + interval);
+  } else if (frequency === "yearly") {
+    next.setFullYear(next.getFullYear() + interval);
+  } else {
+    next.setMonth(next.getMonth() + 1); // fallback
+  }
+
+  const y = next.getFullYear();
+  const m = String(next.getMonth() + 1).padStart(2, "0");
+  const d = String(next.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 };
 
 /** True when the commitment already has a payment recorded inside `month` (yyyy-mm). */
@@ -141,7 +157,7 @@ export const applyCommitmentPayment = (
             remainingInstallments: nextRemaining,
             paidInstallments: (item.paidInstallments ?? 0) + 1,
             lastPaidDate: input.date,
-            nextDueDate: completed ? item.nextDueDate : advanceDueDate(item.nextDueDate, item.frequency),
+            nextDueDate: completed ? item.nextDueDate : advanceDueDate(item.nextDueDate, item.frequency, item.customInterval),
             active: completed ? false : item.active,
           },
     );

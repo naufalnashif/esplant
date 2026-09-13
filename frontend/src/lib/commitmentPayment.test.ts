@@ -217,9 +217,15 @@ describe("applyCommitmentPayment — validation keeps state untouched", () => {
 });
 
 describe("helpers", () => {
-  it("advanceDueDate rolls monthly and weekly cycles", () => {
+  it("advanceDueDate rolls monthly and weekly cycles and supports custom intervals", () => {
     expect(advanceDueDate("2026-07-20", "monthly")).toBe("2026-08-20");
     expect(advanceDueDate("2026-07-20", "weekly")).toBe("2026-07-27");
+    expect(advanceDueDate("2026-07-20", "daily")).toBe("2026-07-21");
+    expect(advanceDueDate("2026-07-20", "daily", 3)).toBe("2026-07-23");
+    expect(advanceDueDate("2026-07-20", "weekly", 2)).toBe("2026-08-03");
+    expect(advanceDueDate("2026-07-20", "monthly", 3)).toBe("2026-10-20");
+    expect(advanceDueDate("2026-07-20", "yearly")).toBe("2027-07-20");
+    expect(advanceDueDate("2026-07-20", "yearly", 2)).toBe("2028-07-20");
     expect(advanceDueDate("2026-12-31", "monthly")).toBe("2027-01-31");
     expect(advanceDueDate("not-a-date", "monthly")).toBe("not-a-date");
   });
