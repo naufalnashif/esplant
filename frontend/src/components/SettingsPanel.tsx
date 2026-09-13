@@ -14,6 +14,7 @@ import {
   Cloud,
   Database,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { useStorage } from "@/lib/storageContext";
 import { readState, isGoogleConfigured } from "@/lib/googleSheets";
 import { pushNow } from "@/lib/dataStore";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
+import * as XLSX from "xlsx";
 
 type SettingsSubTab = "general" | "data";
 
@@ -217,10 +219,10 @@ export function SettingsPanel({
   setProfileDraft,
   updateState,
   onSaveProfile,
-  onCsv,
   onJson,
+  onXlsx,
   onImport,
-  onImportCsv,
+  onImportXlsx,
   onErase,
   onPrint,
   save,
@@ -230,18 +232,18 @@ export function SettingsPanel({
   setProfileDraft: (value: string) => void;
   updateState: (updates: Partial<FinanceState>) => void;
   onSaveProfile: () => void;
-  onCsv: () => void;
   onJson: () => void;
+  onXlsx: () => void;
   onImport: (file: File) => void;
-  onImportCsv?: (file: File) => void;
+  onImportXlsx: (file: File) => void;
   onErase: () => void;
   onPrint: () => void;
   save: (nextState: FinanceState) => void;
 }) {
   const isId = state.locale === "id";
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>("general");
-  const fileRef = useRef<HTMLInputElement>(null);
-  const csvFileRef = useRef<HTMLInputElement>(null);
+  const jsonFileRef = useRef<HTMLInputElement>(null);
+  const xlsxFileRef = useRef<HTMLInputElement>(null);
 
   const subTabs = [
     {
@@ -254,23 +256,75 @@ export function SettingsPanel({
       id: "data" as SettingsSubTab,
       label: isId ? "Backup & Kesehatan Data" : "Backup & Data Health",
       icon: ShieldCheck,
-      description: isId ? "Ekspor, impor CSV/JSON, restore & template" : "Export, CSV/JSON import & templates",
+      description: isId ? "Ekspor, impor XLSX & JSON, restore" : "Export, XLSX/JSON import & restore",
     },
   ];
 
-  const downloadCsvTemplate = () => {
-    const csvContent =
-      '\uFEFF"date","type","description","category","amount","currency","tags"\n' +
-      '"2026-09-08","expense","Makan Siang Resto","Food","45000","IDR","kuliner|lunch"\n' +
-      '"2026-09-08","income","Gaji Project Freelance","Income","2500000","IDR","freelance|gaji"\n';
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "selfmanage_template_transaksi.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(isId ? "Template CSV transaksi berhasil di-download." : "CSV template downloaded.");
+  const downloadXlsxTemplate = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Transactions sheet
+    const txSheet = XLSX.utils.aoa_to_sheet([
+      ["date", "type", "description", "category", "amount", "currency", "tags", "accountId"],
+      ["2026-09-08", "expense", "Makan Siang Restoran", "Food", 45000, "IDR", "kuliner|lunch", "acc-001"],
+      ["2026-09-08", "income", "Gaji Project Freelance", "Salary", 2500000, "IDR", "freelance|gaji", "acc-001"],
+      ["2026-09-10", "expense", "Token Listrik PLN", "Utilities", 150000, "IDR", "tagihan|listrik", "acc-001"],
+      ["2026-09-12", "expense", "Grab ke Kantor", "Transport", 25000, "IDR", "ojol|commute", "acc-001"],
+    ]);
+    XLSX.utils.book_append_sheet(wb, txSheet, "Transactions");
+
+    // Accounts sheet
+    const accSheet = XLSX.utils.aoa_to_sheet([
+      ["id", "name", "type", "brand", "balance", "currency", "openingBalance"],
+      ["acc-001", "BCA Tabungan", "debit", "BCA", 5000000, "IDR", 3000000],
+      ["acc-002", "GoPay", "ewallet", "GoPay", 350000, "IDR", 350000],
+      ["acc-003", "Dompet Cash", "cash", "", 200000, "IDR", 200000],
+    ]);
+    XLSX.utils.book_append_sheet(wb, accSheet, "Accounts");
+
+    // Bills sheet
+    const billSheet = XLSX.utils.aoa_to_sheet([
+      ["id", "name", "category", "amount", "currency", "frequency", "nextDueDate", "active", "remainingInstallments"],
+      ["bill-001", "Cicilan HP Samsung", "Lifestyle", 450000, "IDR", "monthly", "2026-10-01", true, 12],
+      ["bill-002", "Indihome Wifi", "Utilities", 350000, "IDR", "monthly", "2026-10-05", true, ""],
+    ]);
+    XLSX.utils.book_append_sheet(wb, billSheet, "Bills");
+
+    // Debts sheet
+    const debtSheet = XLSX.utils.aoa_to_sheet([
+      ["id", "name", "person", "type", "total", "paid", "currency", "dueDate", "note"],
+      ["debt-001", "Utang ke Budi", "Budi Santoso", "debt", 500000, 0, "IDR", "2026-10-15", "Pinjaman beli laptop"],
+      ["debt-002", "Piutang dari Andi", "Andi Wijaya", "receivable", 250000, 100000, "IDR", "2026-11-01", "Patungan makan"],
+    ]);
+    XLSX.utils.book_append_sheet(wb, debtSheet, "Debts");
+
+    // Savings sheet
+    const savSheet = XLSX.utils.aoa_to_sheet([
+      ["id", "name", "target", "saved", "currency", "targetDate", "color"],
+      ["sav-001", "Dana Darurat", 30000000, 12000000, "IDR", "2027-06-01", "#ffa116"],
+      ["sav-002", "Liburan Bali", 5000000, 1500000, "IDR", "2026-12-25", "#22c55e"],
+    ]);
+    XLSX.utils.book_append_sheet(wb, savSheet, "Savings");
+
+    // Wishlist sheet
+    const wishSheet = XLSX.utils.aoa_to_sheet([
+      ["id", "name", "price", "currency", "priority", "targetDate", "category", "status"],
+      ["wish-001", "MacBook Air M3", 20000000, "IDR", "high", "2027-01-01", "Education", "saving"],
+      ["wish-002", "Sepatu Nike Air Max", 1500000, "IDR", "medium", "2026-11-11", "Lifestyle", "planning"],
+    ]);
+    XLSX.utils.book_append_sheet(wb, wishSheet, "Wishlist");
+
+    // Budgets sheet
+    const budgetSheet = XLSX.utils.aoa_to_sheet([
+      ["id", "category", "limit", "currency"],
+      ["bud-001", "Food", 2000000, "IDR"],
+      ["bud-002", "Transport", 500000, "IDR"],
+      ["bud-003", "Lifestyle", 1000000, "IDR"],
+    ]);
+    XLSX.utils.book_append_sheet(wb, budgetSheet, "Budgets");
+
+    XLSX.writeFile(wb, "selfmanage_template.xlsx");
+    toast.success(isId ? "Template XLSX berhasil diunduh (7 sheet)." : "XLSX template downloaded (7 sheets).");
   };
 
   const downloadJsonTemplate = () => {
@@ -341,7 +395,7 @@ export function SettingsPanel({
         })}
       </div>
 
-      {/* Sub-tab Content */}
+      {/* General Tab */}
       {activeSubTab === "general" && (
         <div className="space-y-6">
           <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
@@ -438,153 +492,208 @@ export function SettingsPanel({
         </div>
       )}
 
+      {/* Data Tab — redesigned for mobile */}
       {activeSubTab === "data" && (
-        <div className="space-y-6">
-          {/* Backup, Export & Import Controls */}
-          <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Backup & export</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Ekspor & Impor Data Transaksi" : "Export & Data Backup"}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {isId
-                  ? "Unduh cadangan data atau impor transaksi baru menggunakan format CSV / JSON."
-                  : "Download data backups or import transactions via CSV / JSON."}
-              </p>
-            </div>
+        <div className="space-y-5">
 
-            {/* Export & Print Section */}
-            <div className="mb-5">
-              <p className="mb-2 text-xs font-bold text-muted-foreground">{isId ? "1. Ekspor & Cetak Laporan" : "1. Export & Report"}</p>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <Button data-testid="export-csv-button" variant="outline" onClick={onCsv} className="gap-2">
-                  <FileSpreadsheet size={15} />
-                  {isId ? "Ekspor CSV Transaksi" : "Export CSV"}
-                </Button>
-                <Button data-testid="export-json-button" variant="outline" onClick={onJson} className="gap-2">
-                  <Download size={15} />
-                  {isId ? "Backup JSON Full" : "Backup JSON"}
-                </Button>
-                <Button data-testid="print-pdf-button" variant="outline" onClick={onPrint} className="gap-2 border-primary/40 text-primary hover:bg-primary/8">
-                  <FileText size={15} />
-                  {isId ? "Preview & Download PDF" : "PDF Summary"}
-                </Button>
+          {/* ── Export Section ── */}
+          <Card className="border-border/70 bg-card/75 p-4 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary shrink-0">
+                <Download size={16} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  {isId ? "Ekspor & Cetak" : "Export & Print"}
+                </p>
+                <h2 className="font-heading text-base font-bold sm:text-lg">
+                  {isId ? "Unduh Data & Laporan" : "Download Data & Reports"}
+                </h2>
               </div>
             </div>
 
-            {/* Import Section with Hidden Inputs */}
-            <div className="mb-5 border-t border-border/60 pt-4">
-              <p className="mb-2 text-xs font-bold text-muted-foreground">{isId ? "2. Impor Data Transaksi / Restore Backup" : "2. Import & Restore Data"}</p>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <Button
+                data-testid="export-xlsx-button"
+                variant="outline"
+                onClick={onXlsx}
+                className="gap-2 justify-start sm:justify-center"
+              >
+                <FileSpreadsheet size={15} />
+                <span>{isId ? "Export XLSX (Semua Data)" : "Export XLSX (All Data)"}</span>
+              </Button>
+              <Button
+                data-testid="export-json-button"
+                variant="outline"
+                onClick={onJson}
+                className="gap-2 justify-start sm:justify-center"
+              >
+                <Download size={15} />
+                <span>{isId ? "Backup JSON Lengkap" : "Full JSON Backup"}</span>
+              </Button>
+              <Button
+                data-testid="print-pdf-button"
+                variant="outline"
+                onClick={onPrint}
+                className="gap-2 justify-start sm:justify-center border-primary/40 text-primary hover:bg-primary/8"
+              >
+                <FileText size={15} />
+                <span>{isId ? "Preview & Download PDF" : "PDF Summary"}</span>
+              </Button>
+            </div>
 
-              <input
-                ref={fileRef}
-                data-testid="import-json-input"
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) onImport(file);
-                  event.target.value = "";
-                }}
-              />
-              <input
-                ref={csvFileRef}
-                data-testid="import-csv-input"
-                type="file"
-                accept="text/csv,.csv"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file && onImportCsv) onImportCsv(file);
-                  event.target.value = "";
-                }}
-              />
+            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+              {isId
+                ? "XLSX berisi 7 sheet: Transaksi, Akun, Tagihan, Utang, Tabungan, Wishlist, dan Budget — cocok untuk dibuka di Excel atau Google Sheets."
+                : "XLSX contains 7 sheets: Transactions, Accounts, Bills, Debts, Savings, Wishlist, and Budgets — open in Excel or Google Sheets."}
+            </p>
+          </Card>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  data-testid="import-csv-button"
-                  variant="outline"
-                  onClick={() => csvFileRef.current?.click()}
-                  className="gap-2 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                >
-                  <Upload size={15} />
-                  {isId ? "Impor CSV Transaksi" : "Import CSV"}
-                </Button>
-
-                <Button
-                  data-testid="import-json-button"
-                  variant="outline"
-                  onClick={() => fileRef.current?.click()}
-                  className="gap-2 border-primary/40 text-primary hover:bg-primary/8"
-                >
-                  <Upload size={15} />
-                  {isId ? "Impor JSON State" : "Import JSON"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={downloadCsvTemplate}
-                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Download size={13} />
-                  {isId ? "Template CSV" : "CSV Template"}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={downloadJsonTemplate}
-                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Download size={13} />
-                  {isId ? "Template JSON" : "JSON Template"}
-                </Button>
-
-                <button
-                  type="button"
-                  data-testid="erase-all-button"
-                  onClick={onErase}
-                  className="ml-auto flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/8"
-                >
-                  <Trash2 size={13} />
-                  {isId ? "Hapus semua data" : "Erase all data"}
-                </button>
+          {/* ── Import Section ── */}
+          <Card className="border-border/70 bg-card/75 p-4 sm:p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-emerald-500/12 text-emerald-500 shrink-0">
+                <Upload size={16} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  {isId ? "Impor & Restore" : "Import & Restore"}
+                </p>
+                <h2 className="font-heading text-base font-bold sm:text-lg">
+                  {isId ? "Impor Data ke Aplikasi" : "Import Data to App"}
+                </h2>
               </div>
             </div>
 
-            {/* Information Box explaining data structure */}
-            <div className="rounded-xl border border-border/70 bg-background/50 p-4 text-xs leading-relaxed space-y-2">
+            {/* Hidden file inputs */}
+            <input
+              ref={jsonFileRef}
+              data-testid="import-json-input"
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImport(file);
+                event.target.value = "";
+              }}
+            />
+            <input
+              ref={xlsxFileRef}
+              data-testid="import-xlsx-input"
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImportXlsx(file);
+                event.target.value = "";
+              }}
+            />
+
+            {/* Primary import buttons */}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              <Button
+                data-testid="import-xlsx-button"
+                variant="outline"
+                onClick={() => xlsxFileRef.current?.click()}
+                className="gap-2 justify-start sm:justify-center border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <Upload size={15} />
+                <span>{isId ? "Impor XLSX (Semua Data)" : "Import XLSX (All Data)"}</span>
+              </Button>
+              <Button
+                data-testid="import-json-button"
+                variant="outline"
+                onClick={() => jsonFileRef.current?.click()}
+                className="gap-2 justify-start sm:justify-center border-primary/40 text-primary hover:bg-primary/8"
+              >
+                <Upload size={15} />
+                <span>{isId ? "Impor JSON Backup" : "Import JSON Backup"}</span>
+              </Button>
+            </div>
+
+            {/* Template download row */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={downloadXlsxTemplate}
+                className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/8 hover:text-emerald-400"
+                data-testid="download-xlsx-template-button"
+              >
+                <Download size={12} />
+                {isId ? "Unduh Template XLSX" : "Download XLSX Template"}
+              </button>
+              <button
+                type="button"
+                onClick={downloadJsonTemplate}
+                className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/8 hover:text-primary"
+                data-testid="download-json-template-button"
+              >
+                <Download size={12} />
+                {isId ? "Unduh Template JSON" : "Download JSON Template"}
+              </button>
+            </div>
+
+            {/* Import info box */}
+            <div className="mt-4 rounded-xl border border-border/70 bg-background/50 p-3.5 text-xs leading-relaxed space-y-2">
               <div className="flex items-center gap-2 font-bold text-foreground">
-                <HelpCircle size={15} className="text-primary" />
-                <span>{isId ? "Petunjuk & Format Data Impor" : "Data Import Format Instructions"}</span>
+                <HelpCircle size={14} className="text-primary shrink-0" />
+                <span>{isId ? "Petunjuk Format Import" : "Import Format Guide"}</span>
               </div>
-              <ul className="list-disc pl-5 space-y-1 text-muted-foreground text-[11px]">
+              <ul className="list-disc pl-4 space-y-1 text-muted-foreground text-[11px]">
                 <li>
-                  <strong className="text-foreground">Format CSV Transaksi:</strong> Harus memiliki kolom header:{" "}
-                  <code className="font-data bg-secondary px-1 py-0.5 rounded text-[10px]">
-                    date, type, description, category, amount, currency, tags
-                  </code>
+                  <strong className="text-foreground">{isId ? "XLSX (Disarankan):" : "XLSX (Recommended):"}</strong>{" "}
+                  {isId
+                    ? "Template dengan 7 sheet siap pakai. Unduh template, isi data, lalu impor."
+                    : "Template with 7 sheets ready to use. Download, fill data, then import."}
                 </li>
                 <li>
-                  <strong className="text-foreground">Format Tanggal:</strong>{" "}
-                  <code className="font-data bg-secondary px-1 py-0.5 rounded text-[10px]">YYYY-MM-DD</code> (contoh: 2026-09-08).
+                  <strong className="text-foreground">{isId ? "Format JSON Backup:" : "JSON Backup Format:"}</strong>{" "}
+                  {isId ? "File backup full state _self.manage atau array transaksi." : "Full _self.manage state backup or transaction array."}
                 </li>
                 <li>
-                  <strong className="text-foreground">Format Tipe (kind):</strong>{" "}
-                  <code className="font-data bg-secondary px-1 py-0.5 rounded text-[10px]">expense</code> (pengeluaran) atau{" "}
-                  <code className="font-data bg-secondary px-1 py-0.5 rounded text-[10px]">income</code> (pemasukan).
-                </li>
-                <li>
-                  <strong className="text-foreground">Format JSON Backup:</strong> Menerima file backup full state _self.manage atau array transaksi.
+                  <strong className="text-foreground">{isId ? "Catatan:" : "Note:"}</strong>{" "}
+                  {isId
+                    ? "Impor XLSX akan menambah transaksi baru ke data yang sudah ada. Akun, tagihan, dan data lain hanya diimpor jika data tersebut masih kosong."
+                    : "XLSX import adds new transactions to existing data. Accounts, bills, and other data are only imported if they are currently empty."}
                 </li>
               </ul>
             </div>
           </Card>
 
-          {/* Data Integrity & Health Inspector */}
+          {/* ── Danger Zone ── */}
+          <Card className="border-red-500/20 bg-red-500/3 p-4 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="grid size-9 place-items-center rounded-xl bg-red-500/12 text-red-400 shrink-0 mt-0.5">
+                  <AlertTriangle size={16} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">
+                    {isId ? "Zona Berbahaya" : "Danger Zone"}
+                  </p>
+                  <h2 className="font-heading text-base font-bold">{isId ? "Hapus Data" : "Erase Data"}</h2>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground max-w-sm">
+                    {isId
+                      ? "Pilih kategori data yang ingin dihapus. Pengaturan, profil, dan kategori selalu dipertahankan."
+                      : "Select which data categories to erase. Settings, profile, and categories are always kept."}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                data-testid="erase-all-button"
+                onClick={onErase}
+                className="flex shrink-0 items-center gap-2 rounded-xl border border-red-500/35 bg-red-500/8 px-4 py-2.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-500/15 hover:border-red-500/50 sm:self-center"
+              >
+                <Trash2 size={14} />
+                {isId ? "Hapus Data..." : "Erase Data..."}
+              </button>
+            </div>
+          </Card>
+
+          {/* Data Health Panel */}
           <DataHealthPanel state={state} onSave={save} />
         </div>
       )}
