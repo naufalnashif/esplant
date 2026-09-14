@@ -39,6 +39,7 @@ import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import { MobileNav } from "@/components/mobile/MobileNav";
 import { MobileOverview } from "@/components/mobile/MobileOverview";
+import { AccountsBreakdownModal } from "@/components/AccountsBreakdownModal";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useStorage } from "@/lib/storageContext";
 import { isSignedIn } from "@/lib/googleSheets";
@@ -768,6 +769,7 @@ function Overview({
   onLoadSample?: () => void;
   accountName: (id: string) => string;
 }) {
+  const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
   const [showMatrix, setShowMatrix] = useState(true);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
@@ -844,14 +846,28 @@ function Overview({
                   {formatMoney(totalBalance, state.baseCurrency, state.locale)}
                 </p>
               </div>
-              <div className="rounded-xl border border-white/15 bg-white/10 p-2">
-                <WalletCards size={20} />
-              </div>
+              <button
+                type="button"
+                data-testid="total-balance-accounts-trigger"
+                onClick={() => setAccountsModalOpen(true)}
+                title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
+                aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
+                className="group relative flex items-center justify-center rounded-xl border border-white/20 bg-white/10 p-2.5 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:border-white/40 hover:bg-white/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 cursor-pointer"
+              >
+                <WalletCards size={20} className="transition-transform duration-200 group-hover:scale-110" />
+                <span className="sr-only">{isId ? "Lihat akun" : "View accounts"}</span>
+              </button>
             </div>
             <div className="mt-9 flex flex-wrap items-center gap-5 text-xs text-white/70">
-              <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                data-testid="active-accounts-count-trigger"
+                onClick={() => setAccountsModalOpen(true)}
+                className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
+              >
                 <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} active accounts
-              </span>
+              </button>
               <span className="flex items-center gap-1.5">
                 <ShieldCheck size={14} /> Synchronized & Saved
               </span>
@@ -1282,6 +1298,14 @@ function Overview({
           </div>
         </Card>
       </div>
+
+      <AccountsBreakdownModal
+        open={accountsModalOpen}
+        onClose={() => setAccountsModalOpen(false)}
+        state={state}
+        totalBalance={totalBalance}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
@@ -1341,11 +1365,11 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.account}</span>
             <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
           </label>
-          <label className="block min-w-0">
+          <label className="col-span-2 block min-w-0 sm:col-span-1">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.date}</span>
             <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-xs" />
           </label>
-          <label className="block min-w-0">
+          <label className="col-span-2 block min-w-0 sm:col-span-1">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.tags}</span>
             <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
