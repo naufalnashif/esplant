@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ArrowRight, Banknote, CreditCard, Landmark, Smartphone, TrendingUp, WalletCards } from "lucide-react";
+import { ArrowRight, Banknote, ChevronRight, CreditCard, Landmark, Smartphone, TrendingUp, WalletCards } from "lucide-react";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,13 +95,13 @@ export function AccountsBreakdownModal({
       }
       maxWidth="sm:max-w-lg"
       footer={
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={onClose}
             data-testid="close-accounts-modal-button"
-            className="order-2 h-11 sm:order-1 sm:w-auto"
+            className="h-11 shrink-0 rounded-xl px-3.5 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-95"
           >
             {isId ? "Tutup" : "Close"}
           </Button>
@@ -109,11 +109,11 @@ export function AccountsBreakdownModal({
             type="button"
             onClick={handleGoToAccounts}
             data-testid="go-to-accounts-dashboard-button"
-            className="order-1 h-11 flex-1 gap-2 font-bold shadow-md shadow-primary/20 sm:order-2"
+            className="h-11 flex-1 gap-2 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 active:scale-[0.98] hover:bg-primary/90 sm:text-sm"
           >
-            <WalletCards size={16} />
-            <span>{isId ? "Buka Dashboard Akun" : "Open Accounts Dashboard"}</span>
-            <ArrowRight size={15} className="ml-auto opacity-75" />
+            <WalletCards size={16} className="shrink-0" />
+            <span className="truncate">{isId ? "Buka Dashboard Akun" : "Open Accounts Dashboard"}</span>
+            <ArrowRight size={15} className="shrink-0 opacity-80" />
           </Button>
         </div>
       }
@@ -193,7 +193,17 @@ export function AccountsBreakdownModal({
                 <div
                   key={account.id}
                   data-testid={`accounts-modal-item-${account.id}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 transition-all hover:border-primary/40 hover:bg-secondary/40"
+                  onClick={handleGoToAccounts}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleGoToAccounts();
+                    }
+                  }}
+                  className="group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 p-3.5 transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99]"
+                  title={isId ? "Klik untuk mengelola akun ini di Dashboard Akun" : "Click to manage this account in Accounts Dashboard"}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className={`grid size-10 shrink-0 place-items-center rounded-xl ${iconClass}`}>
@@ -201,7 +211,7 @@ export function AccountsBreakdownModal({
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-bold text-foreground">{account.name}</p>
+                        <p className="truncate text-sm font-bold text-foreground transition-colors group-hover:text-primary">{account.name}</p>
                         <Badge variant="outline" className="shrink-0 text-[10px] py-0 px-1.5">
                           {typeLabel}
                         </Badge>
@@ -212,19 +222,22 @@ export function AccountsBreakdownModal({
                     </div>
                   </div>
 
-                  <div className="shrink-0 text-right">
-                    <p
-                      className={`font-data text-sm font-extrabold ${
-                        account.balance < 0 ? "text-red-400" : "text-foreground"
-                      }`}
-                    >
-                      {formatMoney(account.balance, account.currency, state.locale)}
-                    </p>
-                    {baseEquivalent !== null && (
-                      <p className="text-[10px] text-muted-foreground">
-                        ≈ {formatMoney(baseEquivalent, state.baseCurrency, state.locale, true)}
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="text-right">
+                      <p
+                        className={`font-data text-sm font-extrabold ${
+                          account.balance < 0 ? "text-red-400" : "text-foreground"
+                        }`}
+                      >
+                        {formatMoney(account.balance, account.currency, state.locale)}
                       </p>
-                    )}
+                      {baseEquivalent !== null && (
+                        <p className="text-[10px] text-muted-foreground">
+                          ≈ {formatMoney(baseEquivalent, state.baseCurrency, state.locale, true)}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight size={14} className="text-muted-foreground/40 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
                   </div>
                 </div>
               );
