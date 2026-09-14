@@ -3,10 +3,12 @@ import {
   ArrowDownLeft, ArrowUpRight, CalendarClock, ChevronRight, Plus, RefreshCw, ShieldCheck, Sparkles,
   TrendingDown, TrendingUp, WalletCards,
 } from "lucide-react";
+import { useState } from "react";
 import type * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AccountsBreakdownModal } from "@/components/AccountsBreakdownModal";
 import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import type { FinanceState } from "@/lib/localDb";
 import { formatMoney } from "@/lib/formatters";
@@ -64,6 +66,7 @@ function MobileCardHeader({ eyebrow, title, action }: { eyebrow: string; title: 
 }
 
 export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName }: MobileOverviewProps) {
+  const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const flowIncome = flowChart.reduce((sum, item) => sum + item.income, 0);
@@ -110,11 +113,28 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         <div className="relative">
           <div className="flex items-start justify-between gap-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">{t.totalBalance} · {state.baseCurrency}</p>
-            <div className="rounded-lg border border-white/15 bg-white/10 p-1.5"><WalletCards size={16} /></div>
+            <button
+              type="button"
+              data-testid="mobile-total-balance-accounts-trigger"
+              onClick={() => setAccountsModalOpen(true)}
+              title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
+              aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
+              className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10 p-1.5 text-white shadow-sm transition-all duration-200 active:scale-90 hover:bg-white/20 hover:border-white/40 cursor-pointer"
+            >
+              <WalletCards size={16} />
+            </button>
           </div>
           <p className="mt-2 font-heading text-3xl font-extrabold tracking-tight" data-testid="total-balance-value">{formatMoney(totalBalance, state.baseCurrency, state.locale)}</p>
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-white/70">
-            <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}</span>
+            <button
+              type="button"
+              data-testid="mobile-active-accounts-count-trigger"
+              onClick={() => setAccountsModalOpen(true)}
+              className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+              title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
+            >
+              <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
+            </button>
             <span className="flex items-center gap-1.5"><ShieldCheck size={13} /> {isId ? "Tersimpan" : "Saved"}</span>
           </div>
         </div>
@@ -283,6 +303,14 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
           })}
         </div>
       </MobileDisclosure>
+
+      <AccountsBreakdownModal
+        open={accountsModalOpen}
+        onClose={() => setAccountsModalOpen(false)}
+        state={state}
+        totalBalance={totalBalance}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
