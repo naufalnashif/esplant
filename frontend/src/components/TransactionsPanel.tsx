@@ -144,15 +144,25 @@ export function TransactionsPanel({
             </select>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
-          <ListFilter size={14} />
-          {filteredTransactions.length} transactions
+        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <ListFilter size={14} className="shrink-0" />
+            <span>
+              {filteredTransactions.length} {isId ? "transaksi" : "transactions"}
+            </span>
+          </span>
+          {/* Desktop only: pagination limit note */}
           {filteredTransactions.length > maxVisibleTotal && (
-            <span className="text-amber-400">
+            <span className="hidden text-amber-400 md:inline">
               · {isId ? `Menampilkan ${maxVisibleTotal} terbaru (maks. ${MAX_PAGES} halaman)` : `Showing latest ${maxVisibleTotal} (max ${MAX_PAGES} pages)`}
             </span>
           )}
-          · IndexedDB local
+          {/* Mobile only: preview count context */}
+          {!showAll && filteredTransactions.length > MOBILE_PREVIEW && (
+            <span className="text-muted-foreground/80 md:hidden">
+              · {isId ? `Menampilkan ${mobileItems.length} terbaru` : `Showing ${mobileItems.length} latest`}
+            </span>
+          )}
         </div>
       </div>
 

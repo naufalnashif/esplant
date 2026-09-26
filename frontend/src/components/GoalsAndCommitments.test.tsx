@@ -3,6 +3,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GoalsPanel } from "./GoalsPanel";
 import { CommitmentsPanel } from "./CommitmentsPanel";
+import { TransactionsPanel } from "./TransactionsPanel";
+import { AccountsPanel } from "./AccountsPanel";
 import type { FinanceState } from "@/lib/localDb";
 
 if (typeof globalThis.document === "undefined") {
@@ -134,3 +136,71 @@ describe("CommitmentsPanel", () => {
     expect(html).toContain("Pinjaman Modal Usaha");
   });
 });
+
+describe("TransactionsPanel status bar", () => {
+  it("removes IndexedDB local and formats mobile vs desktop context properly", () => {
+    const html = renderToStaticMarkup(
+      <TransactionsPanel
+        state={mockState}
+        labels={{
+          all: "Semua",
+          type: "Tipe",
+          expense: "Pengeluaran",
+          incomeType: "Pemasukan",
+          category: "Kategori",
+          account: "Akun",
+          newest: "Terbaru",
+          largest: "Terbesar",
+          search: "Cari",
+          noData: "Tidak ada transaksi",
+          addTransaction: "Tambah Transaksi",
+        }}
+        categories={["Food", "Transport"]}
+        filteredTransactions={[]}
+        filter={{ search: "", kind: "all", category: "all", account: "all", sort: "newest" }}
+        setFilter={() => {}}
+        accountName={() => "BCA"}
+        onAdd={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    // Dead / unwanted text removed
+    expect(html).not.toContain("IndexedDB local");
+    expect(html).toContain("0 transaksi");
+  });
+});
+
+describe("AccountsPanel", () => {
+  it("renders Total Tertabung (Goals) as a dedicated non-transactional account card", () => {
+    const html = renderToStaticMarkup(
+      <AccountsPanel
+        state={mockState}
+        labels={{
+          accounts: "Akun",
+          manageAccounts: "Kelola Akun",
+          addAccount: "Tambah Akun",
+          bankName: "Nama Akun",
+          accountType: "Tipe Akun",
+          brand: "Institusi",
+          startingBalance: "Saldo Awal",
+          save: "Simpan",
+          adjust: "Sesuaikan",
+          remove: "Hapus",
+          totalAcross: "Total Saldo",
+        }}
+        totalBalance={5000000}
+        onAdd={() => {}}
+        onAdjust={() => {}}
+        onRemove={() => {}}
+      />
+    );
+
+    expect(html).toContain("data-testid=\"account-card-savings-goals\"");
+    expect(html).toContain("Total Tertabung (Goals)");
+    expect(html).toContain("Khusus Tabungan");
+    expect(html).toContain("Non-transaksi langsung");
+  });
+});
+

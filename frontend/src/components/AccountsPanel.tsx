@@ -1,4 +1,4 @@
-import { Landmark, Plus, Trash2, WalletCards } from "lucide-react";
+import { Landmark, Plus, Target, Trash2, WalletCards } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Account, Currency, FinanceState } from "@/lib/localDb";
@@ -31,6 +31,7 @@ export function AccountsPanel({ state, labels, totalBalance, onAdd, onAdjust, on
   const [showAllAccounts, setShowAllAccounts] = useState(false);
   const hasMoreAccounts = state.accounts.length > ACCOUNT_PREVIEW_COUNT;
   const visibleAccounts = showAllAccounts ? state.accounts : state.accounts.slice(0, ACCOUNT_PREVIEW_COUNT);
+  const totalSavings = (state.savings || []).reduce((sum, g) => sum + (g.saved || 0), 0);
   const submit = (event: React.FormEvent) => { event.preventDefault(); const balance = Number(form.balance); if (!form.name.trim() || !form.brand.trim() || !Number.isFinite(balance)) return; onAdd({ id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`, name: form.name.trim(), brand: form.brand.trim(), type: form.type, balance, currency: form.currency }); setForm({ name: "", brand: "", type: "debit", balance: "", currency: state.baseCurrency }); };
   return (
     <div className="animate-rise-in">
@@ -43,6 +44,38 @@ export function AccountsPanel({ state, labels, totalBalance, onAdd, onAdjust, on
       <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
         {/* Left — account list + total */}
         <div className="space-y-3">
+          {state.savings && state.savings.length > 0 && (
+            <div
+              className="rounded-2xl border border-teal-500/35 bg-teal-500/5 p-4 shadow-sm backdrop-blur-xl"
+              data-testid="account-card-savings-goals"
+            >
+              <div className="flex items-start gap-3">
+                <div className="grid size-10 place-items-center rounded-xl bg-teal-500/12 text-teal-400 border border-teal-500/25">
+                  <Target size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {isId ? "Total Tertabung (Goals)" : "Total Savings (Goals)"}
+                    </p>
+                    <Badge variant="outline" className="border-teal-500/40 text-teal-400 text-[9px]">
+                      {isId ? "Khusus Tabungan" : "Savings Only"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {state.savings.length} {isId ? "target impian aktif · Non-transaksi langsung" : "active goals · Non-transactional"}
+                  </p>
+                </div>
+                <p className="font-data text-sm font-bold text-teal-400">
+                  {formatMoney(totalSavings, state.baseCurrency, state.locale)}
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
+                <span>{isId ? "Saldo teralokasi khusus target tabungan" : "Balance dedicated to savings goals"}</span>
+                <span className="font-semibold text-teal-400">{isId ? "Dikelola di Menu Goals" : "Managed in Goals"}</span>
+              </div>
+            </div>
+          )}
           {visibleAccounts.map((account, index) => (
             <div
               key={account.id}

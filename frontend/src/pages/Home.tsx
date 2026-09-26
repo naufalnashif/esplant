@@ -803,7 +803,7 @@ function Overview({
   accountName: (id: string) => string;
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
-  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
+  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const [showMatrix, setShowMatrix] = useState(true);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   // Stacking is only meaningful ACROSS categories, so a single-category month keeps the
@@ -901,6 +901,18 @@ function Overview({
               >
                 <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} active accounts
               </button>
+              {totalSavings > 0 && (
+                <button
+                  type="button"
+                  data-testid="overview-total-savings-trigger"
+                  onClick={() => onNavigate("goals")}
+                  className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                  title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
+                >
+                  <Target size={14} className="text-teal-300" />
+                  <span>{isId ? "Tertabung" : "Saved"}: {formatMoney(totalSavings, state.baseCurrency, state.locale, true)}</span>
+                </button>
+              )}
               <span className="flex items-center gap-1.5">
                 <ShieldCheck size={14} /> Synchronized & Saved
               </span>
@@ -981,7 +993,7 @@ function Overview({
       </div>
 
       {/* Dynamic KPI Cards corresponding to selected period filter */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label={isId ? `Pengeluaran (${periodLabels[periodFilter]})` : `Spent (${periodLabels[periodFilter]})`}
           value={formatMoney(activeStats.expense, state.baseCurrency, state.locale, true)}
@@ -1009,6 +1021,15 @@ function Overview({
           note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`}
           icon={<CalendarClock size={19} />}
           tone="amber"
+        />
+        <KpiCard
+          testid="kpi-total-savings"
+          label={isId ? "Total Tertabung" : "Total Saved"}
+          value={formatMoney(totalSavings, state.baseCurrency, state.locale, true)}
+          note={`${state.savings.length} ${isId ? "target impian aktif" : "active goals"}`}
+          icon={<Target size={19} />}
+          tone="teal"
+          onClick={() => onNavigate("goals")}
         />
       </div>
 

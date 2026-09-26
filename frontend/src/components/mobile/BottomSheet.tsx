@@ -1,9 +1,9 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { BACKDROP } from "@/lib/constants";
 
-/** Mobile: bottom-sheet (max 85% tinggi, sticky header/footer, scroll internal). ≥sm: centered modal. */
+/** Mobile: bottom-sheet (max 88% tinggi, keyboard-aware via visualViewport, sticky header/footer, scroll internal). ≥sm: centered modal. */
 export function BottomSheet({
   open,
   onClose,
@@ -25,12 +25,51 @@ export function BottomSheet({
   testid: string;
   maxWidth?: string;
 }) {
+  const [viewportBottom, setViewportBottom] = useState(0);
+  const [maxAvailableHeight, setMaxAvailableHeight] = useState<number | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  // Keyboard awareness on mobile devices (iOS Safari & Chrome Android)
+  useEffect(() => {
+    if (!open || typeof window === "undefined" || !window.visualViewport) return;
+
+    const updateViewport = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+
+      const keyboardHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      if (keyboardHeight > 40) {
+        setViewportBottom(keyboardHeight);
+        setMaxAvailableHeight(Math.floor(vv.height));
+      } else {
+        setViewportBottom(0);
+        setMaxAvailableHeight(null);
+      }
+
+      // Prevent iOS Safari from scrolling window body behind fixed elements
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    const vv = window.visualViewport;
+    vv.addEventListener("resize", updateViewport);
+    vv.addEventListener("scroll", updateViewport);
+    window.addEventListener("scroll", updateViewport);
+    updateViewport();
+
+    return () => {
+      vv.removeEventListener("resize", updateViewport);
+      vv.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("scroll", updateViewport);
     };
   }, [open]);
 
@@ -43,6 +82,7 @@ export function BottomSheet({
   return createPortal(
     <div
       className={`fixed inset-0 z-50 flex items-end justify-center ${BACKDROP.overlay} sm:items-center sm:p-4`}
+      style={viewportBottom > 0 ? { bottom: `${viewportBottom}px` } : undefined}
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -51,6 +91,7 @@ export function BottomSheet({
       <button type="button" aria-label="Tutup" onClick={onClose} className="absolute inset-0 cursor-default" data-testid={`${testid}-backdrop`} />
       <div
         className={`animate-sheet-up relative flex max-h-[88svh] w-full max-w-full flex-col overflow-x-hidden overflow-y-hidden rounded-t-3xl border border-border bg-card shadow-2xl sm:max-h-[92vh] sm:w-full sm:rounded-2xl ${maxWidth}`}
+        style={maxAvailableHeight ? { maxHeight: `${maxAvailableHeight - 16}px` } : undefined}
         data-testid={`${testid}-panel`}
       >
         <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" aria-hidden="true" />

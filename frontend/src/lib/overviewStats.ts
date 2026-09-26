@@ -94,5 +94,10 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
   const previousIncome = state.transactions.filter((item) => monthKey(item.date) === previousMonth(currentMonth) && item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
   const incomeDelta = previousIncome ? Math.round(((currentIncome - previousIncome) / previousIncome) * 100) : 0;
 
-  return { isId, periodFilter, setPeriodFilter, displayRate, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta };
+  const totalSavings = useMemo(
+    () => state.savings.reduce((sum, g) => sum + toBase(g.saved, g.currency || state.baseCurrency, state.exchangeRates), 0) / displayRate,
+    [state.savings, state.exchangeRates, state.baseCurrency, displayRate]
+  );
+
+  return { isId, periodFilter, setPeriodFilter, displayRate, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings };
 }

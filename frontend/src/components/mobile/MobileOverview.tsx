@@ -1,7 +1,7 @@
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import {
   ArrowDownLeft, ArrowUpRight, CalendarClock, ChevronRight, Plus, RefreshCw, ShieldCheck, Sparkles,
-  TrendingDown, TrendingUp, WalletCards,
+  Target, TrendingDown, TrendingUp, WalletCards,
 } from "lucide-react";
 import { useState } from "react";
 import type * as React from "react";
@@ -20,7 +20,7 @@ export interface OverviewLabels {
   hello: string; totalBalance: string; cashFlow: string; recent: string; seeAll: string; dueSoon: string; noData: string;
   compare: string; thisMonth: string; lastMonth: string; addTransaction: string;
 }
-export type OverviewTarget = "accounts" | "settings" | "commitments" | "transactions";
+export type OverviewTarget = "accounts" | "settings" | "commitments" | "transactions" | "goals";
 export interface MobileOverviewProps {
   state: FinanceState;
   t: OverviewLabels;
@@ -41,7 +41,7 @@ const shortDate = (date: string, locale: FinanceState["locale"]) => new Intl.Dat
 const tooltipStyle = { background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 };
 
 // MiniKpi: thin wrapper around shared KpiCard using compact mobile sizing
-function MiniKpi({ label, value, note, icon, tone, testid }: { label: string; value: string; note: string; icon: React.ReactNode; tone: "teal" | "rose" | "amber" | "indigo"; testid: string }) {
+function MiniKpi({ label, value, note, icon, tone, testid, onClick }: { label: string; value: string; note: string; icon: React.ReactNode; tone: "teal" | "rose" | "amber" | "indigo"; testid: string; onClick?: () => void }) {
   return (
     <KpiCard
       testid={testid}
@@ -50,6 +50,7 @@ function MiniKpi({ label, value, note, icon, tone, testid }: { label: string; va
       note={note}
       icon={icon}
       tone={tone}
+      onClick={onClick}
       className="p-3.5"
     />
   );
@@ -62,7 +63,7 @@ function MobileCardHeader({ eyebrow, title, action }: { eyebrow: string; title: 
 
 export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName }: MobileOverviewProps) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
-  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
+  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const flowIncome = flowChart.reduce((sum, item) => sum + item.income, 0);
   const flowExpense = flowChart.reduce((sum, item) => sum + item.expense, 0);
@@ -130,6 +131,18 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
             >
               <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
             </button>
+            {totalSavings > 0 && (
+              <button
+                type="button"
+                data-testid="mobile-total-savings-trigger"
+                onClick={() => onNavigate("goals")}
+                className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
+              >
+                <Target size={13} className="text-teal-300" />
+                <span>{isId ? "Tertabung" : "Saved"}: {money(totalSavings)}</span>
+              </button>
+            )}
             <span className="flex items-center gap-1.5"><ShieldCheck size={13} /> {isId ? "Tersimpan" : "Saved"}</span>
           </div>
         </div>
@@ -154,6 +167,17 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         <MiniKpi testid="mobile-kpi-income" label={isId ? "Pemasukan" : "Income"} value={money(activeStats.income)} note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% vs ${isId ? "bulan lalu" : "last month"}` : periodLabels[periodFilter]} icon={<TrendingUp size={15} />} tone="indigo" />
         <MiniKpi testid="mobile-kpi-net" label={isId ? "Arus bersih" : "Net flow"} value={money(activeStats.net)} note={isId ? "Pemasukan − Pengeluaran" : "Income − Expense"} icon={<ArrowUpRight size={15} />} tone={activeStats.net >= 0 ? "teal" : "rose"} />
         <MiniKpi testid="mobile-kpi-committed" label={isId ? "Cicilan / Tagihan" : "Committed"} value={money(periodCommitted)} note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`} icon={<CalendarClock size={15} />} tone="amber" />
+        <div className="col-span-2">
+          <MiniKpi
+            testid="mobile-kpi-savings"
+            label={isId ? "Total Tertabung (Goals)" : "Total Saved (Goals)"}
+            value={money(totalSavings)}
+            note={`${state.savings.length} ${isId ? "target impian aktif" : "active goals"}`}
+            icon={<Target size={15} />}
+            tone="teal"
+            onClick={() => onNavigate("goals")}
+          />
+        </div>
       </div>
 
       <Card className="border-border/70 bg-card/75 p-4" data-testid="mobile-main-chart">

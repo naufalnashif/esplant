@@ -561,7 +561,6 @@ export function GoalsPanel({
                 required
                 type="number"
                 min="1"
-                autoFocus
                 value={commitAmount}
                 onChange={(e) => setCommitAmount(e.target.value)}
                 placeholder="Nominal"
