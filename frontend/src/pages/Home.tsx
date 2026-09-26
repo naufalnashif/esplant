@@ -1637,11 +1637,11 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
         </div>
 
-        {/* Commitment Link Selector (Repayment of an existing commitment with regular bank funds) */}
+        {/* Transaction Suggestions / Template Selector */}
         {!isCreditFunding && (
           <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">
-              {isId ? "Terkait Pembayaran Cicilan / Utang (Opsional)" : "Link Commitment Payment (Optional)"}
+              {isId ? "Saran Transaksi (Opsional)" : "Transaction Suggestions (Optional)"}
             </span>
             <select
               data-testid="transaction-commitment-select"
@@ -1660,8 +1660,8 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
                     commitmentId: cId,
                     kind: "expense",
                     category: b.category,
-                    amount: v.amount ? v.amount : String(b.amount),
-                    description: v.description ? v.description : (isId ? `Bayar Cicilan: ${b.name}` : `Bill Payment: ${b.name}`),
+                    amount: String(b.amount),
+                    description: isId ? `Bayar ${b.name}` : `Pay ${b.name}`,
                   }));
                   return;
                 }
@@ -1673,9 +1673,13 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
                     ...v,
                     commitmentId: cId,
                     kind: isRec ? "income" : "expense",
-                    category: isRec ? "Piutang" : "Cicilan",
-                    amount: v.amount ? v.amount : String(rem),
-                    description: v.description ? v.description : (isRec ? `Terima Piutang: ${d.name}` : `Bayar Utang: ${d.name}`),
+                    category: isRec
+                      ? (categories.includes("Lainnya") ? "Lainnya" : categories[0] || "Income")
+                      : (categories.includes("Cicilan") ? "Cicilan" : "Bills"),
+                    amount: String(rem),
+                    description: isRec
+                      ? (isId ? `Terima ${d.name}` : `Receive ${d.name}`)
+                      : (isId ? `Bayar ${d.name}` : `Pay ${d.name}`),
                   }));
                   return;
                 }
@@ -1683,30 +1687,30 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
               }}
               className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
             >
-              <option value="">{isId ? "— Tidak Terkait (Transaksi Biasa) —" : "— Regular Transaction (No Commitment) —"}</option>
-              {state.bills.filter((b) => b.active !== false).length > 0 && (
-                <optgroup label={isId ? "Cicilan / Tagihan Rutin" : "Bills & Installments"}>
+              <option value="">{isId ? "— Tanpa Saran (Transaksi Manual) —" : "— None (Manual Transaction) —"}</option>
+              {form.kind === "expense" && state.bills.filter((b) => b.active !== false).length > 0 && (
+                <optgroup label={isId ? "Tagihan Rutin" : "Recurring Bills"}>
                   {state.bills.filter((b) => b.active !== false).map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name} · {formatMoney(b.amount, b.currency, state.locale)} / {b.frequency}
+                      {b.name} — {formatMoney(b.amount, b.currency, state.locale, true)}
                     </option>
                   ))}
                 </optgroup>
               )}
-              {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).length > 0 && (
-                <optgroup label={isId ? "Utang Saya (PayLater / Pinjaman)" : "My Debts & PayLater"}>
+              {form.kind === "expense" && state.debts.filter((d) => d.type === "debt" && d.total > d.paid).length > 0 && (
+                <optgroup label={isId ? "Utang Berjalan" : "Active Debts"}>
                   {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} (ke {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
+                      {d.name} — sisa {formatMoney(d.total - d.paid, d.currency, state.locale, true)}
                     </option>
                   ))}
                 </optgroup>
               )}
-              {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).length > 0 && (
-                <optgroup label={isId ? "Piutang (Uang Dipinjamkan)" : "Receivables"}>
+              {form.kind === "income" && state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).length > 0 && (
+                <optgroup label={isId ? "Piutang Berjalan" : "Receivables Due"}>
                   {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name} (dari {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
+                      {d.name} — sisa {formatMoney(d.total - d.paid, d.currency, state.locale, true)}
                     </option>
                   ))}
                 </optgroup>
@@ -1750,18 +1754,13 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
                 ))}
               </optgroup>
               {form.kind === "expense" && (
-                <optgroup label={isId ? "Beli Sekarang, Bayar Nanti (Komitmen)" : "PayLater & Installments (Commitments)"}>
-                  <option value="paylater_new">
-                    {isId ? "⚡ Bayar via PayLater / Utang (Catat ke Komitmen)" : "⚡ Pay via PayLater / Debt (Add to Commitments)"}
+                <optgroup label={isId ? "Kredit & Cicilan" : "Credit & Installments"}>
+                  <option value={isPayLater ? form.accountId : "paylater_new"}>
+                    PayLater
                   </option>
-                  <option value="installment_new">
-                    {isId ? "📅 Bayar via Cicilan (Catat ke Komitmen)" : "📅 Pay via Installment (Add to Commitments)"}
+                  <option value={isInstallment ? form.accountId : "installment_new"}>
+                    {isId ? "Cicilan" : "Installment"}
                   </option>
-                  {state.debts.filter((d) => d.type === "debt").map((d) => (
-                    <option key={`debt_${d.id}`} value={`debt_${d.id}`}>
-                      {d.name} ({d.person || "PayLater"})
-                    </option>
-                  ))}
                 </optgroup>
               )}
             </select>
@@ -1772,19 +1771,19 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
             <div className="sm:col-span-2 rounded-xl border border-primary/30 bg-primary/8 p-3.5 space-y-2.5">
               <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
                 <Zap size={14} />
-                <span>{isId ? "Detail Pembayaran PayLater / Utang" : "PayLater / Debt Funding Details"}</span>
+                <span>{isId ? "Detail PayLater" : "PayLater Details"}</span>
               </div>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                    {isId ? "Penyedia PayLater / Pemberi Utang" : "PayLater Provider / Creditor"}
+                    {isId ? "Penyedia PayLater" : "PayLater Provider"}
                   </label>
                   <input
                     data-testid="transaction-paylater-provider-input"
                     name="paylaterProvider"
                     value={form.paylaterProvider || ""}
                     onChange={onChange}
-                    placeholder={isId ? "Contoh: Shopee PayLater, GoPay Later, Kredivo" : "e.g. Shopee PayLater, Kredivo, Friend"}
+                    placeholder={isId ? "Contoh: Shopee PayLater, GoPay Later, Kredivo" : "e.g. Shopee PayLater, GoPay Later, Kredivo"}
                     className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
                   />
                 </div>
@@ -1804,8 +1803,8 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {isId
-                  ? "💡 Transaksi ini otomatis menambahkan utang baru di Dashboard Komitmen tanpa memotong saldo kas Anda saat ini."
-                  : "💡 Automatically creates a new debt entry in your Commitments dashboard without deducting from your current bank balance."}
+                  ? "Transaksi ini otomatis tercatat di Komitmen tanpa memotong saldo kas saat ini."
+                  : "Recorded in Commitments without deducting from your current cash balance."}
               </p>
             </div>
           )}
@@ -1815,12 +1814,12 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
             <div className="sm:col-span-2 rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 space-y-2.5">
               <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400">
                 <Calendar size={14} />
-                <span>{isId ? "Detail Cicilan Baru" : "New Installment Funding Details"}</span>
+                <span>{isId ? "Detail Cicilan" : "Installment Details"}</span>
               </div>
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                    {isId ? "Tenor / Periode Cicilan" : "Installment Tenor"}
+                    {isId ? "Tenor Cicilan" : "Installment Tenor"}
                   </label>
                   <select
                     data-testid="transaction-installment-tenor-select"
@@ -1837,7 +1836,7 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
                 </div>
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                    {isId ? "Jatuh Tempo Pembayaran Pertama" : "First Due Date"}
+                    {isId ? "Jatuh Tempo Pertama" : "First Due Date"}
                   </label>
                   <input
                     data-testid="transaction-installment-due-input"
@@ -1851,8 +1850,8 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {isId
-                  ? "💡 Otomatis membuat tagihan cicilan berkala di Dashboard Komitmen."
-                  : "💡 Automatically creates a recurring installment in your Commitments dashboard."}
+                  ? "Otomatis membuat tagihan cicilan berkala di Dashboard Komitmen."
+                  : "Automatically creates a recurring installment in your Commitments dashboard."}
               </p>
             </div>
           )}
