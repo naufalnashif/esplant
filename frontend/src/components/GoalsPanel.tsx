@@ -372,17 +372,6 @@ export function GoalsPanel({
         <SectionCardHeader
           eyebrow={isId ? "Target Tabungan" : "Savings Buckets"}
           title={isId ? "Celengan & Tabungan Masa Depan" : "Goals & Savings"}
-          action={
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsAddOpen(true)}
-              className="gap-1 text-xs font-semibold"
-            >
-              <Plus size={14} />
-              {isId ? "Tambah Goal" : "Add Goal"}
-            </Button>
-          }
           mb="mb-4"
         />
 

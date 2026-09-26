@@ -169,7 +169,7 @@ export const withOpeningBalances = (state: FinanceState): FinanceState => ({
 export const createInitialState = (): FinanceState => ({
   profileName: "",
   baseCurrency: "IDR",
-  locale: "id",
+  locale: "en",
   theme: "dark",
   exchangeRates: { IDR: 1, USD: 16250, EUR: 17600, SGD: 12100, MYR: 3800, JPY: 108, AUD: 10600 },
   accounts: [],
@@ -232,7 +232,7 @@ export const sanitizeImportedState = (raw: unknown): FinanceState | null => {
     ...base,
     profileName: typeof value.profileName === "string" ? value.profileName.slice(0, 60) : base.profileName,
     baseCurrency: typeof value.baseCurrency === "string" && value.baseCurrency in base.exchangeRates ? (value.baseCurrency as Currency) : base.baseCurrency,
-    locale: value.locale === "en" ? "en" : "id",
+    locale: value.locale === "id" ? "id" : "en",
     theme: value.theme === "light" ? "light" : "dark",
     exchangeRates: { ...base.exchangeRates, ...(typeof value.exchangeRates === "object" && value.exchangeRates ? value.exchangeRates : {}) },
     accounts: arr(value.accounts, base.accounts),

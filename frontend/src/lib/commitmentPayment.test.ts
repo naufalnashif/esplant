@@ -347,4 +347,139 @@ describe("two-way commitment sync (add, delete, update)", () => {
     const { debts } = syncCommitmentsOnUpdate(state, oldTx, newTx);
     expect(debts[0].paid).toBe(600000);
   });
+
+  it("syncCommitmentsOnAdd with accountId='paylater' automatically creates a new Debt in commitments", () => {
+    const state = baseState({ debts: [] });
+    const tx = {
+      id: "tx-pl-1",
+      kind: "expense" as const,
+      amount: 1500000,
+      currency: "IDR" as const,
+      baseAmount: 1500000,
+      description: "Beli Smartwatch",
+      category: "Gadget",
+      accountId: "paylater",
+      date: "2026-09-26",
+      tags: ["paylater"],
+    };
+
+    const { debts, createdCommitmentId } = syncCommitmentsOnAdd(state, tx, {
+      provider: "Shopee PayLater",
+      dueDate: "2026-10-26",
+    });
+
+    expect(debts).toHaveLength(1);
+    expect(debts[0].name).toBe("Beli Smartwatch");
+    expect(debts[0].person).toBe("Shopee PayLater");
+    expect(debts[0].total).toBe(1500000);
+    expect(debts[0].paid).toBe(0);
+    expect(debts[0].dueDate).toBe("2026-10-26");
+    expect(createdCommitmentId).toBe(debts[0].id);
+  });
+
+  it("syncCommitmentsOnAdd with accountId='installment' automatically creates a new Bill in commitments", () => {
+    const state = baseState({ bills: [] });
+    const tx = {
+      id: "tx-inst-1",
+      kind: "expense" as const,
+      amount: 6000000,
+      currency: "IDR" as const,
+      baseAmount: 6000000,
+      description: "Kulkas 2 Pintu",
+      category: "Home",
+      accountId: "installment",
+      date: "2026-09-26",
+      tags: ["cicilan"],
+    };
+
+    const { bills, createdCommitmentId } = syncCommitmentsOnAdd(state, tx, {
+      installments: 6,
+      dueDate: "2026-10-26",
+    });
+
+    expect(bills).toHaveLength(1);
+    expect(bills[0].name).toBe("Kulkas 2 Pintu");
+    expect(bills[0].amount).toBe(1000000); // 6000000 / 6
+    expect(bills[0].remainingInstallments).toBe(6);
+    expect(bills[0].active).toBe(true);
+    expect(createdCommitmentId).toBe(bills[0].id);
+  });
+
+  it("syncCommitmentsOnDelete removes auto-created PayLater debt", () => {
+    const state = baseState({
+      debts: [
+        debt({ id: "debt-pl-1", name: "Beli Smartwatch", total: 1500000 }),
+      ],
+    });
+    const tx = {
+      id: "tx-pl-1",
+      kind: "expense" as const,
+      amount: 1500000,
+      currency: "IDR" as const,
+      baseAmount: 1500000,
+      description: "Beli Smartwatch",
+      category: "Gadget",
+      accountId: "paylater",
+      date: "2026-09-26",
+      tags: [],
+      commitmentId: "debt-pl-1",
+    };
+
+    const { debts } = syncCommitmentsOnDelete(state, tx);
+    expect(debts.some((d) => d.id === "debt-pl-1")).toBe(false);
+  });
+
+  it("syncCommitmentsOnDelete removes auto-created installment bill", () => {
+    const state = baseState({
+      bills: [
+        bill({ id: "bill-inst-1", name: "Kulkas 2 Pintu", amount: 1000000 }),
+      ],
+    });
+    const tx = {
+      id: "tx-inst-1",
+      kind: "expense" as const,
+      amount: 6000000,
+      currency: "IDR" as const,
+      baseAmount: 6000000,
+      description: "Kulkas 2 Pintu",
+      category: "Home",
+      accountId: "installment",
+      date: "2026-09-26",
+      tags: [],
+      commitmentId: "bill-inst-1",
+    };
+
+    const { bills } = syncCommitmentsOnDelete(state, tx);
+    expect(bills.some((b) => b.id === "bill-inst-1")).toBe(false);
+  });
+
+  it("syncCommitmentsOnUpdate updates PayLater debt total and description", () => {
+    const state = baseState({
+      debts: [
+        debt({ id: "debt-pl-1", name: "Beli Smartwatch", total: 1500000 }),
+      ],
+    });
+    const oldTx = {
+      id: "tx-pl-1",
+      kind: "expense" as const,
+      amount: 1500000,
+      currency: "IDR" as const,
+      baseAmount: 1500000,
+      description: "Beli Smartwatch",
+      category: "Gadget",
+      accountId: "paylater",
+      date: "2026-09-26",
+      tags: [],
+      commitmentId: "debt-pl-1",
+    };
+    const newTx = {
+      ...oldTx,
+      amount: 1800000,
+      description: "Beli Smartwatch Pro",
+    };
+
+    const { debts } = syncCommitmentsOnUpdate(state, oldTx, newTx);
+    expect(debts[0].name).toBe("Beli Smartwatch Pro");
+    expect(debts[0].total).toBe(1800000);
+  });
 });

@@ -174,8 +174,8 @@ export function AccountsPanel({
         </BottomSheet>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-        {/* Left — account list + total */}
+      <div className="space-y-4">
+        {/* Account list */}
         <div className="space-y-3">
           {state.savings && state.savings.length > 0 && (
             <div
@@ -290,71 +290,6 @@ export function AccountsPanel({
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Right — add account form */}
-        <div className="rounded-2xl border border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl sm:p-6">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">
-              <Plus size={18} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Account setup</p>
-              <h2 className="font-heading text-xl font-bold">{labels.addAccount}</h2>
-            </div>
-          </div>
-          <form onSubmit={submit} data-testid="account-form" className="space-y-3">
-            <input
-              data-testid="account-name-input"
-              required
-              value={form.name}
-              onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))}
-              placeholder={labels.bankName}
-              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
-            />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input
-                data-testid="account-brand-input"
-                required
-                value={form.brand}
-                onChange={(event) => setForm((value) => ({ ...value, brand: event.target.value }))}
-                placeholder={labels.brand}
-                className="h-11 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
-              />
-              <select
-                data-testid="account-type-select"
-                value={form.type}
-                onChange={(event) => setForm((value) => ({ ...value, type: event.target.value as Account["type"] }))}
-                className="h-11 rounded-lg border border-border bg-background px-3 text-xs font-semibold"
-              >
-                {types.map((type) => <option key={type} value={type} label={typeLabel[type]} />)}
-              </select>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-              <input
-                data-testid="account-balance-input"
-                required
-                type="number"
-                value={form.balance}
-                onChange={(event) => setForm((value) => ({ ...value, balance: event.target.value }))}
-                placeholder={labels.startingBalance}
-                className="h-11 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
-              />
-              <select
-                data-testid="account-currency-select"
-                value={form.currency}
-                onChange={(event) => setForm((value) => ({ ...value, currency: event.target.value as Currency }))}
-                className="h-11 rounded-lg border border-border bg-background px-3 text-xs font-bold"
-              >
-                {["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"].map((currency) => (
-                  <option key={currency} value={currency} label={currency} />
-                ))}
-              </select>
-            </div>
-            <Button data-testid="account-submit-button" type="submit" className="h-11 w-full gap-2">
-              <Plus size={15} />{labels.save}
-            </Button>
-          </form>
         </div>
       </div>
     </div>

@@ -9,21 +9,21 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, CalendarClock, Check, ChevronRight,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, Calendar, CalendarClock, Check, ChevronRight,
   Landmark, LayoutDashboard, MessageSquarePlus,
   Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
-  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards,
+  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
-  Account, CommitmentType, Currency, Debt, FinanceState, Locale, SavingsGoal,
+  Account, Currency, Debt, FinanceState, Locale, SavingsGoal,
   Transaction, TransactionKind,
 } from "@/lib/localDb";
 import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
 import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync, eraseAllData } from "@/lib/dataStore";
-import { syncCommitmentsOnAdd, syncCommitmentsOnDelete, syncCommitmentsOnUpdate } from "@/lib/commitmentPayment";
+import { syncCommitmentsOnAdd, syncCommitmentsOnDelete, syncCommitmentsOnUpdate, type PayLaterFundingMeta } from "@/lib/commitmentPayment";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
@@ -142,8 +142,10 @@ export default function Home() {
     date: new Date().toISOString().slice(0, 10),
     tags: "",
     commitmentId: "",
+    paylaterProvider: "Shopee PayLater",
+    paylaterDueDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+    installmentTenor: "3",
   });
-  const [debtForm, setDebtForm] = useState({ name: "", person: "", type: "debt" as CommitmentType, total: "", dueDate: new Date().toISOString().slice(0, 10) });
   // NOTE: wishForm state removed from Home — GoalsPanel is now self-contained
 
   const stateQuery = useQuery({
@@ -237,14 +239,33 @@ export default function Home() {
   const updateTransaction = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setTransactionForm((form) => ({ ...form, [event.target.name]: event.target.value }));
   const handleAddTransaction = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!state.accounts.length) {
-      toast.error(state.locale === "id" ? "Tambahkan akun terlebih dahulu di tab Akun & saldo." : "Add an account first in the Accounts tab."); return;
+    const isPayLater = transactionForm.accountId === "paylater" || transactionForm.accountId === "paylater_new";
+    const isInstallment = transactionForm.accountId === "installment" || transactionForm.accountId === "installment_new";
+    const isDebtAccount = transactionForm.accountId.startsWith("debt_");
+
+    if (!state.accounts.length && !isPayLater && !isInstallment && !isDebtAccount) {
+      toast.error(state.locale === "id" ? "Tambahkan akun terlebih dahulu di tab Akun & saldo." : "Add an account first in the Accounts tab.");
+      return;
     }
     const amount = Number(transactionForm.amount);
     if (!transactionForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
-      toast.error(state.locale === "id" ? "Isi deskripsi dan nominal yang valid." : "Add a valid description and amount."); return;
+      toast.error(state.locale === "id" ? "Isi deskripsi dan nominal yang valid." : "Add a valid description and amount.");
+      return;
     }
-    const accountId = state.accounts.some((account) => account.id === transactionForm.accountId) ? transactionForm.accountId : state.accounts[0].id;
+
+    let accountId = transactionForm.accountId;
+    if (isPayLater) {
+      accountId = "paylater";
+    } else if (isInstallment) {
+      accountId = "installment";
+    } else if (isDebtAccount) {
+      accountId = transactionForm.accountId;
+    } else {
+      accountId = state.accounts.some((account) => account.id === transactionForm.accountId)
+        ? transactionForm.accountId
+        : state.accounts[0]?.id || "cash";
+    }
+
     const transaction: Transaction = {
       id: editingTransaction?.id ?? id(),
       kind: transactionForm.kind,
@@ -260,22 +281,47 @@ export default function Home() {
     };
     const accountDelta = (item: Transaction, sign: 1 | -1) => (item.kind === "expense" ? -1 : 1) * item.baseAmount * sign;
     const old = editingTransaction;
-    const accounts = state.accounts.map((account) => { const reversal = old && old.accountId === account.id ? accountDelta(old, -1) / state.exchangeRates[account.currency] : 0; const next = transaction.accountId === account.id ? accountDelta(transaction, 1) / state.exchangeRates[account.currency] : 0; return reversal || next ? { ...account, balance: account.balance + reversal + next } : account; });
+    const accounts = state.accounts.map((account) => {
+      const reversal = old && old.accountId === account.id ? accountDelta(old, -1) / state.exchangeRates[account.currency] : 0;
+      const next = transaction.accountId === account.id ? accountDelta(transaction, 1) / state.exchangeRates[account.currency] : 0;
+      return reversal || next ? { ...account, balance: account.balance + reversal + next } : account;
+    });
+
+    const paylaterMeta: PayLaterFundingMeta = {
+      provider: transactionForm.paylaterProvider || "Shopee PayLater",
+      dueDate: transactionForm.paylaterDueDate || undefined,
+      installments: Number(transactionForm.installmentTenor) || 3,
+    };
 
     let nextBills = state.bills;
     let nextDebts = state.debts;
+    let finalCommitmentId = transaction.commitmentId;
 
     if (old) {
-      const syncResult = syncCommitmentsOnUpdate(state, old, transaction);
+      const syncResult = syncCommitmentsOnUpdate(state, old, transaction, paylaterMeta);
       nextBills = syncResult.bills;
       nextDebts = syncResult.debts;
-    } else if (transaction.commitmentId) {
-      const syncResult = syncCommitmentsOnAdd(state, transaction);
+      if (syncResult.createdCommitmentId) {
+        finalCommitmentId = syncResult.createdCommitmentId;
+      }
+    } else if (transaction.commitmentId || isPayLater || isInstallment || isDebtAccount) {
+      const syncResult = syncCommitmentsOnAdd(state, transaction, paylaterMeta);
       nextBills = syncResult.bills;
       nextDebts = syncResult.debts;
+      if (syncResult.createdCommitmentId) {
+        finalCommitmentId = syncResult.createdCommitmentId;
+      }
     }
 
-    const transactions = old ? state.transactions.map((item) => item.id === old.id ? transaction : item) : [transaction, ...state.transactions];
+    const finalTransaction: Transaction = {
+      ...transaction,
+      commitmentId: finalCommitmentId,
+    };
+
+    const transactions = old
+      ? state.transactions.map((item) => (item.id === old.id ? finalTransaction : item))
+      : [finalTransaction, ...state.transactions];
+
     save({
       ...state,
       accounts,
@@ -283,13 +329,32 @@ export default function Home() {
       debts: nextDebts,
       transactions,
     });
-    setTransactionForm({ kind: "expense", amount: "", description: "", category: "Food", accountId: state.accounts[0]?.id ?? "", currency: state.baseCurrency, date: new Date().toISOString().slice(0, 10), tags: "", commitmentId: "" });
+    setTransactionForm({
+      kind: "expense",
+      amount: "",
+      description: "",
+      category: "Food",
+      accountId: state.accounts[0]?.id ?? "",
+      currency: state.baseCurrency,
+      date: new Date().toISOString().slice(0, 10),
+      tags: "",
+      commitmentId: "",
+      paylaterProvider: "Shopee PayLater",
+      paylaterDueDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      installmentTenor: "3",
+    });
     setShowTransactionForm(false);
     setEditingTransaction(null);
     toast.success(state.locale === "id" ? "Transaksi tersimpan di perangkat." : "Transaction saved on this device.");
   };
+
   const openEditTransaction = (transaction: Transaction) => {
     setEditingTransaction(transaction);
+    const isPayLater = transaction.accountId === "paylater";
+    const isInstallment = transaction.accountId === "installment";
+    const linkedDebt = isPayLater ? state.debts.find((d) => d.id === transaction.commitmentId) : undefined;
+    const linkedBill = isInstallment ? state.bills.find((b) => b.id === transaction.commitmentId) : undefined;
+
     setTransactionForm({
       kind: transaction.kind,
       amount: String(transaction.amount),
@@ -300,12 +365,20 @@ export default function Home() {
       date: transaction.date,
       tags: transaction.tags.join(", "),
       commitmentId: transaction.commitmentId || "",
+      paylaterProvider: linkedDebt?.person || "Shopee PayLater",
+      paylaterDueDate: linkedDebt?.dueDate || linkedBill?.nextDueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      installmentTenor: String(linkedBill?.remainingInstallments || 3),
     });
     setShowTransactionForm(true);
   };
+
   const deleteTransaction = (transaction: Transaction) => {
     if (!window.confirm(`Delete ${transaction.description}?`)) return;
-    const accounts = state.accounts.map((account) => account.id === transaction.accountId ? { ...account, balance: account.balance - accountDeltaFor(transaction, state.exchangeRates, account.currency) } : account);
+    const accounts = state.accounts.map((account) =>
+      account.id === transaction.accountId
+        ? { ...account, balance: account.balance - accountDeltaFor(transaction, state.exchangeRates, account.currency) }
+        : account
+    );
     const syncResult = syncCommitmentsOnDelete(state, transaction);
     save({
       ...state,
@@ -314,15 +387,8 @@ export default function Home() {
       debts: syncResult.debts,
       transactions: state.transactions.filter((item) => item.id !== transaction.id),
     });
-    toast.success("Transaction deleted.");
+    toast.success(state.locale === "id" ? "Transaksi dihapus." : "Transaction deleted.");
   };
-  const handleAddDebt = (event: React.FormEvent) => {
-    event.preventDefault(); const total = Number(debtForm.total);
-    if (!debtForm.name.trim() || !debtForm.person.trim() || !Number.isFinite(total) || total <= 0) { toast.error("Lengkapi nama, orang, dan nominal."); return; }
-    const debt: Debt = { id: id(), name: debtForm.name.trim(), person: debtForm.person.trim(), type: debtForm.type, total, paid: 0, currency: state.baseCurrency, dueDate: debtForm.dueDate, note: "" };
-    save({ ...state, debts: [debt, ...state.debts] }); setDebtForm({ name: "", person: "", type: "debt", total: "", dueDate: new Date().toISOString().slice(0, 10) }); toast.success("Komitmen baru ditambahkan.");
-  };
-  void handleAddDebt;
   // NOTE: handleAddWish removed — wishlist form is now managed inside GoalsPanel
 
   const saveBudget = (category: string, limit: number) => {
@@ -710,7 +776,15 @@ export default function Home() {
     { key: "tester", label: "Join Tester", icon: UserPlus, href: TESTER_URL },
     { key: "feedback", label: "Feedback", icon: MessageSquarePlus, onClick: () => setShowFeedback(true) },
   ];
-  const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
+  const accountName = (accountId: string) => {
+    if (accountId === "paylater" || accountId === "paylater_new") return "PayLater";
+    if (accountId === "installment" || accountId === "installment_new") return state.locale === "id" ? "Cicilan" : "Installment";
+    if (accountId.startsWith("debt_")) {
+      const debt = state.debts.find((d) => d.id === accountId.replace("debt_", ""));
+      return debt ? (state.locale === "id" ? `Utang: ${debt.name}` : `Debt: ${debt.name}`) : "PayLater / Debt";
+    }
+    return state.accounts.find((account) => account.id === accountId)?.name ?? "—";
+  };
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
 
   return (
@@ -758,7 +832,7 @@ export default function Home() {
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
-            {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={(accountId) => state.accounts.find((account) => account.id === accountId)?.name ?? "—"} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
+            {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
             {tab === "commitments" && (
               <CommitmentsPanel
                 state={state}
@@ -1520,6 +1594,9 @@ type TransactionModalForm = {
   date: string;
   tags: string;
   commitmentId: string;
+  paylaterProvider: string;
+  paylaterDueDate: string;
+  installmentTenor: string;
 };
 
 function TransactionModal({ state, t, categories, form, setForm, onChange, onClose, onSubmit, editingTransaction }: { state: FinanceState; t: typeof copy.id; categories: string[]; form: TransactionModalForm; setForm: React.Dispatch<React.SetStateAction<TransactionModalForm>>; onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void; onClose: () => void; onSubmit: (event: React.FormEvent) => void; editingTransaction?: Transaction | null }) {
@@ -1530,6 +1607,11 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
   const submitText = editingTransaction
     ? (isId ? "Simpan Perubahan" : "Save Changes")
     : t.save;
+
+  const isPayLater = form.accountId === "paylater" || form.accountId === "paylater_new";
+  const isInstallment = form.accountId === "installment" || form.accountId === "installment_new";
+  const isDebtAccount = form.accountId.startsWith("debt_");
+  const isCreditFunding = isPayLater || isInstallment || isDebtAccount;
 
   return (
     <BottomSheet
@@ -1552,81 +1634,83 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
         </div>
 
-        {/* Commitment Link Selector */}
-        <label className="block min-w-0 max-w-full">
-          <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">
-            {isId ? "Terkait Cicilan / Utang / PayLater (Opsional)" : "Link Bill / Debt / PayLater (Optional)"}
-          </span>
-          <select
-            data-testid="transaction-commitment-select"
-            name="commitmentId"
-            value={form.commitmentId || ""}
-            onChange={(e) => {
-              const cId = e.target.value;
-              if (!cId) {
-                setForm((v) => ({ ...v, commitmentId: "" }));
-                return;
-              }
-              const b = state.bills.find((item) => item.id === cId);
-              if (b) {
-                setForm((v) => ({
-                  ...v,
-                  commitmentId: cId,
-                  kind: "expense",
-                  category: b.category,
-                  amount: v.amount ? v.amount : String(b.amount),
-                  description: v.description ? v.description : (isId ? `Bayar Cicilan: ${b.name}` : `Bill Payment: ${b.name}`),
-                }));
-                return;
-              }
-              const d = state.debts.find((item) => item.id === cId);
-              if (d) {
-                const rem = Math.max(0, d.total - d.paid);
-                const isRec = d.type === "receivable";
-                setForm((v) => ({
-                  ...v,
-                  commitmentId: cId,
-                  kind: isRec ? "income" : "expense",
-                  category: isRec ? "Piutang" : "Cicilan",
-                  amount: v.amount ? v.amount : String(rem),
-                  description: v.description ? v.description : (isRec ? `Terima Piutang: ${d.name}` : `Bayar Utang: ${d.name}`),
-                }));
-                return;
-              }
-              setForm((v) => ({ ...v, commitmentId: cId }));
-            }}
-            className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
-          >
-            <option value="">{isId ? "— Tidak Terkait (Transaksi Biasa) —" : "— Regular Transaction (No Commitment) —"}</option>
-            {state.bills.filter((b) => b.active !== false).length > 0 && (
-              <optgroup label={isId ? "Cicilan / Tagihan Rutin" : "Bills & Installments"}>
-                {state.bills.filter((b) => b.active !== false).map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} · {formatMoney(b.amount, b.currency, state.locale)} / {b.frequency}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).length > 0 && (
-              <optgroup label={isId ? "Utang Saya (PayLater / Pinjaman)" : "My Debts & PayLater"}>
-                {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} (ke {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).length > 0 && (
-              <optgroup label={isId ? "Piutang (Uang Dipinjamkan)" : "Receivables"}>
-                {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name} (dari {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-        </label>
+        {/* Commitment Link Selector (Repayment of an existing commitment with regular bank funds) */}
+        {!isCreditFunding && (
+          <label className="block min-w-0 max-w-full">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">
+              {isId ? "Terkait Pembayaran Cicilan / Utang (Opsional)" : "Link Commitment Payment (Optional)"}
+            </span>
+            <select
+              data-testid="transaction-commitment-select"
+              name="commitmentId"
+              value={form.commitmentId || ""}
+              onChange={(e) => {
+                const cId = e.target.value;
+                if (!cId) {
+                  setForm((v) => ({ ...v, commitmentId: "" }));
+                  return;
+                }
+                const b = state.bills.find((item) => item.id === cId);
+                if (b) {
+                  setForm((v) => ({
+                    ...v,
+                    commitmentId: cId,
+                    kind: "expense",
+                    category: b.category,
+                    amount: v.amount ? v.amount : String(b.amount),
+                    description: v.description ? v.description : (isId ? `Bayar Cicilan: ${b.name}` : `Bill Payment: ${b.name}`),
+                  }));
+                  return;
+                }
+                const d = state.debts.find((item) => item.id === cId);
+                if (d) {
+                  const rem = Math.max(0, d.total - d.paid);
+                  const isRec = d.type === "receivable";
+                  setForm((v) => ({
+                    ...v,
+                    commitmentId: cId,
+                    kind: isRec ? "income" : "expense",
+                    category: isRec ? "Piutang" : "Cicilan",
+                    amount: v.amount ? v.amount : String(rem),
+                    description: v.description ? v.description : (isRec ? `Terima Piutang: ${d.name}` : `Bayar Utang: ${d.name}`),
+                  }));
+                  return;
+                }
+                setForm((v) => ({ ...v, commitmentId: cId }));
+              }}
+              className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+            >
+              <option value="">{isId ? "— Tidak Terkait (Transaksi Biasa) —" : "— Regular Transaction (No Commitment) —"}</option>
+              {state.bills.filter((b) => b.active !== false).length > 0 && (
+                <optgroup label={isId ? "Cicilan / Tagihan Rutin" : "Bills & Installments"}>
+                  {state.bills.filter((b) => b.active !== false).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} · {formatMoney(b.amount, b.currency, state.locale)} / {b.frequency}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).length > 0 && (
+                <optgroup label={isId ? "Utang Saya (PayLater / Pinjaman)" : "My Debts & PayLater"}>
+                  {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} (ke {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).length > 0 && (
+                <optgroup label={isId ? "Piutang (Uang Dipinjamkan)" : "Receivables"}>
+                  {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} (dari {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           <label className="sm:col-span-2 block min-w-0 max-w-full">
@@ -1638,16 +1722,138 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           </label>
           <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.description} *</span>
-            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, cicilan, SPayLater" className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder={isId ? "Contoh: Beli Smartphone, Makan Malam" : "e.g. Smartphone, Dinner, Gadget"} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
           <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.category}</span>
             <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary">{categories.map((category) => <option key={category}>{category}</option>)}</select>
           </label>
+
+          {/* Account / Funding Source selector with PayLater / Cicilan options */}
           <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.account}</span>
-            <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
+            <select
+              data-testid="transaction-account-select"
+              name="accountId"
+              value={form.accountId}
+              onChange={onChange}
+              className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+            >
+              <optgroup label={isId ? "Rekening & Kas" : "Bank & Cash Accounts"}>
+                {state.accounts.map((account: Account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} {account.brand ? `(${account.brand})` : ""}
+                  </option>
+                ))}
+              </optgroup>
+              {form.kind === "expense" && (
+                <optgroup label={isId ? "Beli Sekarang, Bayar Nanti (Komitmen)" : "PayLater & Installments (Commitments)"}>
+                  <option value="paylater_new">
+                    {isId ? "⚡ Bayar via PayLater / Utang (Catat ke Komitmen)" : "⚡ Pay via PayLater / Debt (Add to Commitments)"}
+                  </option>
+                  <option value="installment_new">
+                    {isId ? "📅 Bayar via Cicilan (Catat ke Komitmen)" : "📅 Pay via Installment (Add to Commitments)"}
+                  </option>
+                  {state.debts.filter((d) => d.type === "debt").map((d) => (
+                    <option key={`debt_${d.id}`} value={`debt_${d.id}`}>
+                      {d.name} ({d.person || "PayLater"})
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
           </label>
+
+          {/* Inline PayLater Configuration Sub-form */}
+          {isPayLater && (
+            <div className="sm:col-span-2 rounded-xl border border-primary/30 bg-primary/8 p-3.5 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                <Zap size={14} />
+                <span>{isId ? "Detail Pembayaran PayLater / Utang" : "PayLater / Debt Funding Details"}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Penyedia PayLater / Pemberi Utang" : "PayLater Provider / Creditor"}
+                  </label>
+                  <input
+                    data-testid="transaction-paylater-provider-input"
+                    name="paylaterProvider"
+                    value={form.paylaterProvider || ""}
+                    onChange={onChange}
+                    placeholder={isId ? "Contoh: Shopee PayLater, GoPay Later, Kredivo" : "e.g. Shopee PayLater, Kredivo, Friend"}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Jatuh Tempo Pembayaran" : "Payment Due Date"}
+                  </label>
+                  <input
+                    data-testid="transaction-paylater-due-input"
+                    type="date"
+                    name="paylaterDueDate"
+                    value={form.paylaterDueDate || ""}
+                    onChange={onChange}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isId
+                  ? "💡 Transaksi ini otomatis menambahkan utang baru di Dashboard Komitmen tanpa memotong saldo kas Anda saat ini."
+                  : "💡 Automatically creates a new debt entry in your Commitments dashboard without deducting from your current bank balance."}
+              </p>
+            </div>
+          )}
+
+          {/* Inline Installment Configuration Sub-form */}
+          {isInstallment && (
+            <div className="sm:col-span-2 rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400">
+                <Calendar size={14} />
+                <span>{isId ? "Detail Cicilan Baru" : "New Installment Funding Details"}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Tenor / Periode Cicilan" : "Installment Tenor"}
+                  </label>
+                  <select
+                    data-testid="transaction-installment-tenor-select"
+                    name="installmentTenor"
+                    value={form.installmentTenor || "3"}
+                    onChange={onChange}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+                  >
+                    <option value="3">3 {isId ? "Bulan" : "Months"}</option>
+                    <option value="6">6 {isId ? "Bulan" : "Months"}</option>
+                    <option value="12">12 {isId ? "Bulan" : "Months"}</option>
+                    <option value="24">24 {isId ? "Bulan" : "Months"}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Jatuh Tempo Pembayaran Pertama" : "First Due Date"}
+                  </label>
+                  <input
+                    data-testid="transaction-installment-due-input"
+                    type="date"
+                    name="paylaterDueDate"
+                    value={form.paylaterDueDate || ""}
+                    onChange={onChange}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isId
+                  ? "💡 Otomatis membuat tagihan cicilan berkala di Dashboard Komitmen."
+                  : "💡 Automatically creates a recurring installment in your Commitments dashboard."}
+              </p>
+            </div>
+          )}
+
           <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.date}</span>
             <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none" />
