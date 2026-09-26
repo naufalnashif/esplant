@@ -17,13 +17,13 @@ import type * as React from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { formatMoney } from "@/lib/formatters";
 import type { Bill, CommitmentType, Debt, FinanceState } from "@/lib/localDb";
 import { DEFAULT_CATEGORIES } from "@/lib/localDb";
 import { applyCommitmentPayment, isPaidInMonth, type CommitmentPaymentInput } from "@/lib/commitmentPayment";
 import { PayCommitmentDialog, type PayCommitmentTarget } from "@/components/PayCommitmentDialog";
 import { DetailCard } from "@/components/mobile/DetailCard";
+import { SectionHeading, KpiCard, ShowMoreButton, EmptyState } from "@/components/shared";
 
 export function CommitmentsPanel({
   state,
@@ -261,78 +261,61 @@ export function CommitmentsPanel({
   return (
     <div className="animate-rise-in space-y-6">
       {/* Header */}
-      <div>
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Obligations & Commitments</p>
-        <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">
-          {isId ? "Utang & Cicilan" : "Bills & Debt"}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {isId
+      <SectionHeading
+        eyebrow="Obligations & Commitments"
+        title={isId ? "Utang & Cicilan" : "Bills & Debt"}
+        description={
+          isId
             ? "Kelola tagihan rutin, sisa kali cicilan, utang, dan piutang dalam satu dashboard."
-            : "Track recurring bills, remaining installment counts, debt, and receivables."}
-        </p>
-      </div>
+            : "Track recurring bills, remaining installment counts, debt, and receivables."
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" data-testid="debt-dashboard">
-        {[
-          {
-            icon: <ArrowUpRight size={18} />,
-            iconClass: "bg-red-500/12 text-red-400",
-            badge: isId ? "Harus Dibayar" : "Owed",
-            badgeClass: "border-red-500/20 text-red-400",
-            label: isId ? "Total Utang Saya" : "Total Debt Owed",
-            value: formatMoney(totalDebt, state.baseCurrency, state.locale, true),
-            valueClass: "text-red-400",
-            note: `${state.debts.filter((d) => d.type === "debt").length} ${isId ? "catatan utang" : "debt records"}`,
-            testid: "kpi-total-debt",
-          },
-          {
-            icon: <ArrowDownLeft size={18} />,
-            iconClass: "bg-emerald-500/12 text-emerald-400",
-            badge: isId ? "Akan Diterima" : "Receivable",
-            badgeClass: "border-emerald-500/20 text-emerald-400",
-            label: isId ? "Total Piutang Saya" : "Total Receivables",
-            value: formatMoney(totalReceivables, state.baseCurrency, state.locale, true),
-            valueClass: "text-emerald-400",
-            note: `${state.debts.filter((d) => d.type === "receivable").length} ${isId ? "catatan piutang" : "receivable records"}`,
-            testid: "kpi-total-receivables",
-          },
-          {
-            icon: <CalendarClock size={18} />,
-            iconClass: "bg-amber-500/12 text-amber-400",
-            badge: isId ? "Rutin & Cicilan" : "Recurring",
-            badgeClass: "border-amber-500/20 text-amber-400",
-            label: isId ? "Cicilan/Tagihan Aktif" : "Active Bills Due",
-            value: formatMoney(totalBillsThisMonth, state.baseCurrency, state.locale, true),
-            valueClass: "text-amber-400",
-            note: `${activeBills.length} ${isId ? "tagihan/cicilan berjalan" : "active bills"}`,
-            testid: "kpi-total-bills",
-          },
-          {
-            icon: <Landmark size={18} />,
-            iconClass: "bg-indigo-500/12 text-indigo-400",
-            badge: isId ? "Net Berjalan" : "Net Pending",
-            badgeClass: "border-indigo-500/20 text-indigo-400",
-            label: isId ? "Total Tanggungan Net" : "Net Obligations",
-            value: formatMoney(netObligations, state.baseCurrency, state.locale, true),
-            valueClass: "text-foreground",
-            note: isId ? "Utang + Tagihan − Piutang" : "Debt + Bills − Receivables",
-            testid: "kpi-net-obligations",
-          },
-        ].map((card) => (
-          <Card key={card.testid} className="min-w-0 border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className={`grid size-9 place-items-center rounded-xl ${card.iconClass}`}>{card.icon}</div>
-              <Badge variant="outline" className={`text-[10px] ${card.badgeClass}`}>{card.badge}</Badge>
-            </div>
-            <p className="text-xs font-semibold text-muted-foreground">{card.label}</p>
-            <p className={`mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-xl ${card.valueClass}`} data-testid={card.testid}>
-              {card.value}
-            </p>
-            <p className="mt-1.5 text-[11px] text-muted-foreground">{card.note}</p>
-          </Card>
-        ))}
+        <KpiCard
+          testid="kpi-total-debt"
+          icon={<ArrowUpRight size={18} />}
+          tone="rose"
+          badge={isId ? "Harus Dibayar" : "Owed"}
+          badgeClass="border-red-500/20 text-red-400"
+          label={isId ? "Total Utang Saya" : "Total Debt Owed"}
+          value={formatMoney(totalDebt, state.baseCurrency, state.locale, true)}
+          valueClass="text-red-400"
+          note={`${state.debts.filter((d) => d.type === "debt").length} ${isId ? "catatan utang" : "debt records"}`}
+        />
+        <KpiCard
+          testid="kpi-total-receivables"
+          icon={<ArrowDownLeft size={18} />}
+          tone="emerald"
+          badge={isId ? "Akan Diterima" : "Receivable"}
+          badgeClass="border-emerald-500/20 text-emerald-400"
+          label={isId ? "Total Piutang Saya" : "Total Receivables"}
+          value={formatMoney(totalReceivables, state.baseCurrency, state.locale, true)}
+          valueClass="text-emerald-400"
+          note={`${state.debts.filter((d) => d.type === "receivable").length} ${isId ? "catatan piutang" : "receivable records"}`}
+        />
+        <KpiCard
+          testid="kpi-total-bills"
+          icon={<CalendarClock size={18} />}
+          tone="amber"
+          badge={isId ? "Rutin & Cicilan" : "Recurring"}
+          badgeClass="border-amber-500/20 text-amber-400"
+          label={isId ? "Cicilan/Tagihan Aktif" : "Active Bills Due"}
+          value={formatMoney(totalBillsThisMonth, state.baseCurrency, state.locale, true)}
+          valueClass="text-amber-400"
+          note={`${activeBills.length} ${isId ? "tagihan/cicilan berjalan" : "active bills"}`}
+        />
+        <KpiCard
+          testid="kpi-net-obligations"
+          icon={<Landmark size={18} />}
+          tone="indigo"
+          badge={isId ? "Net Berjalan" : "Net Pending"}
+          badgeClass="border-indigo-500/20 text-indigo-400"
+          label={isId ? "Total Tanggungan Net" : "Net Obligations"}
+          value={formatMoney(netObligations, state.baseCurrency, state.locale, true)}
+          note={isId ? "Utang + Tagihan − Piutang" : "Debt + Bills − Receivables"}
+        />
       </div>
 
       {/* Main Grid */}
@@ -455,22 +438,22 @@ export function CommitmentsPanel({
               })}
 
               {displayedBills.length === 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  {isId ? "Belum ada tagihan rutin atau cicilan aktif." : "No active recurring bills or installments."}
-                </p>
+                <EmptyState
+                  message={isId ? "Belum ada tagihan rutin atau cicilan aktif." : "No active recurring bills or installments."}
+                />
               )}
 
               {hasMoreBills && (
-                <button
-                  type="button"
-                  data-testid="bills-toggle-show-all"
-                  onClick={() => setShowAllBills((v) => !v)}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
-                >
-                  {showAllBills
-                    ? <><ChevronUp size={14} />{isId ? "Tampilkan lebih sedikit" : "Show less"}</>
-                    : <><ChevronDown size={14} />{isId ? `Lihat semua (${displayedBills.length})` : `Show all (${displayedBills.length})`}</>}
-                </button>
+                <ShowMoreButton
+                  expanded={showAllBills}
+                  onToggle={() => setShowAllBills((v) => !v)}
+                  count={displayedBills.length}
+                  label={{
+                    show: isId ? "Lihat semua" : "Show all",
+                    hide: isId ? "Tampilkan lebih sedikit" : "Show less",
+                  }}
+                  testid="bills-toggle-show-all"
+                />
               )}
             </div>
 
@@ -748,22 +731,22 @@ export function CommitmentsPanel({
               })}
 
               {state.debts.length === 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  {isId ? "Belum ada catatan utang atau piutang." : "No debts or receivables recorded."}
-                </p>
+                <EmptyState
+                  message={isId ? "Belum ada catatan utang atau piutang." : "No debts or receivables recorded."}
+                />
               )}
 
               {hasMoreDebts && (
-                <button
-                  type="button"
-                  data-testid="debts-toggle-show-all"
-                  onClick={() => setShowAllDebts((v) => !v)}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
-                >
-                  {showAllDebts
-                    ? <><ChevronUp size={14} />{isId ? "Tampilkan lebih sedikit" : "Show less"}</>
-                    : <><ChevronDown size={14} />{isId ? `Lihat semua (${state.debts.length})` : `Show all (${state.debts.length})`}</>}
-                </button>
+                <ShowMoreButton
+                  expanded={showAllDebts}
+                  onToggle={() => setShowAllDebts((v) => !v)}
+                  count={state.debts.length}
+                  label={{
+                    show: isId ? "Lihat semua" : "Show all",
+                    hide: isId ? "Tampilkan lebih sedikit" : "Show less",
+                  }}
+                  testid="debts-toggle-show-all"
+                />
               )}
             </div>
 

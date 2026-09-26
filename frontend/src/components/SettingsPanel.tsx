@@ -27,6 +27,7 @@ import { readState, isGoogleConfigured } from "@/lib/googleSheets";
 import { pushNow } from "@/lib/dataStore";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 import * as XLSX from "xlsx";
+import { SectionHeading } from "@/components/shared";
 
 type SettingsSubTab = "general" | "data";
 
@@ -353,18 +354,15 @@ export function SettingsPanel({
 
   return (
     <div className="animate-rise-in space-y-6">
-      {/* Header */}
-      <div>
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Control room / settings</p>
-        <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">
-          {isId ? "Pengaturan _self.manage" : "_self.manage Settings"}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          {isId
+      <SectionHeading
+        eyebrow="Control room / settings"
+        title={isId ? "Pengaturan _self.manage" : "_self.manage Settings"}
+        description={
+          isId
             ? "Pusat kendali aplikasi: kelola profil lokal, kategori transaksi, cadangan data, dan kesehatan database."
-            : "Central control room: manage profile, categories, data backups, and database integrity."}
-        </p>
-      </div>
+            : "Central control room: manage profile, categories, data backups, and database integrity."
+        }
+      />
 
       {/* Sub-tabs Navigation */}
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/70 bg-card/60 p-1.5 max-w-2xl">

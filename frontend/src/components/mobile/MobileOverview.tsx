@@ -14,6 +14,7 @@ import type { FinanceState } from "@/lib/localDb";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, toBase, useOverviewStats, type PeriodKey } from "@/lib/overviewStats";
 import { OTHER_SLICE_COLOR, type CategorySlice } from "@/lib/categoryChart";
+import { KpiCard, SectionCardHeader } from "@/components/shared";
 
 export interface OverviewLabels {
   hello: string; totalBalance: string; cashFlow: string; recent: string; seeAll: string; dueSoon: string; noData: string;
@@ -39,30 +40,24 @@ const PERIODS: PeriodKey[] = ["today", "week", "month", "year", "all"];
 const shortDate = (date: string, locale: FinanceState["locale"]) => new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { day: "2-digit", month: "short" }).format(new Date(`${date}T00:00:00`));
 const tooltipStyle = { background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 };
 
+// MiniKpi: thin wrapper around shared KpiCard using compact mobile sizing
 function MiniKpi({ label, value, note, icon, tone, testid }: { label: string; value: string; note: string; icon: React.ReactNode; tone: "teal" | "rose" | "amber" | "indigo"; testid: string }) {
-  const tones = { teal: "bg-primary/12 text-primary", rose: "bg-red-500/12 text-red-400", amber: "bg-amber-500/12 text-amber-400", indigo: "bg-indigo-500/12 text-indigo-400" };
   return (
-    <Card className="border-border/70 bg-card/75 p-3.5 shadow-sm" data-testid={testid}>
-      <div className="flex items-center gap-2">
-        <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${tones[tone]}`}>{icon}</span>
-        <p className="truncate text-[11px] font-semibold text-muted-foreground">{label}</p>
-      </div>
-      <p className="mt-2.5 truncate font-data text-base font-bold tracking-tight" data-testid={`${testid}-value`}>{value}</p>
-      <p className="mt-1 truncate text-[10px] text-muted-foreground">{note}</p>
-    </Card>
+    <KpiCard
+      testid={testid}
+      label={label}
+      value={value}
+      note={note}
+      icon={icon}
+      tone={tone}
+      className="p-3.5"
+    />
   );
 }
 
+// MobileCardHeader: thin wrapper around shared SectionCardHeader for mobile context
 function MobileCardHeader({ eyebrow, title, action }: { eyebrow: string; title: string; action?: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{eyebrow}</p>
-        <h2 className="mt-0.5 truncate font-heading text-base font-bold">{title}</h2>
-      </div>
-      {action}
-    </div>
-  );
+  return <SectionCardHeader eyebrow={eyebrow} title={title} action={action} mb="mb-3" />;
 }
 
 export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName }: MobileOverviewProps) {

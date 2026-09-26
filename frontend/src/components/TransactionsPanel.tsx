@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { FinanceState, Transaction } from "@/lib/localDb";
 import type * as React from "react";
+import { SectionHeading, ShowMoreButton, EmptyState } from "@/components/shared";
 
 interface TransactionLabels {
   all: string; type: string; expense: string; incomeType: string;
@@ -87,18 +88,16 @@ export function TransactionsPanel({
 
   return (
     <div className="animate-rise-in">
-      <div className="mb-5 flex flex-col justify-between gap-4 sm:mb-6 sm:flex-row sm:items-end">
-        <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Money trail / 02</p>
-          <h1 className="font-heading text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">Transactions</h1>
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mt-2">
-            Satu ledger yang mudah dicari, difilter, dan dikelola.
-          </p>
-        </div>
-        <Button data-testid="transactions-add-button" onClick={onAdd} className="hidden gap-2 md:inline-flex">
-          <Plus size={17} />{labels.addTransaction}
-        </Button>
-      </div>
+      <SectionHeading
+        eyebrow="Money trail / 02"
+        title="Transactions"
+        description={isId ? "Satu ledger yang mudah dicari, difilter, dan dikelola." : "One ledger, easily searched, filtered, and managed."}
+        action={
+          <Button data-testid="transactions-add-button" onClick={onAdd} className="hidden gap-2 md:inline-flex">
+            <Plus size={17} />{labels.addTransaction}
+          </Button>
+        }
+      />
 
       {/* Filter Bar */}
       <div className="mb-4 rounded-2xl border border-border/70 bg-card/75 p-3 backdrop-blur-xl sm:mb-5 sm:p-5">
@@ -195,17 +194,32 @@ export function TransactionsPanel({
           );
         })}
         {hiddenCount > 0 && (
-          <button type="button" data-testid="transactions-show-all-button" onClick={() => setShowAll(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 text-xs font-bold text-primary">
-            {isId ? `Lihat semua transaksi (${filteredTransactions.length})` : `Show all transactions (${filteredTransactions.length})`}
-          </button>
+          <ShowMoreButton
+            expanded={false}
+            onToggle={() => setShowAll(true)}
+            count={filteredTransactions.length}
+            label={{
+              show: isId ? "Lihat semua transaksi" : "Show all transactions",
+              hide: "",
+            }}
+            testid="transactions-show-all-button"
+          />
         )}
         {showAll && filteredTransactions.length > MOBILE_PREVIEW && (
-          <button type="button" data-testid="transactions-show-less-button" onClick={() => setShowAll(false)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/70 text-xs font-bold text-muted-foreground">
-            {isId ? "Tampilkan lebih sedikit" : "Show less"}
-          </button>
+          <ShowMoreButton
+            expanded
+            onToggle={() => setShowAll(false)}
+            label={{
+              show: "",
+              hide: isId ? "Tampilkan lebih sedikit" : "Show less",
+            }}
+            testid="transactions-show-less-button"
+          />
         )}
         {filteredTransactions.length === 0 && (
-          <div className="rounded-2xl border border-border/70 bg-card/75 px-5 py-14 text-center text-sm text-muted-foreground">{labels.noData}</div>
+          <div className="rounded-2xl border border-border/70 bg-card/75 px-5">
+            <EmptyState message={labels.noData} size="lg" />
+          </div>
         )}
       </div>
 
