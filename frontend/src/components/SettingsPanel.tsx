@@ -229,10 +229,10 @@ export function SettingsPanel({
   save,
 }: {
   state: FinanceState;
-  profileDraft: string;
-  setProfileDraft: (value: string) => void;
+  profileDraft?: string;
+  setProfileDraft?: (value: string) => void;
   updateState: (updates: Partial<FinanceState>) => void;
-  onSaveProfile: () => void;
+  onSaveProfile?: () => void;
   onJson: () => void;
   onXlsx: () => void;
   onImport: (file: File) => void;
@@ -408,21 +408,20 @@ export function SettingsPanel({
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-muted-foreground">{isId ? "Nama Panggilan" : "Nickname"}</span>
-                <div className="flex gap-2">
-                  <input
-                    data-testid="profile-name-input"
-                    value={profileDraft}
-                    onChange={(event) => setProfileDraft(event.target.value)}
-                    placeholder={isId ? "Nama kamu" : "Your name"}
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
-                  />
-                  <Button data-testid="profile-save-button" onClick={onSaveProfile} size="sm">
-                    {isId ? "Simpan" : "Save"}
-                  </Button>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 bg-background/50 p-3.5">
+                <div className="min-w-0">
+                  <span className="block text-xs font-semibold text-muted-foreground">{isId ? "Nama Profil" : "Profile Name"}</span>
+                  <p className="font-heading font-bold text-sm text-foreground mt-0.5 truncate" data-testid="settings-profile-name">
+                    {state.profileName || "_self.manage"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {isId ? "Dikelola di menu Profil (pojok kanan atas)" : "Managed in Profile menu (top-right)"}
+                  </p>
                 </div>
-              </label>
+                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary font-heading font-extrabold text-sm">
+                  {(state.profileName || "S").slice(0, 1).toUpperCase()}
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

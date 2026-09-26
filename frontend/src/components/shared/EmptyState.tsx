@@ -12,6 +12,7 @@ export interface EmptyStateProps {
   message: string;
   /** Vertical padding preset: "sm" = py-8, "lg" = py-14. Default "sm". */
   size?: "sm" | "lg";
+  children?: React.ReactNode;
   className?: string;
   testid?: string;
 }
@@ -21,15 +22,17 @@ const PADDING = { sm: "py-8", lg: "py-14" } as const;
 export function EmptyState({
   message,
   size = "sm",
+  children,
   className = "",
   testid,
 }: EmptyStateProps) {
   return (
-    <p
-      className={`${PADDING[size]} text-center text-sm text-muted-foreground ${className}`}
+    <div
+      className={`${PADDING[size]} flex flex-col items-center justify-center text-center text-sm text-muted-foreground ${className}`}
       data-testid={testid}
     >
-      {message}
-    </p>
+      <p>{message}</p>
+      {children && <div className="mt-3">{children}</div>}
+    </div>
   );
 }

@@ -235,6 +235,52 @@ describe("AccountsPanel", () => {
     expect(htmlWithModal).toContain("data-testid=\"add-account-modal\"");
     expect(htmlWithModal).toContain("data-testid=\"account-modal-form\"");
   });
+
+  it("renders KPI cards at the top and supports hide/show toggle with ShowMoreButton", () => {
+    const stateWithManyAccounts: FinanceState = {
+      ...mockState,
+      accounts: [
+        { id: "acc-1", name: "BCA", brand: "BCA", type: "debit", balance: 2000000, currency: "IDR" },
+        { id: "acc-2", name: "Mandiri", brand: "Mandiri", type: "debit", balance: 1000000, currency: "IDR" },
+        { id: "acc-3", name: "GoPay", brand: "GoPay", type: "ewallet", balance: 500000, currency: "IDR" },
+        { id: "acc-4", name: "OVO", brand: "OVO", type: "ewallet", balance: 300000, currency: "IDR" },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <AccountsPanel
+        state={stateWithManyAccounts}
+        labels={{
+          accounts: "Akun",
+          manageAccounts: "Kelola Akun",
+          addAccount: "Tambah Akun",
+          bankName: "Nama Akun",
+          accountType: "Tipe Akun",
+          brand: "Institusi",
+          startingBalance: "Saldo Awal",
+          save: "Simpan",
+          adjust: "Sesuaikan",
+          remove: "Hapus",
+          totalAcross: "Total Saldo",
+        }}
+        totalBalance={3800000}
+        onAdd={() => {}}
+        onAdjust={() => {}}
+        onRemove={() => {}}
+      />
+    );
+
+    // KPI at top
+    expect(html).toContain("data-testid=\"accounts-kpi-section\"");
+    expect(html).toContain("data-testid=\"accounts-kpi-total\"");
+    expect(html).toContain("data-testid=\"accounts-total-balance\"");
+    // Only 3 accounts displayed initially; toggle button is rendered
+    expect(html).toContain("data-testid=\"account-card-acc-1\"");
+    expect(html).toContain("data-testid=\"account-card-acc-2\"");
+    expect(html).toContain("data-testid=\"account-card-acc-3\"");
+    expect(html).not.toContain("data-testid=\"account-card-acc-4\"");
+    expect(html).toContain("data-testid=\"accounts-toggle-show-all\"");
+  });
 });
 
 describe("TransactionsPanel Commitment Integration", () => {

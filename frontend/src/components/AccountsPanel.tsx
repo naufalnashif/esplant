@@ -5,7 +5,7 @@ import type { Account, Currency, FinanceState } from "@/lib/localDb";
 import { useState } from "react";
 import type * as React from "react";
 import { formatMoney } from "@/lib/formatters";
-import { SectionHeading, ShowMoreButton } from "@/components/shared";
+import { SectionHeading, ShowMoreButton, KpiCard, EmptyState } from "@/components/shared";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 
 interface AccountLabels {
@@ -22,7 +22,7 @@ interface AccountLabels {
   totalAcross: string;
 }
 
-const ACCOUNT_PREVIEW_COUNT = 5;
+const ACCOUNT_PREVIEW_COUNT = 3;
 const types: Account["type"][] = ["debit", "credit", "ewallet", "cash", "investment"];
 const typeLabel: Record<Account["type"], string> = { debit: "Debit", credit: "Credit", ewallet: "E-Wallet", cash: "Cash", investment: "Investment" };
 
@@ -174,7 +174,61 @@ export function AccountsPanel({
         </BottomSheet>
       )}
 
+      {/* ── Top KPI Stat Cards (Positioned at Top) ── */}
+      <div
+        className={`mb-6 grid gap-3 sm:gap-4 ${
+          state.savings && state.savings.length > 0 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+        }`}
+        data-testid="accounts-kpi-section"
+      >
+        <div className="relative">
+          <KpiCard
+            testid="accounts-kpi-total"
+            icon={<Landmark size={18} />}
+            tone="teal"
+            badge={state.baseCurrency}
+            badgeClass="border-primary/20 text-primary"
+            label={labels.totalAcross}
+            value={formatMoney(totalBalance, state.baseCurrency, state.locale)}
+            valueClass="text-foreground"
+            note={`${state.accounts.length} ${isId ? "akun aktif tersimpan" : "active accounts"}`}
+          />
+          <span className="sr-only" data-testid="accounts-total-balance">
+            {formatMoney(totalBalance, state.baseCurrency, state.locale)}
+          </span>
+        </div>
+        {state.savings && state.savings.length > 0 && (
+          <KpiCard
+            testid="accounts-kpi-savings"
+            icon={<Target size={18} />}
+            tone="emerald"
+            badge={isId ? "Goals" : "Goals"}
+            badgeClass="border-emerald-500/20 text-emerald-400"
+            label={isId ? "Total Tertabung (Goals)" : "Total Saved (Goals)"}
+            value={formatMoney(totalSavings, state.baseCurrency, state.locale)}
+            valueClass="text-emerald-400"
+            note={`${state.savings.length} ${isId ? "target impian aktif" : "active savings goals"}`}
+          />
+        )}
+      </div>
+
       <div className="space-y-4">
+        {/* Account list header & count */}
+        <div className="flex items-center justify-between px-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            {isId ? `Daftar Akun (${state.accounts.length})` : `Registered Accounts (${state.accounts.length})`}
+          </p>
+          {hasMoreAccounts && (
+            <button
+              type="button"
+              onClick={() => setShowAllAccounts((v) => !v)}
+              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+            >
+              {showAllAccounts ? (isId ? "Tampilkan lebih sedikit" : "Show less") : (isId ? `Lihat Semua (${state.accounts.length})` : `Show All (${state.accounts.length})`)}
+            </button>
+          )}
+        </div>
+
         {/* Account list */}
         <div className="space-y-3">
           {state.savings && state.savings.length > 0 && (
@@ -263,6 +317,16 @@ export function AccountsPanel({
             </div>
           ))}
 
+          {state.accounts.length === 0 && (
+            <EmptyState
+              message={isId ? "Belum ada akun terdaftar. Tambahkan akun pertama Anda." : "No accounts registered yet. Add your first account."}
+            >
+              <Button size="sm" onClick={() => setIsAddOpen(true)} className="gap-1.5">
+                <Plus size={14} />{labels.addAccount}
+              </Button>
+            </EmptyState>
+          )}
+
           {hasMoreAccounts && (
             <ShowMoreButton
               expanded={showAllAccounts}
@@ -275,21 +339,6 @@ export function AccountsPanel({
               testid="accounts-toggle-show-all"
             />
           )}
-
-          {/* Total balance card */}
-          <div className="rounded-2xl border border-primary/20 bg-primary/8 p-5">
-            <div className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">
-                <Landmark size={18} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground">{labels.totalAcross}</p>
-                <p className="mt-1 font-heading text-2xl font-extrabold" data-testid="accounts-total-balance">
-                  {formatMoney(totalBalance, state.baseCurrency, state.locale)}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

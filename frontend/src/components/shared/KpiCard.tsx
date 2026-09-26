@@ -38,6 +38,8 @@ export interface KpiCardProps {
   testid?: string;
   /** Makes the card clickable (hover lift already present). */
   onClick?: () => void;
+  /** Visual layout density — defaults to "default". Use "compact" for space-constrained mobile dashboards. */
+  variant?: "default" | "compact";
   className?: string;
 }
 
@@ -52,8 +54,42 @@ export function KpiCard({
   valueClass,
   testid,
   onClick,
+  variant = "default",
   className = "",
 }: KpiCardProps) {
+  if (variant === "compact") {
+    return (
+      <Card
+        className={`group relative min-w-0 overflow-hidden border-border/70 bg-card/75 p-2.5 sm:p-3 shadow-xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${onClick ? "cursor-pointer" : ""} ${className}`}
+        data-testid={testid}
+        onClick={onClick}
+      >
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className={`grid size-6 shrink-0 place-items-center rounded-md [&>svg]:size-3.5 ${TONE_CLASSES[tone]}`}>
+              {icon}
+            </div>
+            <p className="truncate text-[11px] font-semibold text-muted-foreground">{label}</p>
+          </div>
+          {badge && (
+            <Badge variant="outline" className={`shrink-0 text-[9px] px-1 py-0 ${badgeClass ?? ""}`}>
+              {badge}
+            </Badge>
+          )}
+        </div>
+        <p
+          className={`mt-1 truncate font-data text-base font-bold tracking-tight text-foreground sm:text-lg ${valueClass ?? ""}`}
+          data-testid={testid ? `${testid}-value` : undefined}
+        >
+          {value}
+        </p>
+        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{note}</p>
+        {/* Subtle glow orb */}
+        <div className="absolute -right-6 -top-6 size-16 rounded-full bg-primary/5 blur-xl transition-transform duration-300 group-hover:scale-150 pointer-events-none" />
+      </Card>
+    );
+  }
+
   return (
     <Card
       className={`group relative min-w-0 overflow-hidden border-border/70 bg-card/75 p-3.5 sm:p-5 shadow-sm backdrop-blur-xl transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg ${onClick ? "cursor-pointer" : ""} ${className}`}

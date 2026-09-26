@@ -51,7 +51,7 @@ function MiniKpi({ label, value, note, icon, tone, testid, onClick }: { label: s
       icon={icon}
       tone={tone}
       onClick={onClick}
-      className="p-3.5"
+      variant="compact"
     />
   );
 }
@@ -162,21 +162,37 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3" data-testid="mobile-kpi-grid">
-        <MiniKpi testid="mobile-kpi-expense" label={isId ? "Pengeluaran" : "Spent"} value={money(activeStats.expense)} note={`${activeStats.count} ${isId ? "transaksi" : "transactions"}`} icon={<TrendingDown size={15} />} tone="rose" />
-        <MiniKpi testid="mobile-kpi-income" label={isId ? "Pemasukan" : "Income"} value={money(activeStats.income)} note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% vs ${isId ? "bulan lalu" : "last month"}` : periodLabels[periodFilter]} icon={<TrendingUp size={15} />} tone="indigo" />
-        <MiniKpi testid="mobile-kpi-net" label={isId ? "Arus bersih" : "Net flow"} value={money(activeStats.net)} note={isId ? "Pemasukan − Pengeluaran" : "Income − Expense"} icon={<ArrowUpRight size={15} />} tone={activeStats.net >= 0 ? "teal" : "rose"} />
-        <MiniKpi testid="mobile-kpi-committed" label={isId ? "Cicilan / Tagihan" : "Committed"} value={money(periodCommitted)} note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`} icon={<CalendarClock size={15} />} tone="amber" />
-        <div className="col-span-2">
-          <MiniKpi
-            testid="mobile-kpi-savings"
-            label={isId ? "Total Tertabung (Goals)" : "Total Saved (Goals)"}
-            value={money(totalSavings)}
-            note={`${state.savings.length} ${isId ? "target impian aktif" : "active goals"}`}
-            icon={<Target size={15} />}
-            tone="teal"
-            onClick={() => onNavigate("goals")}
-          />
+      <div className="space-y-2" data-testid="mobile-kpi-container">
+        <div className="grid grid-cols-2 gap-2" data-testid="mobile-kpi-grid">
+          <MiniKpi testid="mobile-kpi-expense" label={isId ? "Pengeluaran" : "Spent"} value={money(activeStats.expense)} note={`${activeStats.count} ${isId ? "transaksi" : "transactions"}`} icon={<TrendingDown size={14} />} tone="rose" />
+          <MiniKpi testid="mobile-kpi-income" label={isId ? "Pemasukan" : "Income"} value={money(activeStats.income)} note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% vs ${isId ? "bulan lalu" : "last month"}` : periodLabels[periodFilter]} icon={<TrendingUp size={14} />} tone="indigo" />
+          <MiniKpi testid="mobile-kpi-net" label={isId ? "Arus bersih" : "Net flow"} value={money(activeStats.net)} note={isId ? "Pemasukan − Pengeluaran" : "Income − Expense"} icon={<ArrowUpRight size={14} />} tone={activeStats.net >= 0 ? "teal" : "rose"} />
+          <MiniKpi testid="mobile-kpi-committed" label={isId ? "Cicilan / Tagihan" : "Committed"} value={money(periodCommitted)} note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`} icon={<CalendarClock size={14} />} tone="amber" />
+        </div>
+        <div
+          data-testid="mobile-kpi-savings"
+          onClick={() => onNavigate("goals")}
+          className="group flex items-center justify-between rounded-xl border border-primary/25 bg-card/75 px-3 py-2 shadow-xs backdrop-blur-xl transition-all active:scale-[0.99] cursor-pointer hover:border-primary/50 hover:bg-primary/5"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="grid size-6 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+              <Target size={13} />
+            </div>
+            <div className="min-w-0 flex items-center gap-1.5">
+              <span className="truncate text-xs font-semibold text-foreground">
+                {isId ? "Total Tertabung (Goals)" : "Total Saved (Goals)"}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium shrink-0">
+                · {state.savings.length} {isId ? "target" : "goals"}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="font-data text-xs font-bold text-primary" data-testid="mobile-kpi-savings-value">
+              {money(totalSavings)}
+            </span>
+            <ChevronRight size={13} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </div>
         </div>
       </div>
 

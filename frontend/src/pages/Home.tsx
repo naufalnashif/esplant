@@ -11,7 +11,7 @@ import {
 import {
   ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, Calendar, CalendarClock, Check, ChevronRight,
   Landmark, LayoutDashboard, MessageSquarePlus,
-  Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
+  Moon, MoreHorizontal, Pencil, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
   Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -129,7 +129,6 @@ export default function Home() {
   const [showAddCommitmentModal, setShowAddCommitmentModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
-  const [profileDraft, setProfileDraft] = useState("");
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [transactionForm, setTransactionForm] = useState({
@@ -874,7 +873,7 @@ export default function Home() {
                 onCloseAddModalFromParent={() => setShowAddAccountModal(false)}
               />
             )}
-            {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
+            {tab === "settings" && <SettingsPanel state={state} updateState={updateState} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
           {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><MobileDisclosure testid="mobile-insights-section" title={state.locale === "id" ? "Insight & rekomendasi" : "Insights & recommendations"} hint={state.locale === "id" ? "Kesehatan kas, tren kategori, budget" : "Cash health, category trends, budgets"} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><InsightsPanel state={state} currentMonth={compareMonth} /></MobileDisclosure></div>}
@@ -932,6 +931,10 @@ export default function Home() {
           }}
           onToggleTheme={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })}
           onToggleLocale={() => updateState({ locale: state.locale === "id" ? "en" : "id" })}
+          onUpdateProfileName={(newName) => {
+            updateState({ profileName: newName });
+            toast.success(state.locale === "id" ? "Nama profil berhasil disimpan." : "Profile name saved successfully.");
+          }}
         />
       )}
       <EraseConfirmModal
@@ -1878,6 +1881,7 @@ function ProfileModal({
   onOpenFeedback,
   onToggleTheme,
   onToggleLocale,
+  onUpdateProfileName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1888,8 +1892,23 @@ function ProfileModal({
   onOpenFeedback: () => void;
   onToggleTheme: () => void;
   onToggleLocale: () => void;
+  onUpdateProfileName: (name: string) => void;
 }) {
   const isId = state.locale === "id";
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(state.profileName || "");
+
+  useEffect(() => {
+    if (open) {
+      setNameDraft(state.profileName || "");
+      setIsEditingName(false);
+    }
+  }, [open, state.profileName]);
+
+  const handleSaveName = () => {
+    onUpdateProfileName(nameDraft.trim());
+    setIsEditingName(false);
+  };
 
   return (
     <BottomSheet
@@ -1902,21 +1921,88 @@ function ProfileModal({
     >
       <div className="space-y-4">
         {/* User Card */}
-        <div className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-secondary/30 p-4">
-          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-amber-500 font-heading text-lg font-extrabold text-primary-foreground shadow-md shadow-primary/20">
-            {(state.profileName || "S").slice(0, 1).toUpperCase()}
+        <div className="rounded-2xl border border-border/80 bg-secondary/30 p-4">
+          <div className="flex items-center gap-3.5">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-amber-500 font-heading text-lg font-extrabold text-primary-foreground shadow-md shadow-primary/20">
+              {((isEditingName ? nameDraft : state.profileName) || "S").slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="truncate font-heading text-base font-bold text-foreground">
+                  {state.profileName || "_self.manage"}
+                </h3>
+                {!isEditingName && (
+                  <button
+                    type="button"
+                    data-testid="profile-edit-name-toggle"
+                    onClick={() => {
+                      setNameDraft(state.profileName || "");
+                      setIsEditingName(true);
+                    }}
+                    className="flex items-center gap-1 rounded-lg border border-border/70 bg-card/80 px-2 py-1 text-xs font-semibold text-primary transition-all hover:bg-primary/10 hover:border-primary/40 active:scale-95 cursor-pointer"
+                  >
+                    <Pencil size={12} />
+                    <span>{isId ? "Ubah" : "Edit"}</span>
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {storageMode === "sheets" ? "Google Spreadsheet Connected" : "Local Browser Storage"}
+              </p>
+            </div>
+            <Badge variant="outline" className="shrink-0 text-[10px] font-semibold">
+              {state.baseCurrency}
+            </Badge>
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate font-heading text-base font-bold text-foreground">
-              {state.profileName || "_self.manage"}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              {storageMode === "sheets" ? "Google Spreadsheet Connected" : "Local Browser Storage"}
-            </p>
-          </div>
-          <Badge variant="outline" className="shrink-0 text-[10px] font-semibold">
-            {state.baseCurrency}
-          </Badge>
+
+          {/* Inline Edit Name Form */}
+          {isEditingName && (
+            <div className="mt-3.5 pt-3 border-t border-border/50 animate-rise-in">
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                {isId ? "Ubah Nama Profil / Panggilan" : "Change Profile Name / Nickname"}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  data-testid="profile-name-input"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  placeholder={isId ? "Nama Anda" : "Your name"}
+                  maxLength={60}
+                  autoFocus
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSaveName();
+                    } else if (e.key === "Escape") {
+                      setIsEditingName(false);
+                    }
+                  }}
+                />
+                <Button
+                  data-testid="profile-save-button"
+                  size="sm"
+                  className="h-9 gap-1 px-3 text-xs"
+                  onClick={handleSaveName}
+                >
+                  <Check size={13} />
+                  {isId ? "Simpan" : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setNameDraft(state.profileName || "");
+                    setIsEditingName(false);
+                  }}
+                >
+                  {isId ? "Batal" : "Cancel"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Menu Navigation */}
