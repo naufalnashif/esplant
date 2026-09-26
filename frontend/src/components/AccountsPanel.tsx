@@ -6,6 +6,7 @@ import { useState } from "react";
 import type * as React from "react";
 import { formatMoney } from "@/lib/formatters";
 import { SectionHeading, ShowMoreButton } from "@/components/shared";
+import { BottomSheet } from "@/components/mobile/BottomSheet";
 
 interface AccountLabels {
   accounts: string;
@@ -25,21 +26,153 @@ const ACCOUNT_PREVIEW_COUNT = 5;
 const types: Account["type"][] = ["debit", "credit", "ewallet", "cash", "investment"];
 const typeLabel: Record<Account["type"], string> = { debit: "Debit", credit: "Credit", ewallet: "E-Wallet", cash: "Cash", investment: "Investment" };
 
-export function AccountsPanel({ state, labels, totalBalance, onAdd, onAdjust, onRemove }: { state: FinanceState; labels: AccountLabels; totalBalance: number; onAdd: (account: Account) => void; onAdjust: (account: Account) => void; onRemove: (account: Account) => void }) {
+export function AccountsPanel({
+  state,
+  labels,
+  totalBalance,
+  onAdd,
+  onAdjust,
+  onRemove,
+  showAddModalFromParent,
+  onCloseAddModalFromParent,
+}: {
+  state: FinanceState;
+  labels: AccountLabels;
+  totalBalance: number;
+  onAdd: (account: Account) => void;
+  onAdjust: (account: Account) => void;
+  onRemove: (account: Account) => void;
+  showAddModalFromParent?: boolean;
+  onCloseAddModalFromParent?: () => void;
+}) {
   const [form, setForm] = useState({ name: "", brand: "", type: "debit" as Account["type"], balance: "", currency: state.baseCurrency as Currency });
   const isId = state.locale === "id";
   const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const showModal = isAddOpen || Boolean(showAddModalFromParent);
+  const closeModal = () => {
+    setIsAddOpen(false);
+    onCloseAddModalFromParent?.();
+  };
+
   const hasMoreAccounts = state.accounts.length > ACCOUNT_PREVIEW_COUNT;
   const visibleAccounts = showAllAccounts ? state.accounts : state.accounts.slice(0, ACCOUNT_PREVIEW_COUNT);
   const totalSavings = (state.savings || []).reduce((sum, g) => sum + (g.saved || 0), 0);
-  const submit = (event: React.FormEvent) => { event.preventDefault(); const balance = Number(form.balance); if (!form.name.trim() || !form.brand.trim() || !Number.isFinite(balance)) return; onAdd({ id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`, name: form.name.trim(), brand: form.brand.trim(), type: form.type, balance, currency: form.currency }); setForm({ name: "", brand: "", type: "debit", balance: "", currency: state.baseCurrency }); };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const balance = Number(form.balance);
+    if (!form.name.trim() || !form.brand.trim() || !Number.isFinite(balance)) return;
+    onAdd({
+      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`,
+      name: form.name.trim(),
+      brand: form.brand.trim(),
+      type: form.type,
+      balance,
+      currency: form.currency,
+    });
+    setForm({ name: "", brand: "", type: "debit", balance: "", currency: state.baseCurrency });
+    closeModal();
+  };
+
   return (
     <div className="animate-rise-in">
       <SectionHeading
         eyebrow="Money map / accounts"
         title={labels.accounts}
         description={labels.manageAccounts}
+        action={
+          <Button
+            data-testid="accounts-add-button"
+            onClick={() => setIsAddOpen(true)}
+            className="gap-2 shadow-lg shadow-primary/20"
+          >
+            <Plus size={17} />{labels.addAccount}
+          </Button>
+        }
       />
+
+      {/* ── Mobile FAB / Desktop Add Account BottomSheet Modal ── */}
+      {showModal && (
+        <BottomSheet
+          open
+          onClose={closeModal}
+          testid="add-account-modal"
+          eyebrow="Money map · Accounts"
+          title={labels.addAccount}
+          description={labels.manageAccounts}
+        >
+          <form onSubmit={submit} data-testid="account-modal-form" className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">{labels.bankName} *</label>
+              <input
+                data-testid="account-modal-name-input"
+                required
+                value={form.name}
+                onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))}
+                placeholder="Contoh: BCA Tabungan, Dompet Tunai"
+                className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">{labels.brand} *</label>
+                <input
+                  data-testid="account-modal-brand-input"
+                  required
+                  value={form.brand}
+                  onChange={(event) => setForm((value) => ({ ...value, brand: event.target.value }))}
+                  placeholder="Contoh: BCA, Mandiri, GoPay"
+                  className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">{labels.accountType}</label>
+                <select
+                  data-testid="account-modal-type-select"
+                  value={form.type}
+                  onChange={(event) => setForm((value) => ({ ...value, type: event.target.value as Account["type"] }))}
+                  className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold"
+                >
+                  {types.map((type) => <option key={type} value={type} label={typeLabel[type]} />)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">{labels.startingBalance} *</label>
+                <input
+                  data-testid="account-modal-balance-input"
+                  required
+                  type="number"
+                  value={form.balance}
+                  onChange={(event) => setForm((value) => ({ ...value, balance: event.target.value }))}
+                  placeholder="0"
+                  className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Currency</label>
+                <select
+                  data-testid="account-modal-currency-select"
+                  value={form.currency}
+                  onChange={(event) => setForm((value) => ({ ...value, currency: event.target.value as Currency }))}
+                  className="h-11 w-full shrink-0 rounded-lg border border-border bg-background px-3 text-xs font-bold"
+                >
+                  {["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"].map((currency) => (
+                    <option key={currency} value={currency} label={currency} />
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2 sm:justify-end">
+              <Button type="button" variant="ghost" onClick={closeModal}>{isId ? "Batal" : "Cancel"}</Button>
+              <Button data-testid="account-modal-submit-button" type="submit" className="flex-1 gap-2 sm:flex-none">
+                <Plus size={16} />{labels.save}
+              </Button>
+            </div>
+          </form>
+        </BottomSheet>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
         {/* Left — account list + total */}

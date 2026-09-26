@@ -23,6 +23,7 @@ import type {
 } from "@/lib/localDb";
 import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
 import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync, eraseAllData } from "@/lib/dataStore";
+import { syncCommitmentsOnAdd, syncCommitmentsOnDelete, syncCommitmentsOnUpdate } from "@/lib/commitmentPayment";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
@@ -129,7 +130,19 @@ export default function Home() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [profileDraft, setProfileDraft] = useState("");
-  const [transactionForm, setTransactionForm] = useState({ kind: "expense" as TransactionKind, amount: "", description: "", category: "Food", accountId: "", currency: "IDR" as Currency, date: new Date().toISOString().slice(0, 10), tags: "" });
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [transactionForm, setTransactionForm] = useState({
+    kind: "expense" as TransactionKind,
+    amount: "",
+    description: "",
+    category: "Food",
+    accountId: "",
+    currency: "IDR" as Currency,
+    date: new Date().toISOString().slice(0, 10),
+    tags: "",
+    commitmentId: "",
+  });
   const [debtForm, setDebtForm] = useState({ name: "", person: "", type: "debt" as CommitmentType, total: "", dueDate: new Date().toISOString().slice(0, 10) });
   // NOTE: wishForm state removed from Home — GoalsPanel is now self-contained
 
@@ -232,19 +245,77 @@ export default function Home() {
       toast.error(state.locale === "id" ? "Isi deskripsi dan nominal yang valid." : "Add a valid description and amount."); return;
     }
     const accountId = state.accounts.some((account) => account.id === transactionForm.accountId) ? transactionForm.accountId : state.accounts[0].id;
-    const transaction: Transaction = { id: editingTransaction?.id ?? id(), kind: transactionForm.kind, amount, currency: transactionForm.currency, baseAmount: toBase(amount, transactionForm.currency, state.exchangeRates), description: transactionForm.description.trim(), category: transactionForm.category, accountId, date: transactionForm.date, tags: transactionForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean) };
+    const transaction: Transaction = {
+      id: editingTransaction?.id ?? id(),
+      kind: transactionForm.kind,
+      amount,
+      currency: transactionForm.currency,
+      baseAmount: toBase(amount, transactionForm.currency, state.exchangeRates),
+      description: transactionForm.description.trim(),
+      category: transactionForm.category,
+      accountId,
+      date: transactionForm.date,
+      tags: transactionForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      commitmentId: transactionForm.commitmentId ? transactionForm.commitmentId : undefined,
+    };
     const accountDelta = (item: Transaction, sign: 1 | -1) => (item.kind === "expense" ? -1 : 1) * item.baseAmount * sign;
     const old = editingTransaction;
     const accounts = state.accounts.map((account) => { const reversal = old && old.accountId === account.id ? accountDelta(old, -1) / state.exchangeRates[account.currency] : 0; const next = transaction.accountId === account.id ? accountDelta(transaction, 1) / state.exchangeRates[account.currency] : 0; return reversal || next ? { ...account, balance: account.balance + reversal + next } : account; });
+
+    let nextBills = state.bills;
+    let nextDebts = state.debts;
+
+    if (old) {
+      const syncResult = syncCommitmentsOnUpdate(state, old, transaction);
+      nextBills = syncResult.bills;
+      nextDebts = syncResult.debts;
+    } else if (transaction.commitmentId) {
+      const syncResult = syncCommitmentsOnAdd(state, transaction);
+      nextBills = syncResult.bills;
+      nextDebts = syncResult.debts;
+    }
+
     const transactions = old ? state.transactions.map((item) => item.id === old.id ? transaction : item) : [transaction, ...state.transactions];
-    save({ ...state, accounts, transactions });
-    setTransactionForm({ kind: "expense", amount: "", description: "", category: "Food", accountId: state.accounts[0]?.id ?? "", currency: state.baseCurrency, date: new Date().toISOString().slice(0, 10), tags: "" });
+    save({
+      ...state,
+      accounts,
+      bills: nextBills,
+      debts: nextDebts,
+      transactions,
+    });
+    setTransactionForm({ kind: "expense", amount: "", description: "", category: "Food", accountId: state.accounts[0]?.id ?? "", currency: state.baseCurrency, date: new Date().toISOString().slice(0, 10), tags: "", commitmentId: "" });
     setShowTransactionForm(false);
     setEditingTransaction(null);
     toast.success(state.locale === "id" ? "Transaksi tersimpan di perangkat." : "Transaction saved on this device.");
   };
-  const openEditTransaction = (transaction: Transaction) => { setEditingTransaction(transaction); setTransactionForm({ kind: transaction.kind, amount: String(transaction.amount), description: transaction.description, category: transaction.category, accountId: transaction.accountId, currency: transaction.currency, date: transaction.date, tags: transaction.tags.join(", ") }); setShowTransactionForm(true); };
-  const deleteTransaction = (transaction: Transaction) => { if (!window.confirm(`Delete ${transaction.description}?`)) return; const accounts = state.accounts.map((account) => account.id === transaction.accountId ? { ...account, balance: account.balance - accountDeltaFor(transaction, state.exchangeRates, account.currency) } : account); save({ ...state, accounts, transactions: state.transactions.filter((item) => item.id !== transaction.id) }); toast.success("Transaction deleted."); };
+  const openEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setTransactionForm({
+      kind: transaction.kind,
+      amount: String(transaction.amount),
+      description: transaction.description,
+      category: transaction.category,
+      accountId: transaction.accountId,
+      currency: transaction.currency,
+      date: transaction.date,
+      tags: transaction.tags.join(", "),
+      commitmentId: transaction.commitmentId || "",
+    });
+    setShowTransactionForm(true);
+  };
+  const deleteTransaction = (transaction: Transaction) => {
+    if (!window.confirm(`Delete ${transaction.description}?`)) return;
+    const accounts = state.accounts.map((account) => account.id === transaction.accountId ? { ...account, balance: account.balance - accountDeltaFor(transaction, state.exchangeRates, account.currency) } : account);
+    const syncResult = syncCommitmentsOnDelete(state, transaction);
+    save({
+      ...state,
+      accounts,
+      bills: syncResult.bills,
+      debts: syncResult.debts,
+      transactions: state.transactions.filter((item) => item.id !== transaction.id),
+    });
+    toast.success("Transaction deleted.");
+  };
   const handleAddDebt = (event: React.FormEvent) => {
     event.preventDefault(); const total = Number(debtForm.total);
     if (!debtForm.name.trim() || !debtForm.person.trim() || !Number.isFinite(total) || total <= 0) { toast.error("Lengkapi nama, orang, dan nominal."); return; }
@@ -659,7 +730,29 @@ export default function Home() {
         <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ height: "100svh" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "_self.manage"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white sm:size-9">{(state.profileName || "S").slice(0, 1).toUpperCase()}</div></div>
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+              <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} />
+              {!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}
+              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button>
+              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+              <div className="hidden h-8 w-px bg-border sm:block" />
+              <button
+                type="button"
+                data-testid="header-profile-button"
+                onClick={() => setShowProfileMenu(true)}
+                title={state.locale === "id" ? "Menu Profil & Pengaturan" : "Profile & Settings Menu"}
+                aria-label="Profile"
+                className="flex items-center gap-2 rounded-full border border-border/70 bg-card/60 p-1 sm:px-3 sm:py-1.5 transition-all hover:border-primary/50 hover:bg-secondary/60 active:scale-95 cursor-pointer"
+              >
+                <div className="hidden text-right sm:block">
+                  <p className="text-xs font-bold leading-tight text-foreground">{state.profileName || "_self.manage"}</p>
+                  <p className="text-[10px] text-muted-foreground">{storageMode === "sheets" ? "Google Sheets" : "Local Workspace"}</p>
+                </div>
+                <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-amber-500 text-xs font-extrabold text-primary-foreground sm:size-8 shadow-sm">
+                  {(state.profileName || "S").slice(0, 1).toUpperCase()}
+                </div>
+              </button>
+            </div>
           </header>
           <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
             {tab === "overview" && (isMobile
@@ -683,7 +776,30 @@ export default function Home() {
                 onCloseAddModalFromParent={() => setShowAddGoalModal(false)}
               />
             )}
-            {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
+            {tab === "accounts" && (
+              <AccountsPanel
+                state={state}
+                labels={{
+                  accounts: t.accounts,
+                  manageAccounts: t.manageAccounts,
+                  addAccount: t.addAccount,
+                  bankName: t.bankName,
+                  accountType: t.accountType,
+                  brand: t.brand,
+                  startingBalance: t.startingBalance,
+                  save: t.save,
+                  adjust: t.adjust,
+                  remove: t.remove,
+                  totalAcross: t.totalAcross,
+                }}
+                totalBalance={totalBalance}
+                onAdd={addAccount}
+                onAdjust={adjustAccount}
+                onRemove={removeAccount}
+                showAddModalFromParent={showAddAccountModal}
+                onCloseAddModalFromParent={() => setShowAddAccountModal(false)}
+              />
+            )}
             {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
@@ -699,27 +815,51 @@ export default function Home() {
         actions={moreActions}
         moreLabel={state.locale === "id" ? "Lainnya" : "More"}
         moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."}
-        showFab={["overview", "transactions", "commitments", "goals"].includes(tab)}
+        showFab={["overview", "transactions", "commitments", "goals", "accounts"].includes(tab)}
         onAdd={() => {
           if (tab === "goals") {
             setShowAddGoalModal(true);
           } else if (tab === "commitments") {
             setShowAddCommitmentModal(true);
+          } else if (tab === "accounts") {
+            setShowAddAccountModal(true);
           } else {
             openAddTransaction();
           }
         }}
+        onOpenProfile={() => setShowProfileMenu(true)}
         addLabel={
           tab === "goals"
             ? (state.locale === "id" ? "Tambah Goal" : "Add Goal")
             : tab === "commitments"
             ? (state.locale === "id" ? "Tambah Komitmen" : "Add Commitment")
+            : tab === "accounts"
+            ? (state.locale === "id" ? "Tambah Akun" : "Add Account")
             : t.addTransaction
         }
       />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
       {showFeedback && <FeedbackDialog open onOpenChange={setShowFeedback} />}
+      {showProfileMenu && (
+        <ProfileModal
+          open
+          onClose={() => setShowProfileMenu(false)}
+          state={state}
+          storageMode={storageMode}
+          sheetUrl={sheetUrl}
+          onNavigate={(targetTab) => {
+            setTab(targetTab);
+            setShowProfileMenu(false);
+          }}
+          onOpenFeedback={() => {
+            setShowProfileMenu(false);
+            setShowFeedback(true);
+          }}
+          onToggleTheme={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })}
+          onToggleLocale={() => updateState({ locale: state.locale === "id" ? "en" : "id" })}
+        />
+      )}
       <EraseConfirmModal
         open={showEraseModal}
         isId={state.locale === "id"}
@@ -1370,7 +1510,19 @@ function Overview({
 
 
 
-function TransactionModal({ state, t, categories, form, setForm, onChange, onClose, onSubmit, editingTransaction }: { state: FinanceState; t: typeof copy.id; categories: string[]; form: { kind: TransactionKind; amount: string; description: string; category: string; accountId: string; currency: Currency; date: string; tags: string }; setForm: React.Dispatch<React.SetStateAction<{ kind: TransactionKind; amount: string; description: string; category: string; accountId: string; currency: Currency; date: string; tags: string }>>; onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void; onClose: () => void; onSubmit: (event: React.FormEvent) => void; editingTransaction?: Transaction | null }) {
+type TransactionModalForm = {
+  kind: TransactionKind;
+  amount: string;
+  description: string;
+  category: string;
+  accountId: string;
+  currency: Currency;
+  date: string;
+  tags: string;
+  commitmentId: string;
+};
+
+function TransactionModal({ state, t, categories, form, setForm, onChange, onClose, onSubmit, editingTransaction }: { state: FinanceState; t: typeof copy.id; categories: string[]; form: TransactionModalForm; setForm: React.Dispatch<React.SetStateAction<TransactionModalForm>>; onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void; onClose: () => void; onSubmit: (event: React.FormEvent) => void; editingTransaction?: Transaction | null }) {
   const isId = state.locale === "id";
   const title = editingTransaction
     ? (isId ? "Edit Transaksi" : "Edit Transaction")
@@ -1386,7 +1538,7 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
       testid="transaction-modal"
       eyebrow={editingTransaction ? (isId ? "Mode Edit" : "Edit Mode") : "Quick capture"}
       title={title}
-      description={isId ? "Data tersimpan ke database lokal & PostgreSQL." : "Validated locally, saved to database."}
+      description={isId ? "Data tersimpan ke database lokal & Google Sheets." : "Validated locally, saved to database."}
       footer={
         <div className="flex gap-2 sm:justify-end">
           <Button data-testid="transaction-cancel-button" type="button" variant="ghost" onClick={onClose}>{t.cancel}</Button>
@@ -1399,6 +1551,83 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "expense" ? "bg-card text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
           <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
         </div>
+
+        {/* Commitment Link Selector */}
+        <label className="block min-w-0 max-w-full">
+          <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">
+            {isId ? "Terkait Cicilan / Utang / PayLater (Opsional)" : "Link Bill / Debt / PayLater (Optional)"}
+          </span>
+          <select
+            data-testid="transaction-commitment-select"
+            name="commitmentId"
+            value={form.commitmentId || ""}
+            onChange={(e) => {
+              const cId = e.target.value;
+              if (!cId) {
+                setForm((v) => ({ ...v, commitmentId: "" }));
+                return;
+              }
+              const b = state.bills.find((item) => item.id === cId);
+              if (b) {
+                setForm((v) => ({
+                  ...v,
+                  commitmentId: cId,
+                  kind: "expense",
+                  category: b.category,
+                  amount: v.amount ? v.amount : String(b.amount),
+                  description: v.description ? v.description : (isId ? `Bayar Cicilan: ${b.name}` : `Bill Payment: ${b.name}`),
+                }));
+                return;
+              }
+              const d = state.debts.find((item) => item.id === cId);
+              if (d) {
+                const rem = Math.max(0, d.total - d.paid);
+                const isRec = d.type === "receivable";
+                setForm((v) => ({
+                  ...v,
+                  commitmentId: cId,
+                  kind: isRec ? "income" : "expense",
+                  category: isRec ? "Piutang" : "Cicilan",
+                  amount: v.amount ? v.amount : String(rem),
+                  description: v.description ? v.description : (isRec ? `Terima Piutang: ${d.name}` : `Bayar Utang: ${d.name}`),
+                }));
+                return;
+              }
+              setForm((v) => ({ ...v, commitmentId: cId }));
+            }}
+            className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+          >
+            <option value="">{isId ? "— Tidak Terkait (Transaksi Biasa) —" : "— Regular Transaction (No Commitment) —"}</option>
+            {state.bills.filter((b) => b.active !== false).length > 0 && (
+              <optgroup label={isId ? "Cicilan / Tagihan Rutin" : "Bills & Installments"}>
+                {state.bills.filter((b) => b.active !== false).map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} · {formatMoney(b.amount, b.currency, state.locale)} / {b.frequency}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).length > 0 && (
+              <optgroup label={isId ? "Utang Saya (PayLater / Pinjaman)" : "My Debts & PayLater"}>
+                {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} (ke {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).length > 0 && (
+              <optgroup label={isId ? "Piutang (Uang Dipinjamkan)" : "Receivables"}>
+                {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} (dari {d.person}) · Sisa {formatMoney(d.total - d.paid, d.currency, state.locale)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </label>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
           <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.amount} *</span>
@@ -1409,7 +1638,7 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           </label>
           <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.description} *</span>
-            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, gaji, PLN token" className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, cicilan, SPayLater" className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
           <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.category}</span>
@@ -1429,6 +1658,157 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           </label>
         </div>
       </form>
+    </BottomSheet>
+  );
+}
+
+function ProfileModal({
+  open,
+  onClose,
+  state,
+  storageMode,
+  sheetUrl,
+  onNavigate,
+  onOpenFeedback,
+  onToggleTheme,
+  onToggleLocale,
+}: {
+  open: boolean;
+  onClose: () => void;
+  state: FinanceState;
+  storageMode: "local" | "sheets";
+  sheetUrl?: string | null;
+  onNavigate: (tab: Tab) => void;
+  onOpenFeedback: () => void;
+  onToggleTheme: () => void;
+  onToggleLocale: () => void;
+}) {
+  const isId = state.locale === "id";
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      testid="profile-modal"
+      eyebrow="User Profile"
+      title={isId ? "Profil & Ruang Kerja" : "Profile & Workspace"}
+      maxWidth="sm:max-w-md"
+    >
+      <div className="space-y-4">
+        {/* User Card */}
+        <div className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-secondary/30 p-4">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-amber-500 font-heading text-lg font-extrabold text-primary-foreground shadow-md shadow-primary/20">
+            {(state.profileName || "S").slice(0, 1).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-heading text-base font-bold text-foreground">
+              {state.profileName || "_self.manage"}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {storageMode === "sheets" ? "Google Spreadsheet Connected" : "Local Browser Storage"}
+            </p>
+          </div>
+          <Badge variant="outline" className="shrink-0 text-[10px] font-semibold">
+            {state.baseCurrency}
+          </Badge>
+        </div>
+
+        {/* Menu Navigation */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+            {isId ? "Menu Utama" : "Menu Options"}
+          </p>
+          <button
+            type="button"
+            data-testid="profile-menu-accounts"
+            onClick={() => {
+              onClose();
+              onNavigate("accounts");
+            }}
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary">
+                <WalletCards size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground transition-colors group-hover:text-primary">
+                  {isId ? "Dashboard Akun" : "Accounts Dashboard"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isId ? "Kelola rekening bank, e-wallet, kartu & saldo" : "Manage bank accounts, wallets, and balances"}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </button>
+
+          <button
+            type="button"
+            data-testid="profile-menu-settings"
+            onClick={() => {
+              onClose();
+              onNavigate("settings");
+            }}
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary">
+                <Settings2 size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground transition-colors group-hover:text-primary">
+                  {isId ? "Pengaturan & Backup" : "Settings & Backup"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isId ? "Google Sheets, ekspor backup data, dan privasi" : "Google Sheets, data export, and privacy"}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </button>
+        </div>
+
+        {/* Quick Utilities */}
+        <div className="space-y-2 border-t border-border/60 pt-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+            {isId ? "Preferensi & Bantuan" : "Preferences & Help"}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              data-testid="profile-theme-toggle"
+              onClick={onToggleTheme}
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-background/60 p-3 text-left text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-foreground active:scale-98"
+            >
+              {state.theme === "dark" ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-indigo-400" />}
+              <span>{state.theme === "dark" ? "Mode Terang" : "Mode Gelap"}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="profile-language-toggle"
+              onClick={onToggleLocale}
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-background/60 p-3 text-left text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-foreground active:scale-98"
+            >
+              <span className="font-bold text-primary">ID / EN</span>
+              <span>{state.locale === "id" ? "Bahasa Indo" : "English"}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            data-testid="profile-feedback-button"
+            onClick={() => {
+              onClose();
+              onOpenFeedback();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl border border-border/70 bg-background/40 p-3 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/50 hover:bg-secondary/40 hover:text-foreground active:scale-98"
+          >
+            <MessageSquarePlus size={16} className="text-primary" />
+            <span>{isId ? "Beri Saran / Laporkan Kendala" : "Give Feedback / Report Issue"}</span>
+          </button>
+        </div>
+      </div>
     </BottomSheet>
   );
 }

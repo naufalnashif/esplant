@@ -200,3 +200,144 @@ export const applyCommitmentPayment = (
     },
   };
 };
+
+/**
+ * Two-way sync when a transaction is added directly in TransactionsPanel or Quick Add.
+ * If transaction.commitmentId is provided, advances the bill or increments debt paid.
+ */
+export const syncCommitmentsOnAdd = (
+  state: FinanceState,
+  tx: Transaction,
+): { bills: Bill[]; debts: Debt[] } => {
+  if (!tx.commitmentId) return { bills: state.bills, debts: state.debts };
+
+  const billIndex = state.bills.findIndex((b) => b.id === tx.commitmentId);
+  if (billIndex !== -1) {
+    const target = state.bills[billIndex];
+    const updatedBill: Bill = {
+      ...target,
+      paidInstallments: (target.paidInstallments || 0) + 1,
+      remainingInstallments:
+        target.remainingInstallments !== undefined
+          ? Math.max(0, target.remainingInstallments - 1)
+          : undefined,
+      lastPaidDate: tx.date,
+      nextDueDate: advanceDueDate(target.nextDueDate, target.frequency, target.customInterval),
+    };
+    const bills = [...state.bills];
+    bills[billIndex] = updatedBill;
+    return { bills, debts: state.debts };
+  }
+
+  const debtIndex = state.debts.findIndex((d) => d.id === tx.commitmentId);
+  if (debtIndex !== -1) {
+    const target = state.debts[debtIndex];
+    const nextPaid = Math.min(target.total, (target.paid || 0) + tx.amount);
+    const updatedDebt: Debt = {
+      ...target,
+      paid: nextPaid,
+      lastPaidDate: tx.date,
+    };
+    const debts = [...state.debts];
+    debts[debtIndex] = updatedDebt;
+    return { bills: state.bills, debts };
+  }
+
+  return { bills: state.bills, debts: state.debts };
+};
+
+/**
+ * Two-way sync when a transaction is deleted in TransactionsPanel.
+ * If transaction was linked to a bill or debt, reverts the payment and status seamlessly.
+ */
+export const syncCommitmentsOnDelete = (
+  state: FinanceState,
+  tx: Transaction,
+): { bills: Bill[]; debts: Debt[] } => {
+  if (!tx.commitmentId) return { bills: state.bills, debts: state.debts };
+
+  const billIndex = state.bills.findIndex((b) => b.id === tx.commitmentId);
+  if (billIndex !== -1) {
+    const target = state.bills[billIndex];
+    const updatedBill: Bill = {
+      ...target,
+      paidInstallments: Math.max(0, (target.paidInstallments || 1) - 1),
+      remainingInstallments:
+        target.remainingInstallments !== undefined
+          ? target.remainingInstallments + 1
+          : undefined,
+    };
+    const bills = [...state.bills];
+    bills[billIndex] = updatedBill;
+    return { bills, debts: state.debts };
+  }
+
+  const debtIndex = state.debts.findIndex((d) => d.id === tx.commitmentId);
+  if (debtIndex !== -1) {
+    const target = state.debts[debtIndex];
+    const nextPaid = Math.max(0, (target.paid || 0) - tx.amount);
+    const updatedDebt: Debt = {
+      ...target,
+      paid: nextPaid,
+    };
+    const debts = [...state.debts];
+    debts[debtIndex] = updatedDebt;
+    return { bills: state.bills, debts };
+  }
+
+  return { bills: state.bills, debts: state.debts };
+};
+
+/**
+ * Two-way sync when a transaction is updated / edited in TransactionsPanel.
+ */
+export const syncCommitmentsOnUpdate = (
+  state: FinanceState,
+  oldTx: Transaction,
+  newTx: Transaction,
+): { bills: Bill[]; debts: Debt[] } => {
+  // If commitment didn't change:
+  if (oldTx.commitmentId === newTx.commitmentId) {
+    if (!newTx.commitmentId) return { bills: state.bills, debts: state.debts };
+
+    const debtIndex = state.debts.findIndex((d) => d.id === newTx.commitmentId);
+    if (debtIndex !== -1) {
+      const target = state.debts[debtIndex];
+      const delta = newTx.amount - oldTx.amount;
+      const nextPaid = Math.max(0, Math.min(target.total, (target.paid || 0) + delta));
+      const updatedDebt: Debt = {
+        ...target,
+        paid: nextPaid,
+        lastPaidDate: newTx.date,
+      };
+      const debts = [...state.debts];
+      debts[debtIndex] = updatedDebt;
+      return { bills: state.bills, debts };
+    }
+
+    const billIndex = state.bills.findIndex((b) => b.id === newTx.commitmentId);
+    if (billIndex !== -1) {
+      const target = state.bills[billIndex];
+      const updatedBill: Bill = {
+        ...target,
+        lastPaidDate: newTx.date,
+      };
+      const bills = [...state.bills];
+      bills[billIndex] = updatedBill;
+      return { bills, debts: state.debts };
+    }
+
+    return { bills: state.bills, debts: state.debts };
+  }
+
+  // Commitment changed: revert old commitment, apply new commitment
+  let intermediate = { bills: state.bills, debts: state.debts };
+  if (oldTx.commitmentId) {
+    intermediate = syncCommitmentsOnDelete(state, oldTx);
+  }
+  if (newTx.commitmentId) {
+    const tempState = { ...state, bills: intermediate.bills, debts: intermediate.debts };
+    return syncCommitmentsOnAdd(tempState, newTx);
+  }
+  return intermediate;
+};

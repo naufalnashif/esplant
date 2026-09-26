@@ -202,5 +202,91 @@ describe("AccountsPanel", () => {
     expect(html).toContain("Khusus Tabungan");
     expect(html).toContain("Non-transaksi langsung");
   });
+
+  it("renders desktop 'Tambah Akun' button and opens BottomSheet modal when showAddModalFromParent is true", () => {
+    const htmlWithModal = renderToStaticMarkup(
+      <AccountsPanel
+        state={mockState}
+        labels={{
+          accounts: "Akun",
+          manageAccounts: "Kelola Akun",
+          addAccount: "Tambah Akun",
+          bankName: "Nama Akun",
+          accountType: "Tipe Akun",
+          brand: "Institusi",
+          startingBalance: "Saldo Awal",
+          save: "Simpan",
+          adjust: "Sesuaikan",
+          remove: "Hapus",
+          totalAcross: "Total Saldo",
+        }}
+        totalBalance={5000000}
+        onAdd={() => {}}
+        onAdjust={() => {}}
+        onRemove={() => {}}
+        showAddModalFromParent={true}
+        onCloseAddModalFromParent={() => {}}
+      />
+    );
+
+    // Desktop add button exists in section heading
+    expect(htmlWithModal).toContain("data-testid=\"accounts-add-button\"");
+    // BottomSheet modal for mobile / floating add button
+    expect(htmlWithModal).toContain("data-testid=\"add-account-modal\"");
+    expect(htmlWithModal).toContain("data-testid=\"account-modal-form\"");
+  });
 });
+
+describe("TransactionsPanel Commitment Integration", () => {
+  it("renders commitment badge when transaction is linked to a bill/debt", () => {
+    const stateWithLinkedTx: FinanceState = {
+      ...mockState,
+      transactions: [
+        {
+          id: "tx-1",
+          description: "Pembayaran Cicilan Motor",
+          amount: 750000,
+          baseAmount: 750000,
+          category: "Transport",
+          accountId: "acc-1",
+          currency: "IDR",
+          date: "2026-09-26",
+          tags: ["cicilan"],
+          kind: "expense",
+          commitmentId: "bill-1",
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <TransactionsPanel
+        state={stateWithLinkedTx}
+        labels={{
+          all: "Semua",
+          type: "Tipe",
+          expense: "Pengeluaran",
+          incomeType: "Pemasukan",
+          category: "Kategori",
+          account: "Akun",
+          newest: "Terbaru",
+          largest: "Terbesar",
+          search: "Cari",
+          noData: "Tidak ada transaksi",
+          addTransaction: "Tambah Transaksi",
+        }}
+        categories={["Transport"]}
+        filteredTransactions={stateWithLinkedTx.transactions}
+        filter={{ search: "", kind: "all", category: "all", account: "all", sort: "newest" }}
+        setFilter={() => {}}
+        accountName={() => "BCA Tabungan"}
+        onAdd={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+
+    expect(html).toContain("Cicilan: Cicilan Motor");
+  });
+});
+
 

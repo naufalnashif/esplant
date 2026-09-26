@@ -74,6 +74,23 @@ export function TransactionsPanel({
 
   const goTo = (page: number) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
 
+  const getCommitmentLabel = (commitmentId?: string) => {
+    if (!commitmentId) return null;
+    const bill = state.bills?.find((b) => b.id === commitmentId);
+    if (bill) {
+      const isPaylater = bill.name.toLowerCase().includes("paylater");
+      const isInstallment = (bill.remainingInstallments !== undefined && bill.remainingInstallments > 0) || bill.name.toLowerCase().includes("cicil");
+      const typeLabel = isPaylater ? "PayLater" : isInstallment ? (isId ? "Cicilan" : "Installment") : (isId ? "Tagihan" : "Bill");
+      return `${typeLabel}: ${bill.name}`;
+    }
+    const debt = state.debts?.find((d) => d.id === commitmentId);
+    if (debt) {
+      const typeLabel = debt.type === "debt" ? (isId ? "Utang" : "Debt") : (isId ? "Piutang" : "Receivable");
+      return `${typeLabel}: ${debt.name}`;
+    }
+    return isId ? "Komitmen" : "Commitment";
+  };
+
   const options = (items: { value: string; label: string }[]) =>
     items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>);
   const selectClass = "h-10 min-w-0 rounded-lg border border-border bg-background px-3 text-xs font-semibold";
@@ -189,8 +206,13 @@ export function TransactionsPanel({
                 <div className="flex items-center justify-between gap-3 border-t border-border/60 px-3 py-2.5" data-testid={`transaction-card-details-${item.id}`}>
                   <div className="min-w-0 text-[11px] text-muted-foreground">
                     <p className="truncate"><span className="font-semibold text-foreground">{accountName(item.accountId)}</span> · {item.currency} {item.amount.toLocaleString(isId ? "id-ID" : "en-US")}</p>
-                    <p className="mt-0.5 flex flex-wrap gap-1">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1">
                       <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
+                      {item.commitmentId && getCommitmentLabel(item.commitmentId) && (
+                        <Badge variant="secondary" className="border border-primary/20 bg-primary/10 text-[10px] text-primary">
+                          {getCommitmentLabel(item.commitmentId)}
+                        </Badge>
+                      )}
                       {item.tags.map((tag) => <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>)}
                     </p>
                   </div>
@@ -258,7 +280,14 @@ export function TransactionsPanel({
                           {item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold">{item.description}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold">{item.description}</p>
+                            {item.commitmentId && getCommitmentLabel(item.commitmentId) && (
+                              <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                {getCommitmentLabel(item.commitmentId)}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-muted-foreground">{item.tags.join(" · ") || "untagged"}</p>
                         </div>
                       </div>
