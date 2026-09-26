@@ -80,3 +80,7 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+
+# Platform & test artifacts
+.emergent/
+test_reports/
