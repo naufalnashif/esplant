@@ -473,12 +473,12 @@ export function CommitmentsPanel({
       {/* ── Filter / View Switcher (TransactionsPanel Style) ── */}
       <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/75 p-3.5 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-4">
         {/* Tab Pills */}
-        <div className="flex rounded-xl bg-secondary/80 p-1">
+        <div className="flex rounded-xl bg-secondary/80 p-1 overflow-x-auto no-scrollbar max-w-full">
           <button
             type="button"
             data-testid="commitments-tab-all"
             onClick={() => setActiveTab("all")}
-            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-all sm:flex-initial ${
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               activeTab === "all"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -490,27 +490,31 @@ export function CommitmentsPanel({
             type="button"
             data-testid="commitments-tab-bills"
             onClick={() => setActiveTab("bills")}
-            className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all flex-1 sm:flex-initial ${
+            className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               activeTab === "bills"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <CreditCard size={13} className="text-amber-400" />
-            {isId ? "Tagihan & Cicilan" : "Bills & Installments"} ({state.bills.length})
+            <span className="sm:hidden">{isId ? "Tagihan" : "Bills"}</span>
+            <span className="hidden sm:inline">{isId ? "Tagihan & Cicilan" : "Bills & Installments"}</span>
+            ({state.bills.length})
           </button>
           <button
             type="button"
             data-testid="commitments-tab-debts"
             onClick={() => setActiveTab("debts")}
-            className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all flex-1 sm:flex-initial ${
+            className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               activeTab === "debts"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <HandCoins size={13} className="text-indigo-400" />
-            {isId ? "Utang & Piutang" : "Debts & Receivables"} ({state.debts.length})
+            <span className="sm:hidden">{isId ? "Utang" : "Debts"}</span>
+            <span className="hidden sm:inline">{isId ? "Utang & Piutang" : "Debts & Receivables"}</span>
+            ({state.debts.length})
           </button>
         </div>
 
@@ -1066,16 +1070,6 @@ export function CommitmentsPanel({
         )}
       </div>
 
-      {/* ── Floating Action Button (FAB) on Screen ── */}
-      <button
-        type="button"
-        data-testid="commitments-fab-button"
-        aria-label={isId ? "Tambah Komitmen" : "Add Commitment"}
-        onClick={() => setIsAddOpen(true)}
-        className="fixed bottom-[84px] right-4 z-30 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 lg:hidden"
-      >
-        <Plus size={24} />
-      </button>
 
       {/* ── Unified Add Commitment Modal with Category Switch ── */}
       {isAddOpen && (
@@ -1142,12 +1136,12 @@ export function CommitmentsPanel({
                   value={billForm.name}
                   onChange={(e) => setBillForm((v) => ({ ...v, name: e.target.value }))}
                   placeholder={isId ? "Contoh: Cicilan Motor, Netflix, Listrik PLN" : "e.g. Car Loan"}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+                  className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0 max-w-full">
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
                     {isId ? "Nominal per Bayar (Rp)" : "Amount"}
                   </label>
@@ -1159,17 +1153,17 @@ export function CommitmentsPanel({
                     value={billForm.amount}
                     onChange={(e) => setBillForm((v) => ({ ...v, amount: e.target.value }))}
                     placeholder="500000"
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
                   />
                 </div>
-                <div>
+                <div className="min-w-0 max-w-full">
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
                     {isId ? "Kategori" : "Category"}
                   </label>
                   <select
                     value={billForm.category}
                     onChange={(e) => setBillForm((v) => ({ ...v, category: e.target.value }))}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
                   >
                     {categoryOptions.map((c) => (
                       <option key={c} value={c}>
@@ -1180,8 +1174,8 @@ export function CommitmentsPanel({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0 max-w-full">
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
                     {isId ? "Jatuh Tempo" : "Due Date"}
                   </label>
@@ -1191,26 +1185,26 @@ export function CommitmentsPanel({
                     type="date"
                     value={billForm.nextDueDate}
                     onChange={(e) => setBillForm((v) => ({ ...v, nextDueDate: e.target.value }))}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none"
                   />
                 </div>
-                <div>
+                <div className="min-w-0 max-w-full">
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
                     {isId ? "Frekuensi" : "Frequency"}
                   </label>
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="flex gap-2 min-w-0 max-w-full">
                     <input
                       data-testid="bill-interval-input"
                       type="number"
                       min="1"
                       value={billForm.customInterval}
                       onChange={(e) => setBillForm((v) => ({ ...v, customInterval: e.target.value }))}
-                      className="h-10 rounded-lg border border-border bg-background px-2 text-xs text-center outline-none focus:border-primary"
+                      className="h-10 w-20 shrink-0 rounded-lg border border-border bg-background px-2 text-xs text-center outline-none focus:border-primary"
                     />
                     <select
                       value={billForm.frequency}
                       onChange={(e) => setBillForm((v) => ({ ...v, frequency: e.target.value as Bill["frequency"] }))}
-                      className="col-span-2 h-10 rounded-lg border border-border bg-background px-2 text-xs font-medium outline-none focus:border-primary"
+                      className="h-10 min-w-0 flex-1 max-w-full rounded-lg border border-border bg-background px-2 text-xs font-medium outline-none focus:border-primary"
                     >
                       <option value="daily">{isId ? "Hari" : "Days"}</option>
                       <option value="weekly">{isId ? "Minggu" : "Weeks"}</option>
@@ -1232,7 +1226,7 @@ export function CommitmentsPanel({
                   value={billForm.remainingInstallments}
                   onChange={(e) => setBillForm((v) => ({ ...v, remainingInstallments: e.target.value }))}
                   placeholder={isId ? "Contoh: 12 (cicilan 12x)" : "e.g. 12"}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+                  className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
                 />
               </div>
 
@@ -1259,7 +1253,7 @@ export function CommitmentsPanel({
                   value={debtForm.name}
                   onChange={(e) => setDebtForm((v) => ({ ...v, name: e.target.value }))}
                   placeholder={isId ? "Contoh: Pinjaman Renovasi Rumah, Talangan Tiket" : "e.g. Project Loan"}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+                  className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
                 />
               </div>
 
@@ -1277,12 +1271,12 @@ export function CommitmentsPanel({
                   value={debtForm.person}
                   onChange={(e) => setDebtForm((v) => ({ ...v, person: e.target.value }))}
                   placeholder={isId ? "Nama orang atau bank" : "e.g. John Doe / Bank BCA"}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+                  className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0 max-w-full">
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
                     {isId ? "Total Nominal (Rp)" : "Total Amount"}
                   </label>
@@ -1294,10 +1288,10 @@ export function CommitmentsPanel({
                     value={debtForm.total}
                     onChange={(e) => setDebtForm((v) => ({ ...v, total: e.target.value }))}
                     placeholder="10000000"
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary"
                   />
                 </div>
-                <div>
+                <div className="min-w-0 max-w-full">
                   <label className="mb-1 block text-xs font-semibold text-muted-foreground">
                     {isId ? "Tenggat Waktu" : "Due Date"}
                   </label>
@@ -1306,7 +1300,7 @@ export function CommitmentsPanel({
                     type="date"
                     value={debtForm.dueDate}
                     onChange={(e) => setDebtForm((v) => ({ ...v, dueDate: e.target.value }))}
-                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none"
                   />
                 </div>
               </div>

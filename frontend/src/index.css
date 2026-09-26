@@ -283,7 +283,14 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
 
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-rise-in, .animate-pulse-soft, .animate-draw-line, .animate-marquee, .animate-sheet-up, .animate-drawer-in { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+

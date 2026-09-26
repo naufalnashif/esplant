@@ -129,7 +129,7 @@ export function TransactionsPanel({
               )}
             </button>
           </div>
-          <div className={`${showFilters ? "grid" : "hidden"} grid-cols-2 gap-2 md:contents`} data-testid="transaction-filter-group">
+          <div className={`${showFilters ? "grid" : "hidden"} grid-cols-1 gap-2 sm:grid-cols-2 md:contents`} data-testid="transaction-filter-group">
             <select data-testid="transaction-kind-filter" value={filter.kind} onChange={(e) => setFilter((v) => ({ ...v, kind: e.target.value }))} className={selectClass}>
               {options([{ value: "all", label: `${labels.all} · ${labels.type}` }, { value: "expense", label: labels.expense }, { value: "income", label: labels.incomeType }])}
             </select>

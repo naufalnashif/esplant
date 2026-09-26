@@ -1378,33 +1378,33 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "expense" ? "bg-card text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
           <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <label className="col-span-2 block">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.amount} *</span>
-            <div className="flex gap-2">
-              <input data-testid="transaction-amount-input" required min="1" type="number" name="amount" value={form.amount} onChange={onChange} placeholder="0" className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary" />
-              <select data-testid="transaction-currency-select" name="currency" value={form.currency} onChange={onChange} className="h-11 rounded-lg border border-border bg-background px-3 text-xs font-bold">{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select>
+            <div className="flex gap-2 min-w-0 max-w-full">
+              <input data-testid="transaction-amount-input" required min="1" type="number" name="amount" value={form.amount} onChange={onChange} placeholder="0" className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary max-w-full" />
+              <select data-testid="transaction-currency-select" name="currency" value={form.currency} onChange={onChange} className="h-11 shrink-0 rounded-lg border border-border bg-background px-3 text-xs font-bold">{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select>
             </div>
           </label>
-          <label className="col-span-2 block">
+          <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.description} *</span>
-            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, gaji, PLN token" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, gaji, PLN token" className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
-          <label className="block min-w-0">
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.category}</span>
-            <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{categories.map((category) => <option key={category}>{category}</option>)}</select>
+            <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary">{categories.map((category) => <option key={category}>{category}</option>)}</select>
           </label>
-          <label className="block min-w-0">
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.account}</span>
-            <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
+            <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
           </label>
-          <label className="col-span-2 block min-w-0 sm:col-span-1">
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.date}</span>
-            <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-xs" />
+            <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none" />
           </label>
-          <label className="col-span-2 block min-w-0 sm:col-span-1">
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.tags}</span>
-            <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+            <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
         </div>
       </form>

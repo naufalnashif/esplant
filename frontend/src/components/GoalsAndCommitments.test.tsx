@@ -85,7 +85,7 @@ const mockState: FinanceState = {
 };
 
 describe("GoalsPanel", () => {
-  it("renders Goals panel with title 'Goals', KPI, and FAB", () => {
+  it("renders Goals panel with title 'Goals', KPI, and desktop add button", () => {
     const html = renderToStaticMarkup(
       <GoalsPanel state={mockState} onSave={() => {}} onCommit={() => {}} />
     );
@@ -93,21 +93,25 @@ describe("GoalsPanel", () => {
     // Title & structure
     expect(html).toContain("Goals");
     expect(html).toContain("data-testid=\"goals-add-button\"");
-    expect(html).toContain("data-testid=\"goals-fab-button\"");
 
-    // KPI cards
+    // Single FAB architecture: verify in-panel duplicate FAB is removed
+    expect(html).not.toContain("data-testid=\"goals-fab-button\"");
+
+    // Savings KPI cards
     expect(html).toContain("data-testid=\"total-savings-kpi\"");
     expect(html).toContain("data-testid=\"target-savings-kpi\"");
-    expect(html).toContain("data-testid=\"wishlist-kpi\"");
 
-    // Goals & Wishlist items
+    // Wishlist removed: verify wishlist-kpi is not rendered
+    expect(html).not.toContain("data-testid=\"wishlist-kpi\"");
+
+    // Goals items rendered
     expect(html).toContain("Dana Darurat");
-    expect(html).toContain("MacBook Pro M3");
+    expect(html).not.toContain("MacBook Pro M3");
   });
 });
 
 describe("CommitmentsPanel", () => {
-  it("renders Komitmen panel with title 'Komitmen', KPI, and FAB", () => {
+  it("renders Komitmen panel with title 'Komitmen', KPI, and desktop add button", () => {
     const html = renderToStaticMarkup(
       <CommitmentsPanel state={mockState} onSave={() => {}} />
     );
@@ -115,7 +119,9 @@ describe("CommitmentsPanel", () => {
     // Title & structure
     expect(html).toContain("Komitmen");
     expect(html).toContain("data-testid=\"commitments-add-button\"");
-    expect(html).toContain("data-testid=\"commitments-fab-button\"");
+
+    // Single FAB architecture: verify in-panel duplicate FAB is removed
+    expect(html).not.toContain("data-testid=\"commitments-fab-button\"");
 
     // KPI cards
     expect(html).toContain("data-testid=\"kpi-total-debt\"");

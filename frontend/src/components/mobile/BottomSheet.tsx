@@ -50,11 +50,11 @@ export function BottomSheet({
     >
       <button type="button" aria-label="Tutup" onClick={onClose} className="absolute inset-0 cursor-default" data-testid={`${testid}-backdrop`} />
       <div
-        className={`animate-sheet-up relative flex max-h-[85svh] w-[calc(100%-16px)] flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-2xl sm:max-h-[92vh] sm:w-full sm:rounded-2xl ${maxWidth}`}
+        className={`animate-sheet-up relative flex max-h-[88svh] w-full max-w-full flex-col overflow-x-hidden overflow-y-hidden rounded-t-3xl border border-border bg-card shadow-2xl sm:max-h-[92vh] sm:w-full sm:rounded-2xl ${maxWidth}`}
         data-testid={`${testid}-panel`}
       >
         <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-border sm:hidden" aria-hidden="true" />
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border/60 px-5 pb-3 pt-3 sm:border-0 sm:px-7 sm:pb-2 sm:pt-6">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border/60 px-4 pb-3 pt-3 sm:border-0 sm:px-7 sm:pb-2 sm:pt-6">
           <div className="min-w-0">
             {eyebrow && <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-primary sm:mb-2">{eyebrow}</p>}
             <h2 className="font-heading text-lg font-extrabold leading-tight sm:text-2xl">{title}</h2>
@@ -65,12 +65,12 @@ export function BottomSheet({
             data-testid={`${testid}-close-button`}
             onClick={onClose}
             aria-label="Tutup"
-            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary sm:size-8"
+            className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary sm:size-8"
           >
             <X size={17} />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-7 sm:py-5" data-testid={`${testid}-scroll-area`}>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-4 sm:px-7 sm:py-5 max-w-full" data-testid={`${testid}-scroll-area`}>
           {children}
         </div>
         {footer && (
