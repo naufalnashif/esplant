@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { FileSpreadsheet, X } from "lucide-react";
 import { Dialog, DialogDescription, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
+import { BACKDROP } from "@/lib/constants";
 import "./connect-dialog.css";
 
 export const ConnectDialogFrame = ({ open, onClose, children }: {
@@ -42,7 +43,7 @@ export const ConnectDialogFrame = ({ open, onClose, children }: {
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose(); }}>
       <DialogPortal>
-        <DialogOverlay className="bg-black/55 backdrop-blur-sm" data-testid="connect-dialog-overlay" />
+        <DialogOverlay className={BACKDROP.dialogOverlay} data-testid="connect-dialog-overlay" />
         <div ref={viewportRef} className="connect-sheet-viewport" data-testid="connect-dialog-viewport">
           <DialogPrimitive.Popup
             initialFocus={false}

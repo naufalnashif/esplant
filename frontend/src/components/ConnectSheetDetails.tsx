@@ -1,6 +1,7 @@
 import { ChevronDown, Copy, ExternalLink, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { APP_LINKS } from "@/lib/constants";
 
 export const ConnectSheetDetails = ({ mode }: { mode: "existing" | "new" }) => (
   <details className="connect-sheet-details mt-3" data-testid="connect-details">
@@ -49,7 +50,7 @@ export const ConnectSetupNotice = ({ configured, authFailed, appOrigin }: {
               toast.success("Origin disalin.");
             }}><Copy size={12} /> Salin</Button>
           </div>}
-          <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" data-testid="connect-google-console-link"
+          <a href={APP_LINKS.GOOGLE_CLOUD_CONSOLE} target="_blank" rel="noreferrer" data-testid="connect-google-console-link"
             className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs font-bold text-primary hover:underline">
             <span>Buka Google Cloud Console</span><ExternalLink size={11} className="shrink-0" />
           </a>

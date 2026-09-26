@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { BACKDROP } from "@/lib/constants";
 
 /** Mobile: bottom-sheet (max 85% tinggi, sticky header/footer, scroll internal). ≥sm: centered modal. */
 export function BottomSheet({
@@ -41,7 +42,7 @@ export function BottomSheet({
   // this sheet appear anchored to the panel's scroll position instead of the screen on desktop.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-4"
+      className={`fixed inset-0 z-50 flex items-end justify-center ${BACKDROP.overlay} sm:items-center sm:p-4`}
       role="dialog"
       aria-modal="true"
       aria-label={title}
