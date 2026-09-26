@@ -56,30 +56,30 @@ export function KpiCard({
 }: KpiCardProps) {
   return (
     <Card
-      className={`group relative min-w-0 overflow-hidden border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg ${onClick ? "cursor-pointer" : ""} ${className}`}
+      className={`group relative min-w-0 overflow-hidden border-border/70 bg-card/75 p-3.5 sm:p-5 shadow-sm backdrop-blur-xl transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg ${onClick ? "cursor-pointer" : ""} ${className}`}
       data-testid={testid}
       onClick={onClick}
     >
-      <div className="mb-4 flex items-center justify-between">
-        <div className={`grid size-10 place-items-center rounded-xl ${TONE_CLASSES[tone]}`}>
+      <div className="mb-2.5 sm:mb-4 flex items-center justify-between">
+        <div className={`grid size-8 sm:size-10 place-items-center rounded-lg sm:rounded-xl [&>svg]:size-4 sm:[&>svg]:size-5 ${TONE_CLASSES[tone]}`}>
           {icon}
         </div>
         {badge && (
-          <Badge variant="outline" className={`text-[10px] ${badgeClass ?? ""}`}>
+          <Badge variant="outline" className={`text-[9px] sm:text-[10px] px-1.5 py-0.5 ${badgeClass ?? ""}`}>
             {badge}
           </Badge>
         )}
       </div>
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="truncate text-[11px] sm:text-xs font-semibold text-muted-foreground">{label}</p>
       <p
-        className={`mt-1 truncate font-data text-xl font-bold tracking-tight sm:text-2xl ${valueClass ?? ""}`}
+        className={`mt-0.5 sm:mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-2xl ${valueClass ?? ""}`}
         data-testid={testid ? `${testid}-value` : undefined}
       >
         {value}
       </p>
-      <p className="mt-2 text-[11px] text-muted-foreground">{note}</p>
+      <p className="mt-1 sm:mt-2 truncate text-[10px] sm:text-[11px] text-muted-foreground">{note}</p>
       {/* Subtle glow orb that expands on hover */}
-      <div className="absolute -right-8 -top-8 size-24 rounded-full bg-primary/5 blur-2xl transition-transform duration-300 group-hover:scale-150" />
+      <div className="absolute -right-8 -top-8 size-20 sm:size-24 rounded-full bg-primary/5 blur-2xl transition-transform duration-300 group-hover:scale-150 pointer-events-none" />
     </Card>
   );
 }

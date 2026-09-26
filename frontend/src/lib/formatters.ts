@@ -25,7 +25,7 @@ export const formatMoney = (
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
       });
-      return `${sign}${prefix}${formattedNum} ${isId ? "Triliun" : "T"}`;
+      return `${sign}${prefix}${formattedNum} ${isId ? "T" : "T"}`;
     }
 
     if (absVal >= 1_000_000_000) {
@@ -34,7 +34,7 @@ export const formatMoney = (
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
       });
-      return `${sign}${prefix}${formattedNum} ${isId ? "Miliar" : "B"}`;
+      return `${sign}${prefix}${formattedNum} ${isId ? "M" : "B"}`;
     }
 
     if (absVal >= 1_000_000) {
@@ -43,13 +43,20 @@ export const formatMoney = (
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
       });
-      return `${sign}${prefix}${formattedNum} ${isId ? "Juta" : "M"}`;
+      return `${sign}${prefix}${formattedNum} ${isId ? "Jt" : "M"}`;
     }
   }
 
-  return new Intl.NumberFormat(isId ? "id-ID" : "en-US", {
+  const formatted = new Intl.NumberFormat(isId ? "id-ID" : "en-US", {
     style: "currency",
     currency,
     maximumFractionDigits: currency === "IDR" ? 0 : 2,
   }).format(value);
+
+  // Normalize IDR formatting: ensure consistent 'Rp ' with space (some browsers emit 'Rp' or non-breaking space)
+  if (currency === "IDR") {
+    return formatted.replace(/^(Rp|RP)\s*/i, "Rp ").replace(/\u00a0/g, " ");
+  }
+
+  return formatted;
 };

@@ -60,7 +60,7 @@ const currentMonth = new Date().toISOString().slice(0, 7);
 
 const copy = {
   id: {
-    overview: "Ringkasan", transactions: "Transaksi", commitments: "Komitmen", goals: "Tujuan & wishlist", settings: "Pengaturan",
+    overview: "Ringkasan", transactions: "Transaksi", commitments: "Komitmen", goals: "Goals", settings: "Pengaturan",
     hello: "Selamat datang kembali", command: "Satu ruang tenang untuk keputusan uang yang lebih baik.", accounts: "Akun & saldo", manageAccounts: "Kelola bank, kartu kredit, e-wallet, cash, dan investasi dalam satu money map.", addAccount: "Tambah akun", bankName: "Nama akun / bank", accountType: "Tipe akun", brand: "Brand", startingBalance: "Saldo awal", adjust: "Sesuaikan saldo", remove: "Hapus", totalAcross: "Total seluruh akun",
     totalBalance: "Total saldo", spent: "Pengeluaran bulan ini", income: "Pemasukan bulan ini", net: "Arus bersih", committed: "Komitmen aktif",
     vsLast: "vs bulan lalu", addTransaction: "Tambah transaksi", recent: "Aktivitas terbaru", seeAll: "Lihat semua",
@@ -76,7 +76,7 @@ const copy = {
   enabled: "Aktif", disabled: "Nonaktif", reset: "Reset data demo", notifications: "Pengingat browser", monthly: "Bulanan", weekly: "Mingguan", daily: "Harian", budgets: "Budget guardrails", budgetSubtitle: "Batas kategori dengan insight otomatis", safe: "Aman", warning: "Perhatian", over: "Melewati batas", setBudget: "Atur budget", monthlyLimit: "Batas bulanan", insightWithin: "ruang tersisa", insightOver: "melewati batas",
   },
   en: {
-    overview: "Overview", transactions: "Transactions", commitments: "Commitments", goals: "Goals & wishlist", settings: "Settings",
+    overview: "Overview", transactions: "Transactions", commitments: "Commitments", goals: "Goals", settings: "Settings",
     hello: "Welcome back", command: "One calm space for better money decisions.", accounts: "Accounts & balances", manageAccounts: "Manage banks, credit cards, e-wallets, cash, and investments in one money map.", addAccount: "Add account", bankName: "Account / bank name", accountType: "Account type", brand: "Brand", startingBalance: "Starting balance", adjust: "Adjust balance", remove: "Remove", totalAcross: "Total across accounts",
     totalBalance: "Total balance", spent: "Spent this month", income: "Income this month", net: "Net flow", committed: "Active commitments",
     vsLast: "vs last month", addTransaction: "Add transaction", recent: "Recent activity", seeAll: "See all",
@@ -124,6 +124,8 @@ export default function Home() {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showEraseModal, setShowEraseModal] = useState(false);
+  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [showAddCommitmentModal, setShowAddCommitmentModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [profileDraft, setProfileDraft] = useState("");
@@ -664,8 +666,23 @@ export default function Home() {
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={(accountId) => state.accounts.find((account) => account.id === accountId)?.name ?? "—"} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
-            {tab === "commitments" && <CommitmentsPanel state={state} onSave={save} />}
-            {tab === "goals" && <GoalsPanel state={state} onSave={save} onCommit={commitSavings} />}
+            {tab === "commitments" && (
+              <CommitmentsPanel
+                state={state}
+                onSave={save}
+                showAddModalFromParent={showAddCommitmentModal}
+                onCloseAddModalFromParent={() => setShowAddCommitmentModal(false)}
+              />
+            )}
+            {tab === "goals" && (
+              <GoalsPanel
+                state={state}
+                onSave={save}
+                onCommit={commitSavings}
+                showAddModalFromParent={showAddGoalModal}
+                onCloseAddModalFromParent={() => setShowAddGoalModal(false)}
+              />
+            )}
             {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
             {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
@@ -674,7 +691,32 @@ export default function Home() {
           {/* WishlistManager removed — GoalsPanel now manages wishlist inline */}
         </main>
       </div>
-      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} actions={moreActions} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
+      <MobileNav
+        tab={tab}
+        setTab={setTab}
+        main={navItems.slice(0, 4)}
+        more={navItems.slice(4)}
+        actions={moreActions}
+        moreLabel={state.locale === "id" ? "Lainnya" : "More"}
+        moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."}
+        showFab={["overview", "transactions", "commitments", "goals"].includes(tab)}
+        onAdd={() => {
+          if (tab === "goals") {
+            setShowAddGoalModal(true);
+          } else if (tab === "commitments") {
+            setShowAddCommitmentModal(true);
+          } else {
+            openAddTransaction();
+          }
+        }}
+        addLabel={
+          tab === "goals"
+            ? (state.locale === "id" ? "Tambah Goal" : "Add Goal")
+            : tab === "commitments"
+            ? (state.locale === "id" ? "Tambah Komitmen" : "Add Commitment")
+            : t.addTransaction
+        }
+      />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
       {showFeedback && <FeedbackDialog open onOpenChange={setShowFeedback} />}
