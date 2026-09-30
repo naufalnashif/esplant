@@ -18,6 +18,7 @@ export function MobileNav<K extends string>({
   showFab,
   onAdd,
   addLabel,
+  onOpenProfile,
 }: {
   tab: K;
   setTab: (tab: K) => void;
@@ -29,6 +30,7 @@ export function MobileNav<K extends string>({
   showFab: boolean;
   onAdd: () => void;
   addLabel: string;
+  onOpenProfile?: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = more.some((item) => item.key === tab);
@@ -61,7 +63,19 @@ export function MobileNav<K extends string>({
             </button>
           );
         })}
-        <button type="button" data-testid="mobile-nav-more-button" onClick={() => setMoreOpen(true)} className={itemClass(moreActive)} aria-haspopup="dialog">
+        <button
+          type="button"
+          data-testid="mobile-nav-more-button"
+          onClick={() => {
+            if (onOpenProfile) {
+              onOpenProfile();
+            } else {
+              setMoreOpen(true);
+            }
+          }}
+          className={itemClass(moreActive)}
+          aria-haspopup="dialog"
+        >
           <MoreHorizontal size={19} />
           <span className="max-w-full truncate px-0.5">{moreLabel}</span>
         </button>

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ArrowRight, Banknote, ChevronRight, CreditCard, Landmark, Smartphone, TrendingUp, WalletCards } from "lucide-react";
+import { ArrowRight, Banknote, ChevronRight, CreditCard, Landmark, Smartphone, Target, TrendingUp, WalletCards } from "lucide-react";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export interface AccountsBreakdownModalProps {
   onClose: () => void;
   state: FinanceState;
   totalBalance: number;
-  onNavigate: (tab: "accounts") => void;
+  onNavigate: (tab: "accounts" | "goals") => void;
 }
 
 const ACCOUNT_TYPE_LABELS: Record<Account["type"], { id: string; en: string }> = {
@@ -80,6 +80,14 @@ export function AccountsBreakdownModal({
       return bVal - aVal;
     });
   }, [state.accounts, state.exchangeRates]);
+
+  const displayRate = state.exchangeRates[state.baseCurrency] || 1;
+  const totalSavings = useMemo(() => {
+    return (state.savings || []).reduce(
+      (sum, g) => sum + toBase(g.saved, g.currency || state.baseCurrency, state.exchangeRates),
+      0
+    ) / displayRate;
+  }, [state.savings, state.exchangeRates, state.baseCurrency, displayRate]);
 
   return (
     <BottomSheet
@@ -153,7 +161,7 @@ export function AccountsBreakdownModal({
         </div>
 
         {/* Accounts List or Empty State */}
-        {sortedAccounts.length === 0 ? (
+        {sortedAccounts.length === 0 && (!state.savings || state.savings.length === 0) ? (
           <div
             className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-secondary/20 p-8 text-center"
             data-testid="accounts-modal-empty-state"
@@ -179,6 +187,57 @@ export function AccountsBreakdownModal({
           </div>
         ) : (
           <div className="space-y-2" data-testid="accounts-modal-list">
+            {state.savings && state.savings.length > 0 && (
+              <div
+                data-testid="accounts-modal-item-savings"
+                onClick={() => {
+                  onClose();
+                  onNavigate("goals");
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onClose();
+                    onNavigate("goals");
+                  }
+                }}
+                className="group flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-teal-500/35 bg-teal-500/5 p-3.5 transition-all hover:border-teal-500/60 hover:bg-teal-500/10 active:scale-[0.99]"
+                title={isId ? "Klik untuk mengelola tabungan ini di Dashboard Goals" : "Click to manage savings in Goals Dashboard"}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal-500/12 text-teal-400 border border-teal-500/25">
+                    <Target size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-bold text-foreground transition-colors group-hover:text-teal-400">
+                        {isId ? "Total Tabungan (Goals)" : "Total Savings (Goals)"}
+                      </p>
+                      <Badge variant="outline" className="shrink-0 text-[10px] py-0 px-1.5 border-teal-500/40 text-teal-400">
+                        {isId ? "Khusus Tabungan" : "Savings Only"}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {state.savings.length} {isId ? "target impian aktif · Non-transaksi" : "active goals · Non-transactional"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <div className="text-right">
+                    <p className="font-data text-sm font-extrabold text-teal-400">
+                      {formatMoney(totalSavings, state.baseCurrency, state.locale)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {isId ? "Terkunci di Goals" : "Locked in Goals"}
+                    </p>
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground/40 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-teal-400" />
+                </div>
+              </div>
+            )}
             {sortedAccounts.map((account) => {
               const { icon: Icon, className: iconClass } = getAccountIconAndStyle(account.type);
               const isDifferentCurrency = account.currency !== state.baseCurrency;

@@ -4,8 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#1a1a1a" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- Apple iOS PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="_self.manage" />
     <meta name="description" content="_self.manage — pelacak keuangan pribadi yang menyimpan data di Google Spreadsheet Anda sendiri atau di browser. Money, made clear." />
     <meta name="google-site-verification" content="e_YP7DpSg83SxvfD4RQ_PWS92suU6_iQUkDOq7jo6Mo" />
 
@@ -17,8 +22,7 @@
     <meta name="twitter:description" content="Kelola keuangan pribadi di spreadsheet Anda sendiri. Tanpa akun, tanpa server, data tetap milik Anda." />
 
     <title>_self.manage — Money, made clear</title>
-    <!-- Google API & GIS Client -->
-    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <!-- Google Identity Services (GIS) — token-based OAuth -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>

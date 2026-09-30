@@ -27,6 +27,7 @@ import { readState, isGoogleConfigured } from "@/lib/googleSheets";
 import { pushNow } from "@/lib/dataStore";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 import * as XLSX from "xlsx";
+import { SectionHeading } from "@/components/shared";
 
 type SettingsSubTab = "general" | "data";
 
@@ -215,10 +216,10 @@ function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (n
 
 export function SettingsPanel({
   state,
-  profileDraft,
-  setProfileDraft,
+  profileDraft: _profileDraft,
+  setProfileDraft: _setProfileDraft,
   updateState,
-  onSaveProfile,
+  onSaveProfile: _onSaveProfile,
   onJson,
   onXlsx,
   onImport,
@@ -228,10 +229,10 @@ export function SettingsPanel({
   save,
 }: {
   state: FinanceState;
-  profileDraft: string;
-  setProfileDraft: (value: string) => void;
+  profileDraft?: string;
+  setProfileDraft?: (value: string) => void;
   updateState: (updates: Partial<FinanceState>) => void;
-  onSaveProfile: () => void;
+  onSaveProfile?: () => void;
   onJson: () => void;
   onXlsx: () => void;
   onImport: (file: File) => void;
@@ -353,18 +354,15 @@ export function SettingsPanel({
 
   return (
     <div className="animate-rise-in space-y-6">
-      {/* Header */}
-      <div>
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Control room / settings</p>
-        <h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">
-          {isId ? "Pengaturan _self.manage" : "_self.manage Settings"}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          {isId
+      <SectionHeading
+        eyebrow="Control room / settings"
+        title={isId ? "Pengaturan _self.manage" : "_self.manage Settings"}
+        description={
+          isId
             ? "Pusat kendali aplikasi: kelola profil lokal, kategori transaksi, cadangan data, dan kesehatan database."
-            : "Central control room: manage profile, categories, data backups, and database integrity."}
-        </p>
-      </div>
+            : "Central control room: manage profile, categories, data backups, and database integrity."
+        }
+      />
 
       {/* Sub-tabs Navigation */}
       <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/70 bg-card/60 p-1.5 max-w-2xl">
@@ -410,21 +408,20 @@ export function SettingsPanel({
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-muted-foreground">{isId ? "Nama Panggilan" : "Nickname"}</span>
-                <div className="flex gap-2">
-                  <input
-                    data-testid="profile-name-input"
-                    value={profileDraft}
-                    onChange={(event) => setProfileDraft(event.target.value)}
-                    placeholder={isId ? "Nama kamu" : "Your name"}
-                    className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
-                  />
-                  <Button data-testid="profile-save-button" onClick={onSaveProfile} size="sm">
-                    {isId ? "Simpan" : "Save"}
-                  </Button>
+              <div className="flex items-center justify-between rounded-xl border border-border/70 bg-background/50 p-3.5">
+                <div className="min-w-0">
+                  <span className="block text-xs font-semibold text-muted-foreground">{isId ? "Nama Profil" : "Profile Name"}</span>
+                  <p className="font-heading font-bold text-sm text-foreground mt-0.5 truncate" data-testid="settings-profile-name">
+                    {state.profileName || "_self.manage"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {isId ? "Dikelola di menu Profil (pojok kanan atas)" : "Managed in Profile menu (top-right)"}
+                  </p>
                 </div>
-              </label>
+                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary font-heading font-extrabold text-sm">
+                  {(state.profileName || "S").slice(0, 1).toUpperCase()}
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { FinanceState, Transaction } from "@/lib/localDb";
 import type * as React from "react";
+import { SectionHeading, ShowMoreButton, EmptyState } from "@/components/shared";
 
 interface TransactionLabels {
   all: string; type: string; expense: string; incomeType: string;
@@ -73,6 +74,23 @@ export function TransactionsPanel({
 
   const goTo = (page: number) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
 
+  const getCommitmentLabel = (commitmentId?: string) => {
+    if (!commitmentId) return null;
+    const bill = state.bills?.find((b) => b.id === commitmentId);
+    if (bill) {
+      const isPaylater = bill.name.toLowerCase().includes("paylater");
+      const isInstallment = (bill.remainingInstallments !== undefined && bill.remainingInstallments > 0) || bill.name.toLowerCase().includes("cicil");
+      const typeLabel = isPaylater ? "PayLater" : isInstallment ? (isId ? "Cicilan" : "Installment") : (isId ? "Tagihan" : "Bill");
+      return `${typeLabel}: ${bill.name}`;
+    }
+    const debt = state.debts?.find((d) => d.id === commitmentId);
+    if (debt) {
+      const typeLabel = debt.type === "debt" ? (isId ? "Utang" : "Debt") : (isId ? "Piutang" : "Receivable");
+      return `${typeLabel}: ${debt.name}`;
+    }
+    return isId ? "Komitmen" : "Commitment";
+  };
+
   const options = (items: { value: string; label: string }[]) =>
     items.map((item) => <option key={item.value} value={item.value}>{item.label}</option>);
   const selectClass = "h-10 min-w-0 rounded-lg border border-border bg-background px-3 text-xs font-semibold";
@@ -87,18 +105,16 @@ export function TransactionsPanel({
 
   return (
     <div className="animate-rise-in">
-      <div className="mb-5 flex flex-col justify-between gap-4 sm:mb-6 sm:flex-row sm:items-end">
-        <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Money trail / 02</p>
-          <h1 className="font-heading text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">Transactions</h1>
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:mt-2">
-            Satu ledger yang mudah dicari, difilter, dan dikelola.
-          </p>
-        </div>
-        <Button data-testid="transactions-add-button" onClick={onAdd} className="hidden gap-2 md:inline-flex">
-          <Plus size={17} />{labels.addTransaction}
-        </Button>
-      </div>
+      <SectionHeading
+        eyebrow="Money trail / 02"
+        title="Transactions"
+        description={isId ? "Satu ledger yang mudah dicari, difilter, dan dikelola." : "One ledger, easily searched, filtered, and managed."}
+        action={
+          <Button data-testid="transactions-add-button" onClick={onAdd} className="hidden gap-2 md:inline-flex">
+            <Plus size={17} />{labels.addTransaction}
+          </Button>
+        }
+      />
 
       {/* Filter Bar */}
       <div className="mb-4 rounded-2xl border border-border/70 bg-card/75 p-3 backdrop-blur-xl sm:mb-5 sm:p-5">
@@ -130,7 +146,7 @@ export function TransactionsPanel({
               )}
             </button>
           </div>
-          <div className={`${showFilters ? "grid" : "hidden"} grid-cols-2 gap-2 md:contents`} data-testid="transaction-filter-group">
+          <div className={`${showFilters ? "grid" : "hidden"} grid-cols-1 gap-2 sm:grid-cols-2 md:contents`} data-testid="transaction-filter-group">
             <select data-testid="transaction-kind-filter" value={filter.kind} onChange={(e) => setFilter((v) => ({ ...v, kind: e.target.value }))} className={selectClass}>
               {options([{ value: "all", label: `${labels.all} · ${labels.type}` }, { value: "expense", label: labels.expense }, { value: "income", label: labels.incomeType }])}
             </select>
@@ -145,15 +161,25 @@ export function TransactionsPanel({
             </select>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
-          <ListFilter size={14} />
-          {filteredTransactions.length} transactions
+        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] font-semibold text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <ListFilter size={14} className="shrink-0" />
+            <span>
+              {filteredTransactions.length} {isId ? "transaksi" : "transactions"}
+            </span>
+          </span>
+          {/* Desktop only: pagination limit note */}
           {filteredTransactions.length > maxVisibleTotal && (
-            <span className="text-amber-400">
+            <span className="hidden text-amber-400 md:inline">
               · {isId ? `Menampilkan ${maxVisibleTotal} terbaru (maks. ${MAX_PAGES} halaman)` : `Showing latest ${maxVisibleTotal} (max ${MAX_PAGES} pages)`}
             </span>
           )}
-          · IndexedDB local
+          {/* Mobile only: preview count context */}
+          {!showAll && filteredTransactions.length > MOBILE_PREVIEW && (
+            <span className="text-muted-foreground/80 md:hidden">
+              · {isId ? `Menampilkan ${mobileItems.length} terbaru` : `Showing ${mobileItems.length} latest`}
+            </span>
+          )}
         </div>
       </div>
 
@@ -180,8 +206,13 @@ export function TransactionsPanel({
                 <div className="flex items-center justify-between gap-3 border-t border-border/60 px-3 py-2.5" data-testid={`transaction-card-details-${item.id}`}>
                   <div className="min-w-0 text-[11px] text-muted-foreground">
                     <p className="truncate"><span className="font-semibold text-foreground">{accountName(item.accountId)}</span> · {item.currency} {item.amount.toLocaleString(isId ? "id-ID" : "en-US")}</p>
-                    <p className="mt-0.5 flex flex-wrap gap-1">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1">
                       <Badge variant="outline" className="text-[10px]">{item.category}</Badge>
+                      {item.commitmentId && getCommitmentLabel(item.commitmentId) && (
+                        <Badge variant="secondary" className="border border-primary/20 bg-primary/10 text-[10px] text-primary">
+                          {getCommitmentLabel(item.commitmentId)}
+                        </Badge>
+                      )}
                       {item.tags.map((tag) => <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>)}
                     </p>
                   </div>
@@ -195,17 +226,32 @@ export function TransactionsPanel({
           );
         })}
         {hiddenCount > 0 && (
-          <button type="button" data-testid="transactions-show-all-button" onClick={() => setShowAll(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 text-xs font-bold text-primary">
-            {isId ? `Lihat semua transaksi (${filteredTransactions.length})` : `Show all transactions (${filteredTransactions.length})`}
-          </button>
+          <ShowMoreButton
+            expanded={false}
+            onToggle={() => setShowAll(true)}
+            count={filteredTransactions.length}
+            label={{
+              show: isId ? "Lihat semua transaksi" : "Show all transactions",
+              hide: "",
+            }}
+            testid="transactions-show-all-button"
+          />
         )}
         {showAll && filteredTransactions.length > MOBILE_PREVIEW && (
-          <button type="button" data-testid="transactions-show-less-button" onClick={() => setShowAll(false)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-border/70 text-xs font-bold text-muted-foreground">
-            {isId ? "Tampilkan lebih sedikit" : "Show less"}
-          </button>
+          <ShowMoreButton
+            expanded
+            onToggle={() => setShowAll(false)}
+            label={{
+              show: "",
+              hide: isId ? "Tampilkan lebih sedikit" : "Show less",
+            }}
+            testid="transactions-show-less-button"
+          />
         )}
         {filteredTransactions.length === 0 && (
-          <div className="rounded-2xl border border-border/70 bg-card/75 px-5 py-14 text-center text-sm text-muted-foreground">{labels.noData}</div>
+          <div className="rounded-2xl border border-border/70 bg-card/75 px-5">
+            <EmptyState message={labels.noData} size="lg" />
+          </div>
         )}
       </div>
 
@@ -234,7 +280,14 @@ export function TransactionsPanel({
                           {item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold">{item.description}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold">{item.description}</p>
+                            {item.commitmentId && getCommitmentLabel(item.commitmentId) && (
+                              <span className="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                {getCommitmentLabel(item.commitmentId)}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-muted-foreground">{item.tags.join(" · ") || "untagged"}</p>
                         </div>
                       </div>

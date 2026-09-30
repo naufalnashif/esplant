@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const TOKEN_KEY = "selfmanage-google-token";
 const store: Record<string, string> = {};
 
-const sessionStorageStub = {
+const storageStub = {
   getItem: (key: string) => store[key] ?? null,
   setItem: (key: string, value: string) => {
     store[key] = value;
@@ -14,8 +14,10 @@ const sessionStorageStub = {
 };
 
 const loadModule = async () => {
+  vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "mock-client-id.apps.googleusercontent.com");
   store[TOKEN_KEY] = JSON.stringify({ access_token: "test-token", expires_at: Date.now() + 3_600_000 });
-  vi.stubGlobal("sessionStorage", sessionStorageStub);
+  vi.stubGlobal("sessionStorage", storageStub);
+  vi.stubGlobal("localStorage", storageStub);
   vi.stubGlobal("navigator", { onLine: true });
   vi.resetModules();
   return import("./googleSheets");

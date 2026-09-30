@@ -150,4 +150,36 @@ describe("AccountsBreakdownModal", () => {
     expect(html).toContain("text-red-400");
     expect(html).toContain("Mega Card");
   });
+
+  it("renders Total Tertabung as a non-transactional savings account when savings exist", () => {
+    const stateWithSavings: FinanceState = {
+      ...mockState,
+      savings: [
+        {
+          id: "goal-1",
+          name: "Dana Darurat",
+          target: 20000000,
+          saved: 5000000,
+          currency: "IDR",
+          targetDate: "2026-12-31",
+          color: "#14b8a6",
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      <AccountsBreakdownModal
+        open={true}
+        onClose={() => {}}
+        state={stateWithSavings}
+        totalBalance={6850000}
+        onNavigate={() => {}}
+      />
+    );
+
+    expect(html).toContain("data-testid=\"accounts-modal-item-savings\"");
+    expect(html).toContain("Total Tabungan (Goals)");
+    expect(html).toContain("Khusus Tabungan");
+    expect(html).toContain("Non-transaksi");
+  });
 });

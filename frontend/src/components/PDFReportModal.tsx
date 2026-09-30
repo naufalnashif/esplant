@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatMoney } from "@/lib/formatters";
+import { BACKDROP } from "@/lib/constants";
 import type { FinanceState } from "@/lib/localDb";
 
 type ReportPeriod = "today" | "week" | "month" | "year" | "all";
@@ -87,7 +88,7 @@ export function PDFReportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-md sm:grid sm:place-items-center sm:overflow-y-auto sm:p-4"
+      className={`fixed inset-0 z-50 flex items-end justify-center ${BACKDROP.overlay} sm:grid sm:place-items-center sm:overflow-y-auto sm:p-4`}
       role="dialog"
       aria-modal="true"
       data-testid="pdf-report-modal"

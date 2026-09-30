@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { FileSpreadsheet, HardDrive, LayoutGrid, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/BrandMark";
+import { BACKDROP } from "@/lib/constants";
 
 export interface DrawerMenuItem { label: string; href: string; type: "anchor" | "route" }
 
@@ -38,7 +39,7 @@ export function LandingDrawer({
 
   return (
     <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu" data-testid="landing-drawer">
-      <button type="button" aria-label="Tutup menu" onClick={onClose} className="absolute inset-0 bg-black/55 backdrop-blur-sm" data-testid="landing-drawer-backdrop" />
+      <button type="button" aria-label="Tutup menu" onClick={onClose} className={`absolute inset-0 ${BACKDROP.overlay}`} data-testid="landing-drawer-backdrop" />
       <aside className="animate-drawer-in absolute inset-y-0 right-0 flex w-[82%] max-w-xs flex-col border-l border-border/70 bg-card shadow-2xl">
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <BrandMark size="sm" />

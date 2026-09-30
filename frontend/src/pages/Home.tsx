@@ -9,27 +9,27 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, CalendarClock, Check, ChevronRight,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, Calendar, CalendarClock, Check, ChevronRight,
   Landmark, LayoutDashboard, MessageSquarePlus,
-  Moon, MoreHorizontal, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
-  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards,
+  Moon, MoreHorizontal, Pencil, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
+  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
-  Account, CommitmentType, Currency, Debt, FinanceState, Locale, SavingsGoal,
-  Transaction, TransactionKind, WishlistItem,
+  Account, Currency, Debt, FinanceState, Locale, SavingsGoal,
+  Transaction, TransactionKind,
 } from "@/lib/localDb";
 import { createInitialState, sanitizeImportedState, DEFAULT_CATEGORIES } from "@/lib/localDb";
 import { loadFinanceState, saveFinanceState, hasPendingSync, retrySync, eraseAllData } from "@/lib/dataStore";
+import { syncCommitmentsOnAdd, syncCommitmentsOnDelete, syncCommitmentsOnUpdate, type PayLaterFundingMeta } from "@/lib/commitmentPayment";
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
 import { InsightsPanel } from "@/components/InsightsPanel";
 import { GoalsPanel } from "@/components/GoalsPanel";
 import { CommitmentsPanel } from "@/components/CommitmentsPanel";
-import { WishlistManager } from "@/components/WishlistManager";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
@@ -47,6 +47,7 @@ import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, useOverviewStats } from "@/lib/overviewStats";
 import { createSampleState } from "@/lib/sampleData";
+import { KpiCard, SectionHeading } from "@/components/shared";
 import {
   buildCategoryChart, buildStackedSpend, seriesKey, OTHER_SLICE_COLOR,
   type CategorySlice,
@@ -60,7 +61,7 @@ const currentMonth = new Date().toISOString().slice(0, 7);
 
 const copy = {
   id: {
-    overview: "Ringkasan", transactions: "Transaksi", commitments: "Komitmen", goals: "Tujuan & wishlist", settings: "Pengaturan",
+    overview: "Ringkasan", transactions: "Transaksi", commitments: "Komitmen", goals: "Goals", settings: "Pengaturan",
     hello: "Selamat datang kembali", command: "Satu ruang tenang untuk keputusan uang yang lebih baik.", accounts: "Akun & saldo", manageAccounts: "Kelola bank, kartu kredit, e-wallet, cash, dan investasi dalam satu money map.", addAccount: "Tambah akun", bankName: "Nama akun / bank", accountType: "Tipe akun", brand: "Brand", startingBalance: "Saldo awal", adjust: "Sesuaikan saldo", remove: "Hapus", totalAcross: "Total seluruh akun",
     totalBalance: "Total saldo", spent: "Pengeluaran bulan ini", income: "Pemasukan bulan ini", net: "Arus bersih", committed: "Komitmen aktif",
     vsLast: "vs bulan lalu", addTransaction: "Tambah transaksi", recent: "Aktivitas terbaru", seeAll: "Lihat semua",
@@ -76,7 +77,7 @@ const copy = {
   enabled: "Aktif", disabled: "Nonaktif", reset: "Reset data demo", notifications: "Pengingat browser", monthly: "Bulanan", weekly: "Mingguan", daily: "Harian", budgets: "Budget guardrails", budgetSubtitle: "Batas kategori dengan insight otomatis", safe: "Aman", warning: "Perhatian", over: "Melewati batas", setBudget: "Atur budget", monthlyLimit: "Batas bulanan", insightWithin: "ruang tersisa", insightOver: "melewati batas",
   },
   en: {
-    overview: "Overview", transactions: "Transactions", commitments: "Commitments", goals: "Goals & wishlist", settings: "Settings",
+    overview: "Overview", transactions: "Transactions", commitments: "Commitments", goals: "Goals", settings: "Settings",
     hello: "Welcome back", command: "One calm space for better money decisions.", accounts: "Accounts & balances", manageAccounts: "Manage banks, credit cards, e-wallets, cash, and investments in one money map.", addAccount: "Add account", bankName: "Account / bank name", accountType: "Account type", brand: "Brand", startingBalance: "Starting balance", adjust: "Adjust balance", remove: "Remove", totalAcross: "Total across accounts",
     totalBalance: "Total balance", spent: "Spent this month", income: "Income this month", net: "Net flow", committed: "Active commitments",
     vsLast: "vs last month", addTransaction: "Add transaction", recent: "Recent activity", seeAll: "See all",
@@ -124,12 +125,27 @@ export default function Home() {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showEraseModal, setShowEraseModal] = useState(false);
+  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [showAddCommitmentModal, setShowAddCommitmentModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
-  const [profileDraft, setProfileDraft] = useState("");
-  const [transactionForm, setTransactionForm] = useState({ kind: "expense" as TransactionKind, amount: "", description: "", category: "Food", accountId: "", currency: "IDR" as Currency, date: new Date().toISOString().slice(0, 10), tags: "" });
-  const [debtForm, setDebtForm] = useState({ name: "", person: "", type: "debt" as CommitmentType, total: "", dueDate: new Date().toISOString().slice(0, 10) });
-  const [wishForm, setWishForm] = useState({ name: "", price: "", priority: "medium" as WishlistItem["priority"], targetDate: "", category: "Lifestyle" });
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [transactionForm, setTransactionForm] = useState({
+    kind: "expense" as TransactionKind,
+    amount: "",
+    description: "",
+    category: "Food",
+    accountId: "",
+    currency: "IDR" as Currency,
+    date: new Date().toISOString().slice(0, 10),
+    tags: "",
+    commitmentId: "",
+    paylaterProvider: "Shopee PayLater",
+    paylaterDueDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+    installmentTenor: "3",
+  });
+  // NOTE: wishForm state removed from Home — GoalsPanel is now self-contained
 
   const stateQuery = useQuery({
     queryKey: ["finance-state", storageMode, spreadsheetId],
@@ -222,40 +238,158 @@ export default function Home() {
   const updateTransaction = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setTransactionForm((form) => ({ ...form, [event.target.name]: event.target.value }));
   const handleAddTransaction = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!state.accounts.length) {
-      toast.error(state.locale === "id" ? "Tambahkan akun terlebih dahulu di tab Akun & saldo." : "Add an account first in the Accounts tab."); return;
+    const isPayLater = transactionForm.accountId === "paylater" || transactionForm.accountId === "paylater_new";
+    const isInstallment = transactionForm.accountId === "installment" || transactionForm.accountId === "installment_new";
+    const isDebtAccount = transactionForm.accountId.startsWith("debt_");
+
+    if (!state.accounts.length && !isPayLater && !isInstallment && !isDebtAccount) {
+      toast.error(state.locale === "id" ? "Tambahkan akun terlebih dahulu di tab Akun & saldo." : "Add an account first in the Accounts tab.");
+      return;
     }
     const amount = Number(transactionForm.amount);
     if (!transactionForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
-      toast.error(state.locale === "id" ? "Isi deskripsi dan nominal yang valid." : "Add a valid description and amount."); return;
+      toast.error(state.locale === "id" ? "Isi deskripsi dan nominal yang valid." : "Add a valid description and amount.");
+      return;
     }
-    const accountId = state.accounts.some((account) => account.id === transactionForm.accountId) ? transactionForm.accountId : state.accounts[0].id;
-    const transaction: Transaction = { id: editingTransaction?.id ?? id(), kind: transactionForm.kind, amount, currency: transactionForm.currency, baseAmount: toBase(amount, transactionForm.currency, state.exchangeRates), description: transactionForm.description.trim(), category: transactionForm.category, accountId, date: transactionForm.date, tags: transactionForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean) };
+
+    let accountId = transactionForm.accountId;
+    if (isPayLater) {
+      accountId = "paylater";
+    } else if (isInstallment) {
+      accountId = "installment";
+    } else if (isDebtAccount) {
+      accountId = transactionForm.accountId;
+    } else {
+      accountId = state.accounts.some((account) => account.id === transactionForm.accountId)
+        ? transactionForm.accountId
+        : state.accounts[0]?.id || "cash";
+    }
+
+    const transaction: Transaction = {
+      id: editingTransaction?.id ?? id(),
+      kind: transactionForm.kind,
+      amount,
+      currency: transactionForm.currency,
+      baseAmount: toBase(amount, transactionForm.currency, state.exchangeRates),
+      description: transactionForm.description.trim(),
+      category: transactionForm.category,
+      accountId,
+      date: transactionForm.date,
+      tags: transactionForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+      commitmentId: transactionForm.commitmentId ? transactionForm.commitmentId : undefined,
+    };
     const accountDelta = (item: Transaction, sign: 1 | -1) => (item.kind === "expense" ? -1 : 1) * item.baseAmount * sign;
     const old = editingTransaction;
-    const accounts = state.accounts.map((account) => { const reversal = old && old.accountId === account.id ? accountDelta(old, -1) / state.exchangeRates[account.currency] : 0; const next = transaction.accountId === account.id ? accountDelta(transaction, 1) / state.exchangeRates[account.currency] : 0; return reversal || next ? { ...account, balance: account.balance + reversal + next } : account; });
-    const transactions = old ? state.transactions.map((item) => item.id === old.id ? transaction : item) : [transaction, ...state.transactions];
-    save({ ...state, accounts, transactions });
-    setTransactionForm({ kind: "expense", amount: "", description: "", category: "Food", accountId: state.accounts[0]?.id ?? "", currency: state.baseCurrency, date: new Date().toISOString().slice(0, 10), tags: "" });
+    const accounts = state.accounts.map((account) => {
+      const reversal = old && old.accountId === account.id ? accountDelta(old, -1) / state.exchangeRates[account.currency] : 0;
+      const next = transaction.accountId === account.id ? accountDelta(transaction, 1) / state.exchangeRates[account.currency] : 0;
+      return reversal || next ? { ...account, balance: account.balance + reversal + next } : account;
+    });
+
+    const paylaterMeta: PayLaterFundingMeta = {
+      provider: transactionForm.paylaterProvider || "Shopee PayLater",
+      dueDate: transactionForm.paylaterDueDate || undefined,
+      installments: Number(transactionForm.installmentTenor) || 3,
+    };
+
+    let nextBills = state.bills;
+    let nextDebts = state.debts;
+    let finalCommitmentId = transaction.commitmentId;
+
+    if (old) {
+      const syncResult = syncCommitmentsOnUpdate(state, old, transaction, paylaterMeta);
+      nextBills = syncResult.bills;
+      nextDebts = syncResult.debts;
+      if (syncResult.createdCommitmentId) {
+        finalCommitmentId = syncResult.createdCommitmentId;
+      }
+    } else if (transaction.commitmentId || isPayLater || isInstallment || isDebtAccount) {
+      const syncResult = syncCommitmentsOnAdd(state, transaction, paylaterMeta);
+      nextBills = syncResult.bills;
+      nextDebts = syncResult.debts;
+      if (syncResult.createdCommitmentId) {
+        finalCommitmentId = syncResult.createdCommitmentId;
+      }
+    }
+
+    const finalTransaction: Transaction = {
+      ...transaction,
+      commitmentId: finalCommitmentId,
+    };
+
+    const transactions = old
+      ? state.transactions.map((item) => (item.id === old.id ? finalTransaction : item))
+      : [finalTransaction, ...state.transactions];
+
+    save({
+      ...state,
+      accounts,
+      bills: nextBills,
+      debts: nextDebts,
+      transactions,
+    });
+    setTransactionForm({
+      kind: "expense",
+      amount: "",
+      description: "",
+      category: "Food",
+      accountId: state.accounts[0]?.id ?? "",
+      currency: state.baseCurrency,
+      date: new Date().toISOString().slice(0, 10),
+      tags: "",
+      commitmentId: "",
+      paylaterProvider: "Shopee PayLater",
+      paylaterDueDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      installmentTenor: "3",
+    });
     setShowTransactionForm(false);
     setEditingTransaction(null);
     toast.success(state.locale === "id" ? "Transaksi tersimpan di perangkat." : "Transaction saved on this device.");
   };
-  const openEditTransaction = (transaction: Transaction) => { setEditingTransaction(transaction); setTransactionForm({ kind: transaction.kind, amount: String(transaction.amount), description: transaction.description, category: transaction.category, accountId: transaction.accountId, currency: transaction.currency, date: transaction.date, tags: transaction.tags.join(", ") }); setShowTransactionForm(true); };
-  const deleteTransaction = (transaction: Transaction) => { if (!window.confirm(`Delete ${transaction.description}?`)) return; const accounts = state.accounts.map((account) => account.id === transaction.accountId ? { ...account, balance: account.balance - accountDeltaFor(transaction, state.exchangeRates, account.currency) } : account); save({ ...state, accounts, transactions: state.transactions.filter((item) => item.id !== transaction.id) }); toast.success("Transaction deleted."); };
-  const handleAddDebt = (event: React.FormEvent) => {
-    event.preventDefault(); const total = Number(debtForm.total);
-    if (!debtForm.name.trim() || !debtForm.person.trim() || !Number.isFinite(total) || total <= 0) { toast.error("Lengkapi nama, orang, dan nominal."); return; }
-    const debt: Debt = { id: id(), name: debtForm.name.trim(), person: debtForm.person.trim(), type: debtForm.type, total, paid: 0, currency: state.baseCurrency, dueDate: debtForm.dueDate, note: "" };
-    save({ ...state, debts: [debt, ...state.debts] }); setDebtForm({ name: "", person: "", type: "debt", total: "", dueDate: new Date().toISOString().slice(0, 10) }); toast.success("Komitmen baru ditambahkan.");
+
+  const openEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    const isPayLater = transaction.accountId === "paylater";
+    const isInstallment = transaction.accountId === "installment";
+    const linkedDebt = isPayLater ? state.debts.find((d) => d.id === transaction.commitmentId) : undefined;
+    const linkedBill = isInstallment ? state.bills.find((b) => b.id === transaction.commitmentId) : undefined;
+
+    setTransactionForm({
+      kind: transaction.kind,
+      amount: String(transaction.amount),
+      description: transaction.description,
+      category: transaction.category,
+      accountId: transaction.accountId,
+      currency: transaction.currency,
+      date: transaction.date,
+      tags: transaction.tags.join(", "),
+      commitmentId: transaction.commitmentId || "",
+      paylaterProvider: linkedDebt?.person || "Shopee PayLater",
+      paylaterDueDate: linkedDebt?.dueDate || linkedBill?.nextDueDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+      installmentTenor: String(linkedBill?.remainingInstallments || 3),
+    });
+    setShowTransactionForm(true);
   };
-  void handleAddDebt;
-  const handleAddWish = (event: React.FormEvent) => {
-    event.preventDefault(); const price = Number(wishForm.price);
-    if (!wishForm.name.trim() || !Number.isFinite(price) || price <= 0) { toast.error("Lengkapi nama wishlist dan harga valid."); return; }
-    const wish: WishlistItem = { id: id(), name: wishForm.name.trim(), price, currency: state.baseCurrency, priority: wishForm.priority, targetDate: wishForm.targetDate, category: wishForm.category, status: "planning" };
-    save({ ...state, wishlist: [wish, ...state.wishlist] }); setWishForm({ name: "", price: "", priority: "medium", targetDate: "", category: "Lifestyle" }); toast.success("Wishlist ditambahkan.");
+
+  const deleteTransaction = (transaction: Transaction) => {
+    if (!window.confirm(`Delete ${transaction.description}?`)) return;
+    const accounts = state.accounts.map((account) =>
+      account.id === transaction.accountId
+        ? { ...account, balance: account.balance - accountDeltaFor(transaction, state.exchangeRates, account.currency) }
+        : account
+    );
+    const syncResult = syncCommitmentsOnDelete(state, transaction);
+    save({
+      ...state,
+      accounts,
+      bills: syncResult.bills,
+      debts: syncResult.debts,
+      transactions: state.transactions.filter((item) => item.id !== transaction.id),
+    });
+    toast.success(state.locale === "id" ? "Transaksi dihapus." : "Transaction deleted.");
   };
+  // NOTE: handleAddWish removed — wishlist form is now managed inside GoalsPanel
+
   const saveBudget = (category: string, limit: number) => {
     const existing = state.budgets.find((budget) => budget.category === category);
     if (limit <= 0) {
@@ -641,7 +775,15 @@ export default function Home() {
     { key: "tester", label: "Join Tester", icon: UserPlus, href: TESTER_URL },
     { key: "feedback", label: "Feedback", icon: MessageSquarePlus, onClick: () => setShowFeedback(true) },
   ];
-  const accountName = (accountId: string) => state.accounts.find((account) => account.id === accountId)?.name ?? "—";
+  const accountName = (accountId: string) => {
+    if (accountId === "paylater" || accountId === "paylater_new") return "PayLater";
+    if (accountId === "installment" || accountId === "installment_new") return state.locale === "id" ? "Cicilan" : "Installment";
+    if (accountId.startsWith("debt_")) {
+      const debt = state.debts.find((d) => d.id === accountId.replace("debt_", ""));
+      return debt ? (state.locale === "id" ? `Utang: ${debt.name}` : `Debt: ${debt.name}`) : "PayLater / Debt";
+    }
+    return state.accounts.find((account) => account.id === accountId)?.name ?? "—";
+  };
   const trendText = spendDelta <= 0 ? `${Math.abs(spendDelta)}% ${t.vsLast}` : `+${spendDelta}% ${t.vsLast}`;
 
   return (
@@ -661,27 +803,140 @@ export default function Home() {
         <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ height: "100svh" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3"><SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} />{!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}<button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button><button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button><div className="hidden h-8 w-px bg-border sm:block" /><div className="hidden text-right sm:block"><p className="text-xs font-semibold">{state.profileName || "_self.manage"}</p><p className="text-[10px] text-muted-foreground">Personal workspace</p></div><div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-indigo-400 text-xs font-bold text-white sm:size-9">{(state.profileName || "S").slice(0, 1).toUpperCase()}</div></div>
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+              <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} />
+              {!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}
+              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button>
+              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+              <div className="hidden h-8 w-px bg-border sm:block" />
+              <button
+                type="button"
+                data-testid="header-profile-button"
+                onClick={() => setShowProfileMenu(true)}
+                title={state.locale === "id" ? "Menu Profil & Pengaturan" : "Profile & Settings Menu"}
+                aria-label="Profile"
+                className="flex items-center gap-2 rounded-full border border-border/70 bg-card/60 p-1 sm:px-3 sm:py-1.5 transition-all hover:border-primary/50 hover:bg-secondary/60 active:scale-95 cursor-pointer"
+              >
+                <div className="hidden text-right sm:block">
+                  <p className="text-xs font-bold leading-tight text-foreground">{state.profileName || "_self.manage"}</p>
+                  <p className="text-[10px] text-muted-foreground">{storageMode === "sheets" ? "Google Sheets" : "Local Workspace"}</p>
+                </div>
+                <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-amber-500 text-xs font-extrabold text-primary-foreground sm:size-8 shadow-sm">
+                  {(state.profileName || "S").slice(0, 1).toUpperCase()}
+                </div>
+              </button>
+            </div>
           </header>
           <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
-            {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={(accountId) => state.accounts.find((account) => account.id === accountId)?.name ?? "—"} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
-            {tab === "commitments" && <CommitmentsPanel state={state} onSave={save} />}
-            {tab === "goals" && <GoalsPanel state={state} wishForm={wishForm} setWishForm={setWishForm} onAddWish={handleAddWish} onCommit={commitSavings} />}
-            {tab === "accounts" && <AccountsPanel state={state} labels={{ accounts: t.accounts, manageAccounts: t.manageAccounts, addAccount: t.addAccount, bankName: t.bankName, accountType: t.accountType, brand: t.brand, startingBalance: t.startingBalance, save: t.save, adjust: t.adjust, remove: t.remove, totalAcross: t.totalAcross }} totalBalance={totalBalance} onAdd={addAccount} onAdjust={adjustAccount} onRemove={removeAccount} />}
-            {tab === "settings" && <SettingsPanel state={state} profileDraft={profileDraft || state.profileName} setProfileDraft={setProfileDraft} updateState={updateState} onSaveProfile={() => { updateState({ profileName: profileDraft || state.profileName }); toast.success("Profil lokal tersimpan."); }} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
+            {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
+            {tab === "commitments" && (
+              <CommitmentsPanel
+                state={state}
+                onSave={save}
+                showAddModalFromParent={showAddCommitmentModal}
+                onCloseAddModalFromParent={() => setShowAddCommitmentModal(false)}
+              />
+            )}
+            {tab === "goals" && (
+              <GoalsPanel
+                state={state}
+                onSave={save}
+                onCommit={commitSavings}
+                showAddModalFromParent={showAddGoalModal}
+                onCloseAddModalFromParent={() => setShowAddGoalModal(false)}
+              />
+            )}
+            {tab === "accounts" && (
+              <AccountsPanel
+                state={state}
+                labels={{
+                  accounts: t.accounts,
+                  manageAccounts: t.manageAccounts,
+                  addAccount: t.addAccount,
+                  bankName: t.bankName,
+                  accountType: t.accountType,
+                  brand: t.brand,
+                  startingBalance: t.startingBalance,
+                  save: t.save,
+                  adjust: t.adjust,
+                  remove: t.remove,
+                  totalAcross: t.totalAcross,
+                }}
+                totalBalance={totalBalance}
+                onAdd={addAccount}
+                onAdjust={adjustAccount}
+                onRemove={removeAccount}
+                showAddModalFromParent={showAddAccountModal}
+                onCloseAddModalFromParent={() => setShowAddAccountModal(false)}
+              />
+            )}
+            {tab === "settings" && <SettingsPanel state={state} updateState={updateState} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
           {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><MobileDisclosure testid="mobile-insights-section" title={state.locale === "id" ? "Insight & rekomendasi" : "Insights & recommendations"} hint={state.locale === "id" ? "Kesehatan kas, tren kategori, budget" : "Cash health, category trends, budgets"} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><InsightsPanel state={state} currentMonth={compareMonth} /></MobileDisclosure></div>}
-          {tab === "goals" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><WishlistManager state={state} onSave={save} /></div>}
+          {/* WishlistManager removed — GoalsPanel now manages wishlist inline */}
         </main>
       </div>
-      <MobileNav tab={tab} setTab={setTab} main={navItems.slice(0, 4)} more={navItems.slice(4)} actions={moreActions} moreLabel={state.locale === "id" ? "Lainnya" : "More"} moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."} showFab={tab === "overview" || tab === "transactions"} onAdd={() => openAddTransaction()} addLabel={t.addTransaction} />
+      <MobileNav
+        tab={tab}
+        setTab={setTab}
+        main={navItems.slice(0, 4)}
+        more={navItems.slice(4)}
+        actions={moreActions}
+        moreLabel={state.locale === "id" ? "Lainnya" : "More"}
+        moreHint={state.locale === "id" ? "Akun, saldo, dan pengaturan workspace." : "Accounts, balances, and workspace settings."}
+        showFab={["overview", "transactions", "commitments", "goals", "accounts"].includes(tab)}
+        onAdd={() => {
+          if (tab === "goals") {
+            setShowAddGoalModal(true);
+          } else if (tab === "commitments") {
+            setShowAddCommitmentModal(true);
+          } else if (tab === "accounts") {
+            setShowAddAccountModal(true);
+          } else {
+            openAddTransaction();
+          }
+        }}
+        onOpenProfile={() => setShowProfileMenu(true)}
+        addLabel={
+          tab === "goals"
+            ? (state.locale === "id" ? "Tambah Goal" : "Add Goal")
+            : tab === "commitments"
+            ? (state.locale === "id" ? "Tambah Komitmen" : "Add Commitment")
+            : tab === "accounts"
+            ? (state.locale === "id" ? "Tambah Akun" : "Add Account")
+            : t.addTransaction
+        }
+      />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
       {showFeedback && <FeedbackDialog open onOpenChange={setShowFeedback} />}
+      {showProfileMenu && (
+        <ProfileModal
+          open
+          onClose={() => setShowProfileMenu(false)}
+          state={state}
+          storageMode={storageMode}
+          sheetUrl={sheetUrl}
+          onNavigate={(targetTab) => {
+            setTab(targetTab);
+            setShowProfileMenu(false);
+          }}
+          onOpenFeedback={() => {
+            setShowProfileMenu(false);
+            setShowFeedback(true);
+          }}
+          onToggleTheme={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })}
+          onToggleLocale={() => updateState({ locale: state.locale === "id" ? "en" : "id" })}
+          onUpdateProfileName={(newName) => {
+            updateState({ profileName: newName });
+            toast.success(state.locale === "id" ? "Nama profil berhasil disimpan." : "Profile name saved successfully.");
+          }}
+        />
+      )}
       <EraseConfirmModal
         open={showEraseModal}
         isId={state.locale === "id"}
@@ -725,14 +980,9 @@ function SyncPill({ mode, status, lastSyncTime, busy, onRefresh }: { mode: "loca
   );
 }
 
-function SectionHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description?: string; action?: React.ReactNode }) {
-  return <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{eyebrow}</p><h1 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>}</div>{action}</div>;
-}
+// KpiCard and SectionHeading are now imported from @/components/shared
+// (local definitions removed to avoid duplication)
 
-function KpiCard({ label, value, note, icon, tone = "teal" }: { label: string; value: string; note: string; icon: React.ReactNode; tone?: "teal" | "rose" | "amber" | "indigo" }) {
-  const tones = { teal: "bg-primary/12 text-primary", rose: "bg-red-500/12 text-red-400", amber: "bg-amber-500/12 text-amber-400", indigo: "bg-indigo-500/12 text-indigo-400" };
-  return <Card className="group relative overflow-hidden border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl hover:-translate-y-0.5 hover:shadow-lg"><div className={`mb-5 grid size-10 place-items-center rounded-xl ${tones[tone]}`}>{icon}</div><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-1 font-data text-xl font-bold tracking-tight sm:text-2xl" data-testid={`kpi-${label.toLowerCase().replaceAll(" ", "-")}-value`}>{value}</p><p className="mt-2 text-[11px] text-muted-foreground">{note}</p><div className="absolute -right-8 -top-8 size-24 rounded-full bg-primary/5 blur-2xl transition-transform duration-300 group-hover:scale-150" /></Card>;
-}
 
 function Overview({
   state,
@@ -740,9 +990,9 @@ function Overview({
   totalBalance,
   currentSpend,
   currentIncome,
-  committed,
-  trendText,
-  previousSpend,
+  committed: _committed,
+  trendText: _trendText,
+  previousSpend: _previousSpend,
   categoryChart,
   flowChart,
   currentMonth,
@@ -770,7 +1020,7 @@ function Overview({
   accountName: (id: string) => string;
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
-  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta } = useOverviewStats(state, currentMonth, currentIncome);
+  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const [showMatrix, setShowMatrix] = useState(true);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   // Stacking is only meaningful ACROSS categories, so a single-category month keeps the
@@ -866,10 +1116,22 @@ function Overview({
                 className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
                 title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
               >
-                <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} active accounts
+                <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
               </button>
+              {totalSavings > 0 && (
+                <button
+                  type="button"
+                  data-testid="overview-total-savings-trigger"
+                  onClick={() => onNavigate("goals")}
+                  className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                  title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
+                >
+                  <Target size={14} className="text-teal-300" />
+                  <span>{isId ? "Tabungan" : "Saved"}: {formatMoney(totalSavings, state.baseCurrency, state.locale, true)}</span>
+                </button>
+              )}
               <span className="flex items-center gap-1.5">
-                <ShieldCheck size={14} /> Synchronized & Saved
+                <ShieldCheck size={14} /> {isId ? "Tersinkron & Aman" : "Synchronized & Saved"}
               </span>
             </div>
           </div>
@@ -878,7 +1140,7 @@ function Overview({
         <Card className="border-border/70 bg-card/75 p-6 backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Smart snapshot</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Tren Finansial" : "Smart snapshot"}</p>
               <p className="mt-2 font-heading text-lg font-bold">{t.cashFlow}</p>
             </div>
             <Badge variant="secondary" className="gap-1">
@@ -906,11 +1168,11 @@ function Overview({
           <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
             <span className="flex items-center gap-1">
               <i className="size-2 rounded-full bg-emerald-400" />
-              Income
+              {isId ? "Pemasukan" : "Income"}
             </span>
             <span className="flex items-center gap-1">
               <i className="size-2 rounded-full bg-red-400" />
-              Expense
+              {isId ? "Pengeluaran" : "Expense"}
             </span>
           </div>
         </Card>
@@ -948,7 +1210,7 @@ function Overview({
       </div>
 
       {/* Dynamic KPI Cards corresponding to selected period filter */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label={isId ? `Pengeluaran (${periodLabels[periodFilter]})` : `Spent (${periodLabels[periodFilter]})`}
           value={formatMoney(activeStats.expense, state.baseCurrency, state.locale, true)}
@@ -959,7 +1221,7 @@ function Overview({
         <KpiCard
           label={isId ? `Pemasukan (${periodLabels[periodFilter]})` : `Income (${periodLabels[periodFilter]})`}
           value={formatMoney(activeStats.income, state.baseCurrency, state.locale, true)}
-          note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% vs last month` : `${periodLabels[periodFilter]}`}
+          note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% ${isId ? "vs bulan lalu" : "vs last month"}` : `${periodLabels[periodFilter]}`}
           icon={<TrendingUp size={19} />}
           tone="indigo"
         />
@@ -971,11 +1233,20 @@ function Overview({
           tone={activeStats.net >= 0 ? "teal" : "rose"}
         />
         <KpiCard
-          label={isId ? `Cicilan / Tagihan (${periodLabels[periodFilter]})` : `Committed (${periodLabels[periodFilter]})`}
+          label={isId ? `Tagihan & Cicilan (${periodLabels[periodFilter]})` : `Committed (${periodLabels[periodFilter]})`}
           value={formatMoney(periodCommitted, state.baseCurrency, state.locale, true)}
           note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`}
           icon={<CalendarClock size={19} />}
           tone="amber"
+        />
+        <KpiCard
+          testid="kpi-total-savings"
+          label={isId ? "Total Tabungan" : "Total Saved"}
+          value={formatMoney(totalSavings, state.baseCurrency, state.locale, true)}
+          note={`${state.savings.length} ${isId ? "target impian aktif" : "active goals"}`}
+          icon={<Target size={19} />}
+          tone="teal"
+          onClick={() => onNavigate("goals")}
         />
       </div>
 
@@ -983,9 +1254,9 @@ function Overview({
       <Card className="mb-6 border-border/70 bg-card/75 p-4 sm:p-6" data-testid="multi-period-matrix">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Matriks Ringkasan Multi-Periode</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{isId ? "Matriks Finansial" : "Multi-Timeframe Matrix"}</p>
             <h3 className="mt-0.5 font-heading text-base font-bold sm:text-lg">
-              {isId ? "Perbandingan Ringkasan: Hari Ini, Minggu Ini, Bulan Ini & Tahun Ini" : "Multi-Timeframe Summary Matrix"}
+              {isId ? "Performa Arus Kas Multi-Periode" : "Multi-Timeframe Summary Matrix"}
             </h3>
           </div>
           <button
@@ -1172,7 +1443,7 @@ function Overview({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{bill.name}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x remaining` : bill.frequency}
+                    {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "remaining"}` : bill.frequency}
                   </p>
                 </div>
                 <p className="font-data text-xs font-bold">
@@ -1189,7 +1460,7 @@ function Overview({
             className="mt-5 flex w-full items-center justify-between rounded-xl border border-dashed border-primary/35 px-3 py-3 text-left text-xs font-semibold text-primary hover:bg-primary/8"
           >
             <span className="flex items-center gap-2">
-              <Plus size={15} /> {isId ? "Tambah Cicilan / Tagihan Baru" : "Add Bill / Installment"}
+              <Plus size={15} /> {isId ? "Tambah Tagihan / Cicilan Baru" : "Add Bill / Installment"}
             </span>
             <ChevronRight size={15} />
           </button>
@@ -1201,7 +1472,7 @@ function Overview({
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t.recent}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">Your money trail</h2>
+              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Riwayat Transaksi" : "Your money trail"}</h2>
             </div>
             <button
               type="button"
@@ -1245,8 +1516,8 @@ function Overview({
         <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Allocation</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">Where it goes</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
+              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Distribusi Pengeluaran" : "Where it goes"}</h2>
             </div>
             <button
               type="button"
@@ -1316,7 +1587,22 @@ function Overview({
 
 
 
-function TransactionModal({ state, t, categories, form, setForm, onChange, onClose, onSubmit, editingTransaction }: { state: FinanceState; t: typeof copy.id; categories: string[]; form: { kind: TransactionKind; amount: string; description: string; category: string; accountId: string; currency: Currency; date: string; tags: string }; setForm: React.Dispatch<React.SetStateAction<{ kind: TransactionKind; amount: string; description: string; category: string; accountId: string; currency: Currency; date: string; tags: string }>>; onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void; onClose: () => void; onSubmit: (event: React.FormEvent) => void; editingTransaction?: Transaction | null }) {
+type TransactionModalForm = {
+  kind: TransactionKind;
+  amount: string;
+  description: string;
+  category: string;
+  accountId: string;
+  currency: Currency;
+  date: string;
+  tags: string;
+  commitmentId: string;
+  paylaterProvider: string;
+  paylaterDueDate: string;
+  installmentTenor: string;
+};
+
+function TransactionModal({ state, t, categories, form, setForm, onChange, onClose, onSubmit, editingTransaction }: { state: FinanceState; t: typeof copy.id; categories: string[]; form: TransactionModalForm; setForm: React.Dispatch<React.SetStateAction<TransactionModalForm>>; onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void; onClose: () => void; onSubmit: (event: React.FormEvent) => void; editingTransaction?: Transaction | null }) {
   const isId = state.locale === "id";
   const title = editingTransaction
     ? (isId ? "Edit Transaksi" : "Edit Transaction")
@@ -1325,6 +1611,11 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
     ? (isId ? "Simpan Perubahan" : "Save Changes")
     : t.save;
 
+  const isPayLater = form.accountId === "paylater" || form.accountId === "paylater_new";
+  const isInstallment = form.accountId === "installment" || form.accountId === "installment_new";
+  const isDebtAccount = form.accountId.startsWith("debt_");
+  const isCreditFunding = isPayLater || isInstallment || isDebtAccount;
+
   return (
     <BottomSheet
       open
@@ -1332,7 +1623,7 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
       testid="transaction-modal"
       eyebrow={editingTransaction ? (isId ? "Mode Edit" : "Edit Mode") : "Quick capture"}
       title={title}
-      description={isId ? "Data tersimpan ke database lokal & PostgreSQL." : "Validated locally, saved to database."}
+      description={isId ? "Data tersimpan ke database lokal & Google Sheets." : "Validated locally, saved to database."}
       footer={
         <div className="flex gap-2 sm:justify-end">
           <Button data-testid="transaction-cancel-button" type="button" variant="ghost" onClick={onClose}>{t.cancel}</Button>
@@ -1345,36 +1636,470 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
           <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "expense" ? "bg-card text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
           <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <label className="col-span-2 block">
+
+        {/* Transaction Suggestions / Template Selector */}
+        {!isCreditFunding && (
+          <label className="block min-w-0 max-w-full">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">
+              {isId ? "Saran Transaksi (Opsional)" : "Transaction Suggestions (Optional)"}
+            </span>
+            <select
+              data-testid="transaction-commitment-select"
+              name="commitmentId"
+              value={form.commitmentId || ""}
+              onChange={(e) => {
+                const cId = e.target.value;
+                if (!cId) {
+                  setForm((v) => ({ ...v, commitmentId: "" }));
+                  return;
+                }
+                const b = state.bills.find((item) => item.id === cId);
+                if (b) {
+                  setForm((v) => ({
+                    ...v,
+                    commitmentId: cId,
+                    kind: "expense",
+                    category: b.category,
+                    amount: String(b.amount),
+                    description: isId ? `Bayar ${b.name}` : `Pay ${b.name}`,
+                  }));
+                  return;
+                }
+                const d = state.debts.find((item) => item.id === cId);
+                if (d) {
+                  const rem = Math.max(0, d.total - d.paid);
+                  const isRec = d.type === "receivable";
+                  setForm((v) => ({
+                    ...v,
+                    commitmentId: cId,
+                    kind: isRec ? "income" : "expense",
+                    category: isRec
+                      ? (categories.includes("Lainnya") ? "Lainnya" : categories[0] || "Income")
+                      : (categories.includes("Cicilan") ? "Cicilan" : "Bills"),
+                    amount: String(rem),
+                    description: isRec
+                      ? (isId ? `Terima ${d.name}` : `Receive ${d.name}`)
+                      : (isId ? `Bayar ${d.name}` : `Pay ${d.name}`),
+                  }));
+                  return;
+                }
+                setForm((v) => ({ ...v, commitmentId: cId }));
+              }}
+              className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+            >
+              <option value="">{isId ? "— Tanpa Saran (Transaksi Manual) —" : "— None (Manual Transaction) —"}</option>
+              {form.kind === "expense" && state.bills.filter((b) => b.active !== false).length > 0 && (
+                <optgroup label={isId ? "Tagihan Rutin" : "Recurring Bills"}>
+                  {state.bills.filter((b) => b.active !== false).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} — {formatMoney(b.amount, b.currency, state.locale, true)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {form.kind === "expense" && state.debts.filter((d) => d.type === "debt" && d.total > d.paid).length > 0 && (
+                <optgroup label={isId ? "Utang Berjalan" : "Active Debts"}>
+                  {state.debts.filter((d) => d.type === "debt" && d.total > d.paid).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} — sisa {formatMoney(d.total - d.paid, d.currency, state.locale, true)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {form.kind === "income" && state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).length > 0 && (
+                <optgroup label={isId ? "Piutang Berjalan" : "Receivables Due"}>
+                  {state.debts.filter((d) => d.type === "receivable" && d.total > d.paid).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} — sisa {formatMoney(d.total - d.paid, d.currency, state.locale, true)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.amount} *</span>
-            <div className="flex gap-2">
-              <input data-testid="transaction-amount-input" required min="1" type="number" name="amount" value={form.amount} onChange={onChange} placeholder="0" className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary" />
-              <select data-testid="transaction-currency-select" name="currency" value={form.currency} onChange={onChange} className="h-11 rounded-lg border border-border bg-background px-3 text-xs font-bold">{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select>
+            <div className="flex gap-2 min-w-0 max-w-full">
+              <input data-testid="transaction-amount-input" required min="1" type="number" name="amount" value={form.amount} onChange={onChange} placeholder="0" className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-data text-sm outline-none focus:border-primary max-w-full" />
+              <select data-testid="transaction-currency-select" name="currency" value={form.currency} onChange={onChange} className="h-11 shrink-0 rounded-lg border border-border bg-background px-3 text-xs font-bold">{CURRENCIES.map((currency) => <option key={currency}>{currency}</option>)}</select>
             </div>
           </label>
-          <label className="col-span-2 block">
+          <label className="sm:col-span-2 block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.description} *</span>
-            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder="Contoh: makan siang, gaji, PLN token" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+            <input data-testid="transaction-description-input" required name="description" value={form.description} onChange={onChange} placeholder={isId ? "Contoh: Beli Smartphone, Makan Malam" : "e.g. Smartphone, Dinner, Gadget"} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
-          <label className="block min-w-0">
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.category}</span>
-            <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{categories.map((category) => <option key={category}>{category}</option>)}</select>
+            <select data-testid="transaction-category-select" name="category" value={form.category} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary">{categories.map((category) => <option key={category}>{category}</option>)}</select>
           </label>
-          <label className="block min-w-0">
+
+          {/* Account / Funding Source selector with PayLater / Cicilan options */}
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.account}</span>
-            <select data-testid="transaction-account-select" name="accountId" value={form.accountId} onChange={onChange} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold">{state.accounts.map((account: Account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
+            <select
+              data-testid="transaction-account-select"
+              name="accountId"
+              value={form.accountId}
+              onChange={onChange}
+              className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+            >
+              <optgroup label={isId ? "Rekening & Kas" : "Bank & Cash Accounts"}>
+                {state.accounts.map((account: Account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} {account.brand ? `(${account.brand})` : ""}
+                  </option>
+                ))}
+              </optgroup>
+              {form.kind === "expense" && (
+                <optgroup label={isId ? "Kredit & Cicilan" : "Credit & Installments"}>
+                  <option value={isPayLater ? form.accountId : "paylater_new"}>
+                    PayLater
+                  </option>
+                  <option value={isInstallment ? form.accountId : "installment_new"}>
+                    {isId ? "Cicilan" : "Installment"}
+                  </option>
+                </optgroup>
+              )}
+            </select>
           </label>
-          <label className="col-span-2 block min-w-0 sm:col-span-1">
+
+          {/* Inline PayLater Configuration Sub-form */}
+          {isPayLater && (
+            <div className="sm:col-span-2 rounded-xl border border-primary/30 bg-primary/8 p-3.5 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                <Zap size={14} />
+                <span>{isId ? "Detail PayLater" : "PayLater Details"}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Penyedia PayLater" : "PayLater Provider"}
+                  </label>
+                  <input
+                    data-testid="transaction-paylater-provider-input"
+                    name="paylaterProvider"
+                    value={form.paylaterProvider || ""}
+                    onChange={onChange}
+                    placeholder={isId ? "Contoh: Shopee PayLater, GoPay Later, Kredivo" : "e.g. Shopee PayLater, GoPay Later, Kredivo"}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Jatuh Tempo Pembayaran" : "Payment Due Date"}
+                  </label>
+                  <input
+                    data-testid="transaction-paylater-due-input"
+                    type="date"
+                    name="paylaterDueDate"
+                    value={form.paylaterDueDate || ""}
+                    onChange={onChange}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isId
+                  ? "Transaksi ini otomatis tercatat di Komitmen tanpa memotong saldo kas saat ini."
+                  : "Recorded in Commitments without deducting from your current cash balance."}
+              </p>
+            </div>
+          )}
+
+          {/* Inline Installment Configuration Sub-form */}
+          {isInstallment && (
+            <div className="sm:col-span-2 rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400">
+                <Calendar size={14} />
+                <span>{isId ? "Detail Cicilan" : "Installment Details"}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Tenor Cicilan" : "Installment Tenor"}
+                  </label>
+                  <select
+                    data-testid="transaction-installment-tenor-select"
+                    name="installmentTenor"
+                    value={form.installmentTenor || "3"}
+                    onChange={onChange}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs font-semibold outline-none focus:border-primary"
+                  >
+                    <option value="3">3 {isId ? "Bulan" : "Months"}</option>
+                    <option value="6">6 {isId ? "Bulan" : "Months"}</option>
+                    <option value="12">12 {isId ? "Bulan" : "Months"}</option>
+                    <option value="24">24 {isId ? "Bulan" : "Months"}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    {isId ? "Jatuh Tempo Pertama" : "First Due Date"}
+                  </label>
+                  <input
+                    data-testid="transaction-installment-due-input"
+                    type="date"
+                    name="paylaterDueDate"
+                    value={form.paylaterDueDate || ""}
+                    onChange={onChange}
+                    className="h-10 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isId
+                  ? "Otomatis membuat tagihan cicilan berkala di Dashboard Komitmen."
+                  : "Automatically creates a recurring installment in your Commitments dashboard."}
+              </p>
+            </div>
+          )}
+
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.date}</span>
-            <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-xs" />
+            <input data-testid="transaction-date-input" required type="date" name="date" value={form.date} onChange={onChange} className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary appearance-none" />
           </label>
-          <label className="col-span-2 block min-w-0 sm:col-span-1">
+          <label className="block min-w-0 max-w-full">
             <span className="mb-1.5 block text-xs font-semibold text-muted-foreground sm:mb-2">{t.tags}</span>
-            <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
+            <input data-testid="transaction-tags-input" name="tags" value={form.tags} onChange={onChange} placeholder="home, fixed" className="h-11 w-full min-w-0 max-w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary" />
           </label>
         </div>
       </form>
+    </BottomSheet>
+  );
+}
+
+function ProfileModal({
+  open,
+  onClose,
+  state,
+  storageMode,
+  sheetUrl: _sheetUrl,
+  onNavigate,
+  onOpenFeedback,
+  onToggleTheme,
+  onToggleLocale,
+  onUpdateProfileName,
+}: {
+  open: boolean;
+  onClose: () => void;
+  state: FinanceState;
+  storageMode: "local" | "sheets";
+  sheetUrl?: string | null;
+  onNavigate: (tab: Tab) => void;
+  onOpenFeedback: () => void;
+  onToggleTheme: () => void;
+  onToggleLocale: () => void;
+  onUpdateProfileName: (name: string) => void;
+}) {
+  const isId = state.locale === "id";
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(state.profileName || "");
+
+  useEffect(() => {
+    if (open) {
+      setNameDraft(state.profileName || "");
+      setIsEditingName(false);
+    }
+  }, [open, state.profileName]);
+
+  const handleSaveName = () => {
+    onUpdateProfileName(nameDraft.trim());
+    setIsEditingName(false);
+  };
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      testid="profile-modal"
+      eyebrow="User Profile"
+      title={isId ? "Profil & Ruang Kerja" : "Profile & Workspace"}
+      maxWidth="sm:max-w-md"
+    >
+      <div className="space-y-4">
+        {/* User Card */}
+        <div className="rounded-2xl border border-border/80 bg-secondary/30 p-4">
+          <div className="flex items-center gap-3.5">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-amber-500 font-heading text-lg font-extrabold text-primary-foreground shadow-md shadow-primary/20">
+              {((isEditingName ? nameDraft : state.profileName) || "S").slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="truncate font-heading text-base font-bold text-foreground">
+                  {state.profileName || "_self.manage"}
+                </h3>
+                {!isEditingName && (
+                  <button
+                    type="button"
+                    data-testid="profile-edit-name-toggle"
+                    onClick={() => {
+                      setNameDraft(state.profileName || "");
+                      setIsEditingName(true);
+                    }}
+                    className="flex items-center gap-1 rounded-lg border border-border/70 bg-card/80 px-2 py-1 text-xs font-semibold text-primary transition-all hover:bg-primary/10 hover:border-primary/40 active:scale-95 cursor-pointer"
+                  >
+                    <Pencil size={12} />
+                    <span>{isId ? "Ubah" : "Edit"}</span>
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {storageMode === "sheets" ? "Google Spreadsheet Connected" : "Local Browser Storage"}
+              </p>
+            </div>
+            <Badge variant="outline" className="shrink-0 text-[10px] font-semibold">
+              {state.baseCurrency}
+            </Badge>
+          </div>
+
+          {/* Inline Edit Name Form */}
+          {isEditingName && (
+            <div className="mt-3.5 pt-3 border-t border-border/50 animate-rise-in">
+              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                {isId ? "Ubah Nama Profil / Panggilan" : "Change Profile Name / Nickname"}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  data-testid="profile-name-input"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  placeholder={isId ? "Nama Anda" : "Your name"}
+                  maxLength={60}
+                  autoFocus
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSaveName();
+                    } else if (e.key === "Escape") {
+                      setIsEditingName(false);
+                    }
+                  }}
+                />
+                <Button
+                  data-testid="profile-save-button"
+                  size="sm"
+                  className="h-9 gap-1 px-3 text-xs"
+                  onClick={handleSaveName}
+                >
+                  <Check size={13} />
+                  {isId ? "Simpan" : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setNameDraft(state.profileName || "");
+                    setIsEditingName(false);
+                  }}
+                >
+                  {isId ? "Batal" : "Cancel"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Menu Navigation */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+            {isId ? "Menu Utama" : "Menu Options"}
+          </p>
+          <button
+            type="button"
+            data-testid="profile-menu-accounts"
+            onClick={() => {
+              onClose();
+              onNavigate("accounts");
+            }}
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary">
+                <WalletCards size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground transition-colors group-hover:text-primary">
+                  {isId ? "Dashboard Akun" : "Accounts Dashboard"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isId ? "Kelola rekening bank, e-wallet, kartu & saldo" : "Manage bank accounts, wallets, and balances"}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </button>
+
+          <button
+            type="button"
+            data-testid="profile-menu-settings"
+            onClick={() => {
+              onClose();
+              onNavigate("settings");
+            }}
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary">
+                <Settings2 size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground transition-colors group-hover:text-primary">
+                  {isId ? "Pengaturan & Backup" : "Settings & Backup"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isId ? "Google Sheets, ekspor backup data, dan privasi" : "Google Sheets, data export, and privacy"}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </button>
+        </div>
+
+        {/* Quick Utilities */}
+        <div className="space-y-2 border-t border-border/60 pt-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+            {isId ? "Preferensi & Bantuan" : "Preferences & Help"}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              data-testid="profile-theme-toggle"
+              onClick={onToggleTheme}
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-background/60 p-3 text-left text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-foreground active:scale-98"
+            >
+              {state.theme === "dark" ? <Sun size={16} className="text-amber-400" /> : <Moon size={16} className="text-indigo-400" />}
+              <span>{state.theme === "dark" ? "Mode Terang" : "Mode Gelap"}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="profile-language-toggle"
+              onClick={onToggleLocale}
+              className="flex items-center gap-2.5 rounded-xl border border-border bg-background/60 p-3 text-left text-xs font-semibold text-muted-foreground transition-all hover:border-primary hover:text-foreground active:scale-98"
+            >
+              <span className="font-bold text-primary">ID / EN</span>
+              <span>{state.locale === "id" ? "Bahasa Indo" : "English"}</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            data-testid="profile-feedback-button"
+            onClick={() => {
+              onClose();
+              onOpenFeedback();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl border border-border/70 bg-background/40 p-3 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/50 hover:bg-secondary/40 hover:text-foreground active:scale-98"
+          >
+            <MessageSquarePlus size={16} className="text-primary" />
+            <span>{isId ? "Beri Saran / Laporkan Kendala" : "Give Feedback / Report Issue"}</span>
+          </button>
+        </div>
+      </div>
     </BottomSheet>
   );
 }
