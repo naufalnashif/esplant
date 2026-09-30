@@ -6,6 +6,7 @@ import { LandingPreview } from "@/components/LandingPreview";
 import { BrandMark } from "@/components/BrandMark";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
+import { PwaInstallPrompt } from "@/components/mobile/PwaInstallPrompt";
 
 // Route-based code splitting: heavy screens are only fetched when their path is hit.
 const Home = lazy(() => import("@/pages/Home"));
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster position="top-center" theme="dark" richColors closeButton />
+      <PwaInstallPrompt />
     </StorageProvider>
   );
 }
