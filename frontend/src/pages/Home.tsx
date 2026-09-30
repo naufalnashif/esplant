@@ -990,9 +990,9 @@ function Overview({
   totalBalance,
   currentSpend,
   currentIncome,
-  committed,
-  trendText,
-  previousSpend,
+  committed: _committed,
+  trendText: _trendText,
+  previousSpend: _previousSpend,
   categoryChart,
   flowChart,
   currentMonth,
@@ -1116,7 +1116,7 @@ function Overview({
                 className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
                 title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
               >
-                <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} active accounts
+                <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
               </button>
               {totalSavings > 0 && (
                 <button
@@ -1127,11 +1127,11 @@ function Overview({
                   title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
                 >
                   <Target size={14} className="text-teal-300" />
-                  <span>{isId ? "Tertabung" : "Saved"}: {formatMoney(totalSavings, state.baseCurrency, state.locale, true)}</span>
+                  <span>{isId ? "Tabungan" : "Saved"}: {formatMoney(totalSavings, state.baseCurrency, state.locale, true)}</span>
                 </button>
               )}
               <span className="flex items-center gap-1.5">
-                <ShieldCheck size={14} /> Synchronized & Saved
+                <ShieldCheck size={14} /> {isId ? "Tersinkron & Aman" : "Synchronized & Saved"}
               </span>
             </div>
           </div>
@@ -1140,7 +1140,7 @@ function Overview({
         <Card className="border-border/70 bg-card/75 p-6 backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Smart snapshot</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Tren Finansial" : "Smart snapshot"}</p>
               <p className="mt-2 font-heading text-lg font-bold">{t.cashFlow}</p>
             </div>
             <Badge variant="secondary" className="gap-1">
@@ -1168,11 +1168,11 @@ function Overview({
           <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
             <span className="flex items-center gap-1">
               <i className="size-2 rounded-full bg-emerald-400" />
-              Income
+              {isId ? "Pemasukan" : "Income"}
             </span>
             <span className="flex items-center gap-1">
               <i className="size-2 rounded-full bg-red-400" />
-              Expense
+              {isId ? "Pengeluaran" : "Expense"}
             </span>
           </div>
         </Card>
@@ -1221,7 +1221,7 @@ function Overview({
         <KpiCard
           label={isId ? `Pemasukan (${periodLabels[periodFilter]})` : `Income (${periodLabels[periodFilter]})`}
           value={formatMoney(activeStats.income, state.baseCurrency, state.locale, true)}
-          note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% vs last month` : `${periodLabels[periodFilter]}`}
+          note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% ${isId ? "vs bulan lalu" : "vs last month"}` : `${periodLabels[periodFilter]}`}
           icon={<TrendingUp size={19} />}
           tone="indigo"
         />
@@ -1233,7 +1233,7 @@ function Overview({
           tone={activeStats.net >= 0 ? "teal" : "rose"}
         />
         <KpiCard
-          label={isId ? `Cicilan / Tagihan (${periodLabels[periodFilter]})` : `Committed (${periodLabels[periodFilter]})`}
+          label={isId ? `Tagihan & Cicilan (${periodLabels[periodFilter]})` : `Committed (${periodLabels[periodFilter]})`}
           value={formatMoney(periodCommitted, state.baseCurrency, state.locale, true)}
           note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`}
           icon={<CalendarClock size={19} />}
@@ -1241,7 +1241,7 @@ function Overview({
         />
         <KpiCard
           testid="kpi-total-savings"
-          label={isId ? "Total Tertabung" : "Total Saved"}
+          label={isId ? "Total Tabungan" : "Total Saved"}
           value={formatMoney(totalSavings, state.baseCurrency, state.locale, true)}
           note={`${state.savings.length} ${isId ? "target impian aktif" : "active goals"}`}
           icon={<Target size={19} />}
@@ -1254,9 +1254,9 @@ function Overview({
       <Card className="mb-6 border-border/70 bg-card/75 p-4 sm:p-6" data-testid="multi-period-matrix">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Matriks Ringkasan Multi-Periode</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{isId ? "Matriks Finansial" : "Multi-Timeframe Matrix"}</p>
             <h3 className="mt-0.5 font-heading text-base font-bold sm:text-lg">
-              {isId ? "Perbandingan Ringkasan: Hari Ini, Minggu Ini, Bulan Ini & Tahun Ini" : "Multi-Timeframe Summary Matrix"}
+              {isId ? "Performa Arus Kas Multi-Periode" : "Multi-Timeframe Summary Matrix"}
             </h3>
           </div>
           <button
@@ -1443,7 +1443,7 @@ function Overview({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{bill.name}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x remaining` : bill.frequency}
+                    {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "remaining"}` : bill.frequency}
                   </p>
                 </div>
                 <p className="font-data text-xs font-bold">
@@ -1460,7 +1460,7 @@ function Overview({
             className="mt-5 flex w-full items-center justify-between rounded-xl border border-dashed border-primary/35 px-3 py-3 text-left text-xs font-semibold text-primary hover:bg-primary/8"
           >
             <span className="flex items-center gap-2">
-              <Plus size={15} /> {isId ? "Tambah Cicilan / Tagihan Baru" : "Add Bill / Installment"}
+              <Plus size={15} /> {isId ? "Tambah Tagihan / Cicilan Baru" : "Add Bill / Installment"}
             </span>
             <ChevronRight size={15} />
           </button>
@@ -1472,7 +1472,7 @@ function Overview({
           <div className="mb-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t.recent}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">Your money trail</h2>
+              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Riwayat Transaksi" : "Your money trail"}</h2>
             </div>
             <button
               type="button"
@@ -1516,8 +1516,8 @@ function Overview({
         <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Allocation</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">Where it goes</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
+              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Distribusi Pengeluaran" : "Where it goes"}</h2>
             </div>
             <button
               type="button"
@@ -1875,7 +1875,7 @@ function ProfileModal({
   onClose,
   state,
   storageMode,
-  sheetUrl,
+  sheetUrl: _sheetUrl,
   onNavigate,
   onOpenFeedback,
   onToggleTheme,

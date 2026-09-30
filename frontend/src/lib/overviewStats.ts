@@ -88,7 +88,7 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
     week: isId ? "Minggu ini" : "This Week",
     month: isId ? "Bulan ini" : "This Month",
     year: isId ? "Tahun ini" : "This Year",
-    all: isId ? "Semua Waktu" : "All Time",
+    all: isId ? "Semua" : "All",
   };
 
   const previousIncome = state.transactions.filter((item) => monthKey(item.date) === previousMonth(currentMonth) && item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;

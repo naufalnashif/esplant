@@ -31,9 +31,16 @@ dist/
 dist
 
 # Environment files (comprehensive coverage)
+.env
+.env.*
+!.env.example
 
 *token.json*
 *credentials.json*
+
+# Sensitive memory/spec files (personal financial data)
+memory/spec.md
+memory/test_credentials.md
 
 # Logs and debug files
 npm-debug.log*
@@ -57,12 +64,10 @@ chainlit.md
 .chainlit
 .ipynb_checkpoints/
 .ac
+.emergent/
 
 # Deployment
 .vercel
-
-# Data and databases
-agenthub/agents/youtube/db
 
 # Archive files and large assets
 **/*.zip
@@ -75,8 +80,3 @@ agenthub/agents/youtube/db
 
 # Build caches
 .cache/
-
-memory/test_credentials.md
-
-# Mobile development
-android-sdk/

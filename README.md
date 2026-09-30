@@ -1,195 +1,215 @@
-# farm-ts
+# _self.manage — Money, made clear
 
-Minimal split backend/frontend starter: **FastAPI + MongoDB** behind a
-**Vite + React 19 + TypeScript** frontend, joined by a small typed fetch layer
-over `/api`. This is a bare skeleton — no app features are implemented. Build on
-top of it.
+> **Privacy-first, serverless personal finance manager.**
+> Simpan data keuangan langsung di Google Spreadsheet milik Anda sendiri atau secara lokal di browser. Tanpa database backend, tanpa perantara, data tetap 100% milik Anda.
 
-## Layout
+---
+
+## 🌟 Fitur Utama
+
+- **100% Client-Side & Zero-Backend**: Tidak ada database terpusat yang menyimpan riwayat transaksi Anda.
+- **Dua Opsi Penyimpanan**:
+  - **Google Sheets**: Sinkronisasi dua arah langsung ke spreadsheet Google Drive pribadi menggunakan Google Sheets API v4.
+  - **Local Storage**: Mode offline/lokal langsung di browser tanpa perlu akun Google.
+- **Privasi & Keamanan Terjamin**:
+  - Menggunakan Google Identity Services (GIS) token-based OAuth 2.0.
+  - Hanya membutuhkan *Public Client ID* — tidak ada client secret yang diekspos maupun disimpan.
+  - Header keamanan produksi (CSP, HSTS, X-Frame-Options, dsb.) telah dikonfigurasi.
+- **PWA Ready**: Dapat di-install langsung ke layar utama (*Add to Home Screen*) di smartphone (iOS & Android) maupun desktop.
+- **Multi-Currency & Bilingual**: Mendukung format mata uang IDR & USD, serta bahasa Indonesia dan Inggris.
+- **Export & Import**: Dukungan ekspor ke PDF, Excel (.xlsx), dan JSON.
+
+---
+
+## 🏗️ Arsitektur Proyek
 
 ```
-farm-ts/
-  backend/   FastAPI + motor (async MongoDB) + Pydantic v2 — python, /root/.venv
-  frontend/  Vite + React 19 + Tailwind v4 + shadcn/ui (TypeScript strict)
-  tests/     Playwright e2e workspace (pre-scaffolded)
+esplant/
+├── frontend/                 # Aplikasi React 19 + TypeScript + Vite
+│   ├── public/               # Asset statis, favicon, manifest.json (PWA)
+│   ├── src/
+│   │   ├── components/       # Komponen UI (desktop, mobile, shared)
+│   │   ├── lib/              # Google Sheets API client, storage context, utilities
+│   │   └── pages/            # Halaman utama (Home, Terms, Privacy, Docs, Faq)
+│   ├── .env.example          # Template environment variable frontend
+│   └── package.json          # Dependencies frontend
+├── docs/                     # Dokumentasi verifikasi Google OAuth
+├── .env.example              # Template root environment variable
+├── netlify.toml              # Konfigurasi deployment Netlify + Security Headers
+├── vercel.json               # Konfigurasi deployment Vercel + Security Headers
+├── firebase.json             # Konfigurasi deployment Google Firebase Hosting
+└── package.json              # Root package script (build, dev, test, lint)
 ```
 
-## Running
+---
 
-Two separate processes, managed by supervisor in the pod (see "Pod conventions"
-below); to run them by hand from two terminals instead:
+## 🛡️ Pre-Launch Security Checklist
 
+Sebelum melakukan deployment ke production, pastikan checklist berikut telah terpenuhi:
+
+- [x] **Credential Management**: Tidak ada API secret atau database password di dalam source code. `VITE_GOOGLE_CLIENT_ID` bersifat publik.
+- [x] **Gitignore**: Seluruh file `.env`, credential lokal, dan build artifact terdaftar di `.gitignore`.
+- [x] **Content-Security-Policy (CSP)**: Mengizinkan request hanya ke domain terpercaya (`apis.google.com`, `sheets.googleapis.com`, `accounts.google.com`).
+- [x] **HSTS & Frame Protection**: Header `Strict-Transport-Security`, `X-Frame-Options: SAMEORIGIN`, dan `X-Content-Type-Options: nosniff` aktif di seluruh platform deployment.
+- [x] **Clean Codebase**: Seluruh dead code, mock backend Python, dan file template yang tidak digunakan telah dibersihkan.
+
+---
+
+## 🔑 Konfigurasi Google Cloud (OAuth 2.0)
+
+Aplikasi ini menggunakan **Google Identity Services (GIS)** dengan alur implicit token client. Ikuti langkah berikut untuk mendapatkan Client ID:
+
+1. Buka [Google Cloud Console](https://console.cloud.google.com/).
+2. Buat project baru atau pilih project yang sudah ada.
+3. Masuk ke **APIs & Services** → **Library**, cari **Google Sheets API**, lalu klik **Enable**.
+4. Masuk ke **APIs & Services** → **OAuth consent screen**:
+   - Pilih User Type: **External**.
+   - Isi Nama Aplikasi (misal: `_self.manage`), Email Dukungan, dan Developer Contact.
+   - Tambahkan scope: `https://www.googleapis.com/auth/spreadsheets`.
+5. Masuk ke **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth client ID**:
+   - Application type: **Web application**.
+   - Nama: `_self.manage Web Client`.
+   - **Authorized JavaScript origins** (Sangat Penting):
+     Tambahkan domain tempat aplikasi di-hosting (tanpa garis miring di akhir `/`), contoh:
+     - `http://localhost:3000` (untuk pengujian lokal)
+     - `https://your-app.vercel.app` (jika menggunakan Vercel)
+     - `https://your-app.netlify.app` (jika menggunakan Netlify)
+     - `https://your-project.web.app` (jika menggunakan Firebase Hosting)
+   - **Authorized redirect URIs**: Kosongkan (aplikasi menggunakan in-page token client, bukan redirect flow).
+6. Salin **Client ID** yang dihasilkan (`xxxxxx.apps.googleusercontent.com`).
+
+---
+
+## 🚀 Panduan Deployment
+
+Pilih platform hosting gratis yang Anda sukai. Semua konfigurasi routing SPA dan header keamanan telah disiapkan.
+
+### Opsi 1: Vercel (Rekomendasi)
+
+Konfigurasi telah disediakan di [`vercel.json`](./vercel.json).
+
+#### Melalui Dashboard Vercel:
+1. Push repositori ini ke GitHub/GitLab Anda.
+2. Masuk ke [Vercel Dashboard](https://vercel.com/) → klik **Add New** → **Project**.
+3. Import repositori Anda:
+   - **Root Directory**: Biarkan `./` (atau pilih `frontend`).
+   - **Build Command**: `cd frontend && npm install && npm run build` (otomatis dari `vercel.json`).
+   - **Output Directory**: `frontend/dist`.
+4. Buka tab **Environment Variables**:
+   - Key: `VITE_GOOGLE_CLIENT_ID`
+   - Value: `Client ID Google Anda`
+5. Klik **Deploy**.
+
+#### Melalui Vercel CLI:
 ```bash
-cd backend && uvicorn server:app --host 0.0.0.0 --port 8001 --reload   # http://localhost:8001
-cd frontend && yarn dev                                                # http://localhost:3000
+npm i -g vercel
+vercel
 ```
 
-## The `/api` proxy convention
+---
 
-Every backend route lives under `/api` (the backend mounts one
-`APIRouter(prefix="/api")`), and the frontend dev server
-(`frontend/vite.config.ts`) proxies `/api/*` to `http://localhost:8001`. So
-frontend code always calls a **relative** path — `apiGet("/status")` →
-`/api/status` — and never an absolute backend URL. The same code works in dev
-(via the Vite proxy) and in production (once both are served behind a single
-origin).
+### Opsi 2: Netlify
 
-## Backend
+Konfigurasi telah disediakan di [`netlify.toml`](./netlify.toml).
 
-FastAPI, async throughout. `python` is the app venv interpreter
-(`/root/.venv/bin/python`); backend deps are pip-installed from
-`backend/requirements.txt`.
+1. Push repositori ke GitHub/GitLab Anda.
+2. Masuk ke [Netlify Dashboard](https://app.netlify.com/) → **Add new site** → **Import an existing project**.
+3. Pilih repositori Anda:
+   - Build settings akan otomatis terdeteksi dari `netlify.toml` (`publish = "frontend/dist"`).
+4. Tambahkan Environment Variable:
+   - Buka **Site configuration** → **Environment variables** → **Add a variable**.
+   - Key: `VITE_GOOGLE_CLIENT_ID`
+   - Value: `Client ID Google Anda`
+5. Klik **Deploy site**.
 
-- **Entry point**: `backend/server.py` — creates `app = FastAPI()`, creates
-  `api_router = APIRouter(prefix="/api")`, registers routes **on the router**,
-  and calls `app.include_router(api_router)` at the bottom. CORS middleware is
-  added from `CORS_ORIGINS`. Never hang a route directly off `app` — it would
-  land outside `/api` and the Vite proxy would not reach it.
-- **The route pattern** (copy `status` in `server.py`):
-  1. a Pydantic model per request body and per response
-     (`StatusCheckCreate` / `StatusCheck`);
-  2. an `async def` handler decorated with
-     `@api_router.post("/status", response_model=StatusCheck)`;
-  3. `await` the motor call inside it.
-  FastAPI validates the request against the Pydantic model before your handler
-  runs — a malformed body never reaches your code, it gets an automatic `422`
-  with a `{"detail": [...]}` body.
-- **Growing the backend**: as `server.py` gets crowded, move models to
-  `backend/models/` and routers to `backend/routers/` (one module per resource,
-  each exporting its own `APIRouter`, mounted from `server.py` via
-  `api_router.include_router(...)` or `app.include_router(...)` with the `/api`
-  prefix preserved).
-- **MongoDB**: import the shared handle — `from lib.db import client, db`
-  (`backend/lib/db.py` self-loads `.env` before reading env). Use it from
-  `server.py`, every router, and standalone scripts like `seed.py`; never
-  construct another `AsyncIOMotorClient`. Collections are attributes:
-  `await db.status_checks.insert_one(...)`, `await db.status_checks.find().to_list(1000)`.
-  Motor connects lazily, so importing `server` never blocks on Mongo. `pymongo`
-  is installed too if you need a sync client in a script.
-- **Ids**: documents use a string `id` (`uuid4`) field, not Mongo's `ObjectId`
-  — `ObjectId` is not JSON-serializable and leaks into response bodies. Keep the
-  `uuid4` default-factory pattern from `StatusCheck`.
-- **Config**: `backend/.env` — `MONGO_URL` (connection string), `DB_NAME`
-  (database name), `CORS_ORIGINS`. `server.py` loads it with `python-dotenv`
-  above its local imports, and `lib/db.py` self-loads it so standalone scripts
-  inherit it too. The pod runs `mongod` locally, so `MONGO_URL` points at
-  `localhost`. Add new secrets/config here; read them with `os.environ`.
-- **Dates**: `backend/lib/dates.py` — `today_iso(tz=None)`. The pod clock is
-  UTC; anchor "today" server-side with this, never with client-side date math.
-- **Interactive check**: `cd /app/backend && python -c 'import server'` catches
-  syntax/import errors without waiting for the supervisor log.
+---
 
-## Frontend
+### Opsi 3: Google Firebase Hosting (Hosting Gratis dari Google)
 
-- Vite + React 19 + TypeScript strict, dev server on port `3000`.
-- Tailwind CSS v4 (via the `@tailwindcss/vite` plugin — no separate
-  `tailwind.config.js` needed) + shadcn/ui, initialized with the `base-nova`
-  style and `neutral` base color, `@` path alias (`@/*` → `src/*`) wired in both
-  `tsconfig.app.json`/`tsconfig.json` and `vite.config.ts`.
-- `react-router-dom` and `motion` are preinstalled — don't re-add them. `src/App.tsx`
-  is the `<Routes>` table and nothing else; screens live in `src/pages/*.tsx` and are
-  imported as `@/pages/<Name>`. `src/pages/Home.tsx` ships as the worked example. Add
-  a `<Route>` for every page you write, in the same edit that creates the page — a
-  page with no route is unreachable, and any URL without a matching `<Route>` renders a
-  **blank page** — `<Routes>` matches nothing and mounts nothing.
-- Components installed under `src/components/ui/`: button, card, input, label,
-  select, dialog, sheet, tabs, badge, calendar, sonner, textarea, table, popover,
-  dropdown-menu, checkbox. Add more with `npx shadcn@latest add <component>`.
-- `src/lib/api.ts` — the typed fetch layer: `apiGet<T>`, `apiPost<T>`,
-  `apiPut<T>`, `apiPatch<T>`, `apiDelete<T>`, all relative to base `/api`,
-  throwing `ApiError` (with `status` and the parsed body) on any non-2xx.
-  **Nothing infers across the Python boundary** — you declare the response type
-  yourself as a TS interface mirroring the endpoint's Pydantic model, and keeping
-  the two in sync is a manual discipline. When you change a Pydantic model,
-  change its TS interface in the same edit.
-- `src/pages/Home.tsx` is a minimal example of the wiring: TanStack Query's `useQuery`
-  with `apiGet<StatusCheck[]>("/status")` as the `queryFn`. It is a **non-blocking
-  connectivity probe**, not a proof of the round trip — the result is deliberately
-  discarded so the splash renders identically with no backend. `apiGet<T>` does no
-  runtime validation either; `T` is your assertion, not a check. See the
-  static-preview rule in `TEMPLATE.md` §4 for why no page may be gated on a fetch.
+Konfigurasi telah disediakan di [`firebase.json`](./firebase.json).
 
-## TypeScript
+1. Install Firebase CLI (jika belum ada):
+   ```bash
+   npm install -g firebase-tools
+   ```
+2. Login ke akun Google Anda:
+   ```bash
+   firebase login
+   ```
+3. Hubungkan project Firebase Anda:
+   ```bash
+   firebase use --add
+   ```
+   (Pilih Google Cloud Project yang sama dengan OAuth Client ID Anda).
+4. Buat file `frontend/.env.production`:
+   ```bash
+   VITE_GOOGLE_CLIENT_ID=Client ID Google Anda
+   ```
+5. Build dan deploy:
+   ```bash
+   npm run build
+   firebase deploy --only hosting
+   ```
 
-`frontend/tsconfig.app.json` / `tsconfig.node.json` have `strict: true`. In the
-pod:
+---
 
+## 💻 Pengembangan Lokal (Local Development)
+
+### 1. Prasyarat
+- **Node.js** v20 atau lebih baru.
+- **npm** atau **yarn**.
+
+### 2. Instalasi
+Clone repositori dan pasang dependensi:
 ```bash
-cd frontend && yarn typecheck
+git clone <url-repo-anda>
+cd esplant
+cd frontend
+npm install
 ```
 
-— plain `tsc --noEmit` run from `frontend/` checks ZERO files (root tsconfig uses
-project references with `"files": []`) and exits 0 even with type errors. Always
-use `-b` for the frontend. Lint with `cd frontend && yarn lint` (oxlint).
-
-## Data fetching
-
-TanStack Query is wired: `QueryClientProvider` in `src/main.tsx`, `useQuery` demo
-in `src/pages/Home.tsx` (see above). Use `useQuery`/`useMutation`, not
-fetch-in-`useEffect`.
-
-## Completion gate (tier 1)
-
-When the build is complete, run tier 1 once, all in the same turn: a curl smoke
-over the key `/api` endpoints (assert status AND a response field, plus one
-negative case), `cd frontend && yarn typecheck`, and ONE happy-path browser pass
-through the core user journey. Clean on all three → finish; any failure is a real
-bug — fix it, re-run the failed check, and escalate to the testing subagent.
-No routine typecheck/lint/smoke passes during the build — tier 1 runs exactly once.
-
-
-## Testing
-
-Two lanes.
-
-**Backend (pytest)** — specs in `backend/tests/` as `test_*.py`, run with:
-
+### 3. Konfigurasi Lingkungan (.env)
+Salin contoh environment file:
 ```bash
-cd /app/backend && pytest
+cp .env.example .env
+```
+Buka `.env` dan masukkan Google Client ID Anda:
+```env
+VITE_GOOGLE_CLIENT_ID=xxxxxx.apps.googleusercontent.com
 ```
 
-`backend/pytest.ini` is canonical: `addopts = -n 2 --dist loadscope` (pytest-xdist,
-already parallel — do not pass your own `-n`) and `asyncio_mode = auto` (so
-`async def test_...` needs no marker). Serial is `-n 0`, **never**
-`-p no:xdist` (that errors, because `addopts` still passes `-n`/`--dist`).
-`backend/tests/conftest.py` is pre-scaffolded — a sync `client` fixture
-(`httpx.Client` rooted at `/api`), an async `aclient`, and an `api_url()` helper,
-all pointed at `BACKEND_URL` (default `http://localhost:8001`). Tests hit the
-live uvicorn process, so the app under test is the one the browser sees. Add
-app-specific fixtures below the marker; do not re-create the file.
+### 4. Menjalankan Aplikasi
+Dari root direktori atau dari folder `frontend`:
+```bash
+# Dari root:
+npm run dev
 
-**Frontend (Playwright)** — `/app/tests/` is pre-scaffolded:
-`playwright.config.ts` (canonical — edit the marked lines only),
-`fixtures/helpers.ts`, and a `package.json` that resolves
-`@playwright/test@1.62.0` (node_modules baked into the image). Write specs into
-`tests/e2e/`. Do NOT re-create the config/helpers or install/upgrade playwright —
-matching Chromium browsers live at `/pw-browsers`.
+# Atau dari frontend:
+cd frontend && npm run dev
+```
+Aplikasi akan berjalan di `http://localhost:3000`.
 
-The backend lane is pytest: this template's backend is Python, so `vitest` does
-not apply to it.
+### 5. Menjalankan Pengujian (Testing & Linting)
+```bash
+# Menjalankan unit & integration test (Vitest)
+npm run test
 
-## Pod conventions
+# Menjalankan linting (oxlint)
+npm run lint
 
-This template runs under supervisord in the Emergent agent pod — supersedes any
-local-run instructions above.
+# Menjalankan TypeScript typecheck
+npm run typecheck
 
-- Backend, frontend, and `mongod` are each a supervisor program. After code or
-  config changes, restart and wait for readiness:
+# Membuat production build
+npm run build
+```
 
-  ```bash
-  sudo supervisorctl restart frontend backend
-  until curl -sf -o /dev/null http://localhost:3000; do sleep 2; done
-  ```
+---
 
-- Status, only after a restart you triggered:
-  `sudo supervisorctl status frontend backend`. Logs:
-  `/var/log/supervisor/backend.err.log`, `backend.out.log`,
-  `frontend.err.log`.
-- App in a browser: the pod's preview URL (frontend, port `3000`). Backend API
-  directly at port `8001`.
-- `mongod` runs locally in the pod (`--bind_ip_all`); `MONGO_URL` in
-  `backend/.env` points at `localhost`, no separate Mongo container.
-- Both dev servers hot-reload on file edits (uvicorn `--reload` for the backend,
-  Vite HMR for the frontend); no rebuild step needed for normal iteration. A
-  restart is still needed after changing `.env`, `requirements.txt`, or
-  `vite.config.ts`.
+## 📄 Kebijakan & Privasi
+
+Aplikasi ini menyertakan halaman legal statis yang dapat langsung digunakan untuk verifikasi Google OAuth:
+- Privacy Policy: `/privacy.html`
+- Terms of Service: `/terms.html`
+
+Panduan lengkap mengenai tata cara verifikasi OAuth di Google Cloud Console tersedia di [`docs/GOOGLE_OAUTH_VERIFICATION.md`](docs/GOOGLE_OAUTH_VERIFICATION.md).

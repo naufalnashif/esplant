@@ -216,10 +216,10 @@ function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (n
 
 export function SettingsPanel({
   state,
-  profileDraft,
-  setProfileDraft,
+  profileDraft: _profileDraft,
+  setProfileDraft: _setProfileDraft,
   updateState,
-  onSaveProfile,
+  onSaveProfile: _onSaveProfile,
   onJson,
   onXlsx,
   onImport,

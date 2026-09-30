@@ -79,7 +79,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
   return (
     <div className="animate-rise-in space-y-4" data-testid="mobile-overview">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">Personal finance / 01</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isId ? "Keuangan Pribadi" : "Personal finance"}</p>
         <h1 className="mt-1 font-heading text-2xl font-extrabold tracking-tight">{state.profileName ? `${t.hello}, ${state.profileName}.` : `${t.hello}.`}</h1>
       </div>
 
@@ -140,10 +140,10 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
                 title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
               >
                 <Target size={13} className="text-teal-300" />
-                <span>{isId ? "Tertabung" : "Saved"}: {money(totalSavings)}</span>
+                <span>{isId ? "Tabungan" : "Saved"}: {money(totalSavings)}</span>
               </button>
             )}
-            <span className="flex items-center gap-1.5"><ShieldCheck size={13} /> {isId ? "Tersimpan" : "Saved"}</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck size={13} /> {isId ? "Privat & Aman" : "Saved"}</span>
           </div>
         </div>
       </Card>
@@ -166,8 +166,8 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         <div className="grid grid-cols-2 gap-2" data-testid="mobile-kpi-grid">
           <MiniKpi testid="mobile-kpi-expense" label={isId ? "Pengeluaran" : "Spent"} value={money(activeStats.expense)} note={`${activeStats.count} ${isId ? "transaksi" : "transactions"}`} icon={<TrendingDown size={14} />} tone="rose" />
           <MiniKpi testid="mobile-kpi-income" label={isId ? "Pemasukan" : "Income"} value={money(activeStats.income)} note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% vs ${isId ? "bulan lalu" : "last month"}` : periodLabels[periodFilter]} icon={<TrendingUp size={14} />} tone="indigo" />
-          <MiniKpi testid="mobile-kpi-net" label={isId ? "Arus bersih" : "Net flow"} value={money(activeStats.net)} note={isId ? "Pemasukan − Pengeluaran" : "Income − Expense"} icon={<ArrowUpRight size={14} />} tone={activeStats.net >= 0 ? "teal" : "rose"} />
-          <MiniKpi testid="mobile-kpi-committed" label={isId ? "Cicilan / Tagihan" : "Committed"} value={money(periodCommitted)} note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`} icon={<CalendarClock size={14} />} tone="amber" />
+          <MiniKpi testid="mobile-kpi-net" label={isId ? "Arus Bersih" : "Net Flow"} value={money(activeStats.net)} note={isId ? "Pemasukan − Pengeluaran" : "Income − Expense"} icon={<ArrowUpRight size={14} />} tone={activeStats.net >= 0 ? "teal" : "rose"} />
+          <MiniKpi testid="mobile-kpi-committed" label={isId ? "Tagihan & Cicilan" : "Committed"} value={money(periodCommitted)} note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`} icon={<CalendarClock size={14} />} tone="amber" />
         </div>
         <div
           data-testid="mobile-kpi-savings"
@@ -180,7 +180,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
             </div>
             <div className="min-w-0 flex items-center gap-1.5">
               <span className="truncate text-xs font-semibold text-foreground">
-                {isId ? "Total Tertabung (Goals)" : "Total Saved (Goals)"}
+                {isId ? "Total Tabungan" : "Total Saved"}
               </span>
               <span className="text-[10px] text-muted-foreground font-medium shrink-0">
                 · {state.savings.length} {isId ? "target" : "goals"}
@@ -197,7 +197,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
       </div>
 
       <Card className="border-border/70 bg-card/75 p-4" data-testid="mobile-main-chart">
-        <MobileCardHeader eyebrow="Smart snapshot" title={t.cashFlow} action={<Badge variant="secondary" className="shrink-0 gap-1"><RefreshCw size={11} /> Live</Badge>} />
+        <MobileCardHeader eyebrow={isId ? "Tren Finansial" : "Smart snapshot"} title={t.cashFlow} action={<Badge variant="secondary" className="shrink-0 gap-1"><RefreshCw size={11} /> Live</Badge>} />
         <div className="mt-3 h-[170px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={flowChart} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}>
@@ -215,15 +215,15 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
           </ResponsiveContainer>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/50 pt-3 text-[11px]">
-          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-emerald-400" /> Income</p><p className="mt-0.5 font-data text-xs font-bold text-emerald-400" data-testid="mobile-flow-income-total">+{money(flowIncome)}</p></div>
-          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-red-400" /> Expense</p><p className="mt-0.5 font-data text-xs font-bold text-red-400" data-testid="mobile-flow-expense-total">−{money(flowExpense)}</p></div>
+          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-emerald-400" /> {isId ? "Pemasukan" : "Income"}</p><p className="mt-0.5 font-data text-xs font-bold text-emerald-400" data-testid="mobile-flow-income-total">+{money(flowIncome)}</p></div>
+          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-red-400" /> {isId ? "Pengeluaran" : "Expense"}</p><p className="mt-0.5 font-data text-xs font-bold text-red-400" data-testid="mobile-flow-expense-total">−{money(flowExpense)}</p></div>
         </div>
       </Card>
 
       <div className="grid grid-cols-2 gap-3" data-testid="mobile-mini-charts">
         <Card className="border-border/70 bg-card/75 p-3.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Allocation</p>
-          <p className="mt-0.5 truncate font-heading text-sm font-bold">Where it goes</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Alokasi" : "Allocation"}</p>
+          <p className="mt-0.5 truncate font-heading text-sm font-bold">{isId ? "Pos Belanja" : "Where it goes"}</p>
           <div className="relative mx-auto mt-2 h-[96px] w-[96px]" data-testid="mobile-category-donut" data-slice-count={categoryChart.length}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -283,14 +283,14 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
       </div>
 
       <Card className="border-border/70 bg-card/75 p-4" data-testid="mobile-due-soon">
-        <MobileCardHeader eyebrow={isId ? "Pusat aksi" : "Action center"} title={t.dueSoon} action={<button type="button" data-testid="view-commitments-button" onClick={() => onNavigate("commitments")} className="shrink-0 text-xs font-bold text-primary">{t.seeAll}</button>} />
+        <MobileCardHeader eyebrow={isId ? "Jadwal Pembayaran" : "Action center"} title={t.dueSoon} action={<button type="button" data-testid="view-commitments-button" onClick={() => onNavigate("commitments")} className="shrink-0 text-xs font-bold text-primary">{t.seeAll}</button>} />
         <div className="mt-3 space-y-2">
           {upcoming.slice(0, 3).map((bill) => (
             <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/35 px-3 py-2.5">
               <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/12 text-amber-400"><CalendarClock size={14} /></div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold leading-tight">{bill.name}</p>
-                <p className="text-[10px] text-muted-foreground">{shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x` : bill.frequency}</p>
+                <p className="text-[10px] text-muted-foreground">{shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "left"}` : bill.frequency}</p>
               </div>
               <p className="shrink-0 font-data text-xs font-bold">{money(toBase(bill.amount, bill.currency, state.exchangeRates))}</p>
             </div>
@@ -298,13 +298,13 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
           {upcoming.length === 0 && <p className="py-5 text-center text-xs text-muted-foreground">{t.noData}</p>}
         </div>
         <button type="button" data-testid="open-commitment-from-action-button" onClick={() => onNavigate("commitments")} className="mt-3 flex w-full items-center justify-between rounded-xl border border-dashed border-primary/35 px-3 py-2.5 text-left text-xs font-semibold text-primary">
-          <span className="flex items-center gap-2"><Plus size={14} /> {isId ? "Tambah Cicilan / Tagihan" : "Add Bill / Installment"}</span>
+          <span className="flex items-center gap-2"><Plus size={14} /> {isId ? "Tambah Tagihan / Cicilan" : "Add Bill / Installment"}</span>
           <ChevronRight size={14} />
         </button>
       </Card>
 
       <Card className="border-border/70 bg-card/75 p-4" data-testid="mobile-recent">
-        <MobileCardHeader eyebrow={t.recent} title="Your money trail" action={<button type="button" data-testid="view-transactions-button" onClick={() => onNavigate("transactions")} className="shrink-0 text-xs font-bold text-primary">{t.seeAll}</button>} />
+        <MobileCardHeader eyebrow={t.recent} title={isId ? "Riwayat Transaksi" : "Your money trail"} action={<button type="button" data-testid="view-transactions-button" onClick={() => onNavigate("transactions")} className="shrink-0 text-xs font-bold text-primary">{t.seeAll}</button>} />
         <div className="mt-2 divide-y divide-border/40">
           {recent.map((item) => (
             <div key={item.id} className="flex items-center gap-3 py-2.5">
@@ -320,7 +320,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         </div>
       </Card>
 
-      <MobileDisclosure testid="mobile-period-matrix" title={isId ? "Matriks multi-periode" : "Multi-period matrix"} hint={isId ? "Hari ini · Minggu · Bulan · Tahun" : "Today · Week · Month · Year"} showLabel={isId ? "Lihat selengkapnya" : "Show more"} hideLabel={isId ? "Sembunyikan" : "Hide"}>
+      <MobileDisclosure testid="mobile-period-matrix" title={isId ? "Matriks Multi-Periode" : "Multi-period matrix"} hint={isId ? "Hari ini · Minggu · Bulan · Tahun" : "Today · Week · Month · Year"} showLabel={isId ? "Lihat selengkapnya" : "Show more"} hideLabel={isId ? "Sembunyikan" : "Hide"}>
         <div className="grid grid-cols-2 gap-2.5">
           {(["today", "week", "month", "year"] as const).map((key) => {
             const stats = periodStats[key];

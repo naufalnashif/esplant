@@ -113,21 +113,21 @@ const menu = [
 ];
 
 const kpis = [
-  { label: "Pengeluaran bulan ini", value: "Rp 6,9 Juta", note: "38 transaksi", tone: "rose", icon: TrendingDown },
-  { label: "Pemasukan bulan ini", value: "Rp 11,4 Juta", note: "+18% vs bulan lalu", tone: "indigo", icon: TrendingUp },
-  { label: "Arus bersih", value: "Rp 4,5 Juta", note: "Pemasukan − Pengeluaran", tone: "teal", icon: ArrowUpRight },
+  { label: "Pengeluaran bulan ini", value: "Rp 6,9 Jt", note: "38 transaksi", tone: "rose", icon: TrendingDown },
+  { label: "Pemasukan bulan ini", value: "Rp 11,4 Jt", note: "+18% vs bulan lalu", tone: "indigo", icon: TrendingUp },
+  { label: "Arus kas bersih", value: "+Rp 4,5 Jt", note: "Pemasukan − Pengeluaran", tone: "teal", icon: ArrowUpRight },
 ] as const;
 const tones: Record<string, string> = {
   rose: "bg-red-500/12 text-red-400", indigo: "bg-indigo-500/12 text-indigo-400", teal: "bg-primary/12 text-primary",
 };
 
 const features = [
-  { icon: FileSpreadsheet, title: "Spreadsheet Anda, bukan server kami", body: "Setiap transaksi ditulis langsung ke Google Sheet milik Anda. Buka, edit, atau bagikan kapan pun." },
-  { icon: RefreshCw, title: "Sinkronisasi real-time", body: "Edit di aplikasi atau langsung di Sheets — tarik ulang kapan saja dan angka tetap konsisten." },
-  { icon: LayoutGrid, title: "Kategori pintar & tracking", body: "Catat pemasukan/pengeluaran dengan kategori otomatis dan lihat KPI langsung diperbarui." },
-  { icon: TrendingUp, title: "Visualisasi interaktif", body: "Chart arus kas, perbandingan bulan, dan komposisi kategori yang mudah dibaca." },
-  { icon: HardDrive, title: "Privacy-first dengan IndexedDB", body: "Mode lokal menyimpan data di browser Anda — tanpa akun, tanpa data pribadi ke server." },
-  { icon: ShieldCheck, title: "Gratis selama beta", body: "Ekspor/impor JSON & CSV tanpa vendor lock-in. Data selalu bisa Anda bawa pergi." },
+  { icon: FileSpreadsheet, title: "Spreadsheet Pribadi", body: "Setiap transaksi dicatat langsung ke Google Sheets Anda. Buka, pantau, atau unduh kapan pun tanpa perantara." },
+  { icon: RefreshCw, title: "Sinkronisasi Dua Arah", body: "Edit di dashboard web atau langsung di Sheets — data selalu konsisten dan tersinkronisasi instan." },
+  { icon: LayoutGrid, title: "Kategori & Budget Guard", body: "Kelola pos belanja dengan guardrail budget dan deteksi limit otomatis agar keuangan tetap terkendali." },
+  { icon: TrendingUp, title: "Visualisasi Finansial", body: "Grafik arus kas, perbandingan bulanan, dan komposisi belanja yang ringkas, interaktif, dan mudah dibaca." },
+  { icon: HardDrive, title: "Privasi Tanpa Server", body: "Mode offline menyimpan data langsung di browser via IndexedDB. Nol pelacakan dan tanpa penyimpanan server pihak ketiga." },
+  { icon: ShieldCheck, title: "Bebas Vendor Lock-in", body: "Ekspor dan impor data kapan saja dalam format JSON, Excel (XLSX), maupun cetak ringkasan PDF resmi." },
 ];
 
 const marqueeItems = [
@@ -147,6 +147,49 @@ const faqPreview = [
   { q: "Kenapa harus pakai akun Google sendiri?", a: "Agar data tetap 100% milik Anda. Spreadsheet dibuat di Drive Anda sehingga bisa dibuka atau dihapus kapan pun." },
   { q: "Apa artinya masih beta?", a: "Aplikasi masih uji coba; fitur bisa berubah. Kami sarankan rutin mengekspor cadangan JSON Anda." },
 ];
+
+const TYPEWRITER_PHRASES = [
+  "Google Spreadsheet Anda.",
+  "Google Drive pribadi Anda.",
+  "kendali penuh Anda.",
+];
+
+function HeroTypewriter() {
+  const [index, setIndex] = useState(0);
+  const [text, setText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const current = TYPEWRITER_PHRASES[index];
+    const speed = isDeleting ? 30 : 65;
+
+    if (!isDeleting && text === current) {
+      const timer = setTimeout(() => setIsDeleting(true), 2400);
+      return () => clearTimeout(timer);
+    }
+
+    if (isDeleting && text === "") {
+      setIsDeleting(false);
+      setIndex((prev) => (prev + 1) % TYPEWRITER_PHRASES.length);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setText((prev) =>
+        isDeleting ? prev.slice(0, -1) : current.slice(0, prev.length + 1)
+      );
+    }, speed);
+
+    return () => clearTimeout(timer);
+  }, [text, isDeleting, index]);
+
+  return (
+    <span className="text-primary inline-block min-h-[1.15em]">
+      {text}
+      <span className="animate-pulse ml-0.5 inline-block text-primary font-normal">|</span>
+    </span>
+  );
+}
 
 function FaqPreviewItem({ item }: { item: { q: string; a: string } }) {
   const [open, setOpen] = useState(false);
@@ -245,7 +288,7 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
             </Button>
             <Button data-testid="landing-connect-header-button" onClick={() => setShowConnect(true)} className="hidden h-9 gap-2 text-xs font-bold shadow-lg shadow-primary/20 md:inline-flex">
               <FileSpreadsheet size={14} />
-              Connect Google Sheet
+              Hubungkan Sheet
             </Button>
             <button
               type="button"
@@ -268,23 +311,24 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
             <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-500" data-testid="beta-badge">
               <Sparkles size={11} /> Beta · Sedang Uji Coba
             </span>
-            <h1 id="hero-heading" className="mt-5 font-heading text-[clamp(2rem,6vw,3.5rem)] font-extrabold leading-[1.08] tracking-tight">
-              Kelola uang di spreadsheet Anda sendiri.
+            <h1 id="hero-heading" className="mt-5 font-heading text-[clamp(1.9rem,5.5vw,3.25rem)] font-extrabold leading-[1.12] tracking-tight">
+              Kelola uang di <br className="hidden sm:inline" />
+              <HeroTypewriter />
             </h1>
-            <p className="mt-4 max-w-xl text-[clamp(0.9rem,2.5vw,1.05rem)] leading-relaxed text-muted-foreground">
-              <span className="font-heading font-bold text-foreground">_self.manage</span> menulis setiap transaksi langsung ke
-              Google Spreadsheet milik Anda — atau simpan lokal di browser. Tanpa akun, tanpa data pribadi ke server.
+            <p className="mt-4 max-w-xl text-[clamp(0.9rem,2.5vw,1.02rem)] leading-relaxed text-muted-foreground">
+              <span className="font-heading font-bold text-foreground">_self.manage</span> mencatat setiap transaksi langsung ke
+              Google Spreadsheet pribadi Anda atau simpan lokal di browser. Tanpa perantara, tanpa database server, data 100% milik Anda.
             </p>
             <div className="mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <Button data-testid="landing-try-local-hero-button" variant="outline" onClick={() => navigate("/demo")} className="h-12 w-full gap-2 px-5 text-sm font-bold sm:w-auto">
-                <HardDrive size={16} /> Coba Demo (Local DB)
+                <HardDrive size={16} /> Coba Demo (Lokal)
               </Button>
               <Button data-testid="landing-connect-button" onClick={() => setShowConnect(true)} className="h-12 w-full gap-2 px-6 text-sm font-bold shadow-lg shadow-primary/20 sm:w-auto">
-                <FileSpreadsheet size={16} /> Connect Google Sheet
+                <FileSpreadsheet size={16} /> Hubungkan Spreadsheet
               </Button>
             </div>
             <p className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <ShieldCheck size={13} className="text-emerald-500" /> Tanpa akun, tanpa email, tanpa biaya.
+              <ShieldCheck size={13} className="text-emerald-500" /> Tanpa registrasi akun, tanpa database server, 100% privat.
             </p>
           </div>
 
