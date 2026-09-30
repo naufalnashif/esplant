@@ -1,6 +1,6 @@
 # Checklist verifikasi Google OAuth — `_self.manage`
 
-Domain produksi: `https://financial-tracker-v1.netlify.app`
+Domain produksi: `https://selfmanage-demo.vercel.app`
 Nama aplikasi resmi (harus sama di semua tempat): **`_self.manage`**
 
 ---
@@ -14,9 +14,9 @@ Google meminta bukti kepemilikan domain.
 - [x] Meta tag verifikasi sudah dipasang di `frontend/index.html`:
       `<meta name="google-site-verification" content="cCXrIbLero7Ahl9wWtT3bfIBqPaPyYPBYMfMiFQVwz4" />`
 - [ ] Deploy ulang Netlify, lalu buka [Google Search Console](https://search.google.com/search-console),
-      pilih properti **URL prefix** `https://financial-tracker-v1.netlify.app/`, metode **HTML tag**, klik **Verify**.
+      pilih properti **URL prefix** `https://selfmanage-demo.vercel.app/`, metode **HTML tag**, klik **Verify**.
 - [ ] Pastikan akun Google yang memverifikasi **sama** dengan akun pemilik project Google Cloud.
-- Cek cepat: `curl -s https://financial-tracker-v1.netlify.app/ | grep google-site-verification`
+- Cek cepat: `curl -s https://selfmanage-demo.vercel.app/ | grep google-site-verification`
 
 ### 2. "Privacy policy page does not have sufficient content"
 
@@ -25,9 +25,9 @@ Google meminta bukti kepemilikan domain.
       akses, cara menghapus data, tanggal pembaruan, dan email kontak).
 - [x] Halaman Terms dibuat: `frontend/public/terms.html` → `/terms.html`
 - [ ] Di OAuth consent screen → **Branding**, isi:
-      - Application privacy policy link: `https://financial-tracker-v1.netlify.app/privacy.html`
-      - Application terms of service link: `https://financial-tracker-v1.netlify.app/terms.html`
-      - Application home page: `https://financial-tracker-v1.netlify.app`
+      - Application privacy policy link: `https://selfmanage-demo.vercel.app/privacy.html`
+      - Application terms of service link: `https://selfmanage-demo.vercel.app/terms.html`
+      - Application home page: `https://selfmanage-demo.vercel.app`
 
 ### 3. "App name does not match the app name on your home page"
 
@@ -48,7 +48,7 @@ Google meminta bukti kepemilikan domain.
 **Credentials → OAuth 2.0 Client ID (Web application)**
 
 - [ ] Authorized JavaScript origins:
-      - `https://financial-tracker-v1.netlify.app`
+      - `https://selfmanage-demo.vercel.app`
       - `http://localhost:3000`
       - (opsional) URL preview Emergent saat pengembangan
 - [ ] Authorized redirect URIs: **kosong** — aplikasi memakai GIS token client, bukan redirect flow.
@@ -70,7 +70,7 @@ memperpanjang proses review.
 
 Rekam layar tanpa dipotong, ±2 menit, bahasa Inggris atau Indonesia, urutan:
 
-1. Tampilkan URL `https://financial-tracker-v1.netlify.app` di address bar dan nama `_self.manage` di halaman.
+1. Tampilkan URL `https://selfmanage-demo.vercel.app` di address bar dan nama `_self.manage` di halaman.
 2. Klik **Hubungkan Spreadsheet** → tampilkan dialog consent Google, **tunjukkan nama aplikasi `_self.manage`
    dan daftar scope pada layar consent** (ini wajib terlihat).
 3. Setelah login, tambahkan satu transaksi di aplikasi.
@@ -99,10 +99,10 @@ Unggah ke YouTube sebagai **Unlisted**, tempel tautannya di form verifikasi.
 ## E. Uji cepat setelah deploy
 
 ```bash
-curl -s https://financial-tracker-v1.netlify.app/ | grep -o "google-site-verification[^/]*"
-curl -sI https://financial-tracker-v1.netlify.app/privacy.html | head -1   # HTTP/2 200
-curl -sI https://financial-tracker-v1.netlify.app/terms.html | head -1     # HTTP/2 200
-curl -s https://financial-tracker-v1.netlify.app/ | grep -o "_self.manage" | head -1
+curl -s https://selfmanage-demo.vercel.app/ | grep -o "google-site-verification[^/]*"
+curl -sI https://selfmanage-demo.vercel.app/privacy.html | head -1   # HTTP/2 200
+curl -sI https://selfmanage-demo.vercel.app/terms.html | head -1     # HTTP/2 200
+curl -s https://selfmanage-demo.vercel.app/ | grep -o "_self.manage" | head -1
 ```
 
 Di aplikasi: buka dialog connect → jangan sampai muncul peringatan

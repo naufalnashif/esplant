@@ -4,7 +4,7 @@ Aplikasi statis (Vite + React). Tidak ada database milik aplikasi — data keuan
 tersimpan di Google Spreadsheet milik masing-masing pengguna, atau di penyimpanan
 lokal peramban saat mode lokal dipakai.
 
-Domain produksi: **https://financial-tracker-v1.netlify.app**
+Domain produksi: **https://selfmanage-demo.vercel.app**
 
 ## 1. Build settings
 
@@ -36,7 +36,7 @@ Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID
 apa adanya, tanpa garis miring di akhir:
 
 ```
-https://financial-tracker-v1.netlify.app
+https://selfmanage-demo.vercel.app
 http://localhost:3000
 ```
 
@@ -50,12 +50,12 @@ dialog "Hubungkan spreadsheet" lengkap dengan tombol salin — tempel nilai itu 
 
 Sudah tersedia sebagai berkas statis dan wajib diisikan ke OAuth consent screen:
 
-- https://financial-tracker-v1.netlify.app/privacy.html
-- https://financial-tracker-v1.netlify.app/terms.html
+- https://selfmanage-demo.vercel.app/privacy.html
+- https://selfmanage-demo.vercel.app/terms.html
 
 ## 5. Verifikasi domain
 
 `frontend/index.html` sudah memuat meta tag Google Search Console. Setelah deploy, klik
-**Verify** di Search Console untuk properti `https://financial-tracker-v1.netlify.app/`.
+**Verify** di Search Console untuk properti `https://selfmanage-demo.vercel.app/`.
 
 Detail lengkap proses verifikasi OAuth ada di [`docs/GOOGLE_OAUTH_VERIFICATION.md`](../docs/GOOGLE_OAUTH_VERIFICATION.md).
