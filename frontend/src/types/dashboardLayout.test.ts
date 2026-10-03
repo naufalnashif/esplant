@@ -65,4 +65,23 @@ describe("dashboardLayout sanitization and types", () => {
     const hero = result.find((item) => item.id === "hero_balance");
     expect([4, 5, 6, 7, 8, 12]).toContain(hero?.desktopColSpan);
   });
+
+  it("has the expected mobile layout order in DEFAULT_DASHBOARD_LAYOUT", () => {
+    const sortedDefaultIds = [...DEFAULT_DASHBOARD_LAYOUT]
+      .sort((a, b) => a.order - b.order)
+      .map((item) => item.id);
+
+    expect(sortedDefaultIds).toEqual([
+      "hero_balance",
+      "quick_filters",
+      "financial_summary",
+      "cashflow_trend",
+      "category_comparison",
+      "spending_allocation",
+      "upcoming_bills",
+      "recent_transactions",
+      "budget_guardrails",
+      "payday_status",
+    ]);
+  });
 });
