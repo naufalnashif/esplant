@@ -1,6 +1,6 @@
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
-  ArrowDownLeft, ArrowUpRight, CalendarClock, ChevronRight, Plus, RefreshCw, ShieldCheck, Sparkles,
+  ArrowDownLeft, ArrowUpRight, CalendarClock, ChevronDown, ChevronRight, Plus, RefreshCw, ShieldCheck, Sparkles,
   Target, TrendingDown, TrendingUp, WalletCards, SlidersHorizontal,
 } from "lucide-react";
 import { useState } from "react";
@@ -18,6 +18,7 @@ import { FinancialCycleBanner } from "@/components/FinancialCycleBanner";
 import { useDashboardLayout } from "@/hooks/useDashboardLayout";
 import { ManageWidgetsModal } from "@/components/dashboard/ManageWidgetsModal";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
+import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 
 export interface OverviewLabels {
   hello: string; totalBalance: string; cashFlow: string; recent: string; seeAll: string; dueSoon: string; noData: string;
@@ -102,6 +103,8 @@ export function MobileOverview({
 }: MobileOverviewProps) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [isBillsExpanded, setIsBillsExpanded] = useState(true);
+  const [isRecentExpanded, setIsRecentExpanded] = useState(true);
 
   const {
     displayLayout,
@@ -397,53 +400,124 @@ export function MobileOverview({
         </div>
       )}
 
-      {/* 6. Upcoming Bills & Commitments */}
+      {/* 6. Upcoming Bills & Commitments (Collapsible Hide/Show on mobile) */}
       {isWidgetVisible("upcoming_bills") && (
         <Card className="border border-slate-200/80 bg-white p-4 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none" data-testid="mobile-due-soon">
-          <MobileCardHeader eyebrow={isId ? "Jadwal Pembayaran" : "Action center"} title={t.dueSoon} action={<button type="button" data-testid="view-commitments-button" onClick={() => onNavigate("commitments")} className="shrink-0 text-xs font-bold text-amber-700 hover:underline dark:text-primary">{t.seeAll}</button>} />
-          <div className="mt-3 space-y-2">
-            {upcoming.slice(0, 3).map((bill) => (
-              <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2.5 dark:border-border/60 dark:bg-background/35">
-                <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-amber-200/60 bg-amber-50 text-amber-700 dark:border-transparent dark:bg-amber-500/12 dark:text-amber-400"><CalendarClock size={14} /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold leading-tight text-slate-900 dark:text-foreground">{bill.name}</p>
-                  <p className="text-[10px] text-slate-500 dark:text-muted-foreground">{shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "left"}` : bill.frequency}</p>
-                </div>
-                <p className="shrink-0 font-data text-xs font-bold text-slate-900 dark:text-foreground">{money(toBase(bill.amount, bill.currency, state.exchangeRates))}</p>
+          <MobileCardHeader
+            eyebrow={isId ? "Jadwal Pembayaran" : "Action center"}
+            title={t.dueSoon}
+            action={
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="toggle-collapse-upcoming-bills"
+                  onClick={() => setIsBillsExpanded((v) => !v)}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground cursor-pointer transition-colors"
+                  title={isBillsExpanded ? (isId ? "Sembunyikan" : "Hide") : (isId ? "Tampilkan" : "Show")}
+                >
+                  <span>{isBillsExpanded ? (isId ? "Sembunyikan" : "Hide") : (isId ? "Tampilkan" : "Show")}</span>
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${isBillsExpanded ? "rotate-180" : ""}`} />
+                </button>
+                <button type="button" data-testid="view-commitments-button" onClick={() => onNavigate("commitments")} className="shrink-0 text-xs font-bold text-amber-700 hover:underline dark:text-primary">{t.seeAll}</button>
               </div>
-            ))}
-            {upcoming.length === 0 && <p className="py-5 text-center text-xs text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
-          </div>
-          <button type="button" data-testid="open-commitment-from-action-button" onClick={() => onNavigate("commitments")} className="mt-3 flex w-full items-center justify-between rounded-xl border border-dashed border-amber-500/35 px-3 py-2.5 text-left text-xs font-semibold text-amber-700 hover:bg-amber-50/50 dark:border-primary/35 dark:text-primary dark:hover:bg-primary/8 cursor-pointer">
-            <span className="flex items-center gap-2"><Plus size={14} /> {isId ? "Tambah Tagihan / Cicilan" : "Add Bill / Installment"}</span>
-            <ChevronRight size={14} />
-          </button>
+            }
+          />
+          {isBillsExpanded ? (
+            <>
+              <div className="mt-3 space-y-2">
+                {upcoming.slice(0, 3).map((bill) => (
+                  <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2.5 dark:border-border/60 dark:bg-background/35">
+                    <div className="grid size-8 shrink-0 place-items-center rounded-lg border border-amber-200/60 bg-amber-50 text-amber-700 dark:border-transparent dark:bg-amber-500/12 dark:text-amber-400"><CalendarClock size={14} /></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold leading-tight text-slate-900 dark:text-foreground">{bill.name}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-muted-foreground">{shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "left"}` : bill.frequency}</p>
+                    </div>
+                    <p className="shrink-0 font-data text-xs font-bold text-slate-900 dark:text-foreground">{money(toBase(bill.amount, bill.currency, state.exchangeRates))}</p>
+                  </div>
+                ))}
+                {upcoming.length === 0 && <p className="py-5 text-center text-xs text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
+              </div>
+              <button type="button" data-testid="open-commitment-from-action-button" onClick={() => onNavigate("commitments")} className="mt-3 flex w-full items-center justify-between rounded-xl border border-dashed border-amber-500/35 px-3 py-2.5 text-left text-xs font-semibold text-amber-700 hover:bg-amber-50/50 dark:border-primary/35 dark:text-primary dark:hover:bg-primary/8 cursor-pointer">
+                <span className="flex items-center gap-2"><Plus size={14} /> {isId ? "Tambah Tagihan / Cicilan" : "Add Bill / Installment"}</span>
+                <ChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{upcoming.length} {isId ? "tagihan terdaftar" : "bills registered"}</span>
+              <button
+                type="button"
+                onClick={() => setIsBillsExpanded(true)}
+                className="font-semibold text-amber-700 dark:text-primary hover:underline cursor-pointer"
+              >
+                {isId ? "Buka rincian →" : "View details →"}
+              </button>
+            </div>
+          )}
         </Card>
       )}
 
-      {/* 7. Recent Transactions Activity */}
+      {/* 7. Recent Transactions Activity (Collapsible Hide/Show on mobile) */}
       {isWidgetVisible("recent_transactions") && (
         <Card className="border border-slate-200/80 bg-white p-4 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none" data-testid="mobile-recent">
-          <MobileCardHeader eyebrow={t.recent} title={isId ? "Riwayat Transaksi" : "Your money trail"} action={<button type="button" data-testid="view-transactions-button" onClick={() => onNavigate("transactions")} className="shrink-0 text-xs font-bold text-amber-700 hover:underline dark:text-primary">{t.seeAll}</button>} />
-          <div className="mt-2 divide-y divide-slate-200/80 dark:divide-border/40">
-            {recent.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 py-2.5">
-                <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.kind === "income" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-600 dark:border-transparent dark:bg-emerald-500/12 dark:text-emerald-400" : "border border-rose-200/60 bg-rose-50 text-rose-600 dark:border-transparent dark:bg-red-500/12 dark:text-red-400"}`}>{item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}</div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold leading-tight text-slate-900 dark:text-foreground">{item.description}</p>
-                  <p className="truncate text-[10px] text-slate-500 dark:text-muted-foreground">{item.category} · {accountName(item.accountId)} · {shortDate(item.date, state.locale)}</p>
-                </div>
-                <p className={`shrink-0 font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-foreground"}`}>{item.kind === "income" ? "+" : "−"}{money(item.baseAmount)}</p>
+          <MobileCardHeader
+            eyebrow={t.recent}
+            title={isId ? "Riwayat Transaksi" : "Your money trail"}
+            action={
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  data-testid="toggle-collapse-recent"
+                  onClick={() => setIsRecentExpanded((v) => !v)}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground cursor-pointer transition-colors"
+                  title={isRecentExpanded ? (isId ? "Sembunyikan" : "Hide") : (isId ? "Tampilkan" : "Show")}
+                >
+                  <span>{isRecentExpanded ? (isId ? "Sembunyikan" : "Hide") : (isId ? "Tampilkan" : "Show")}</span>
+                  <ChevronDown size={13} className={`transition-transform duration-200 ${isRecentExpanded ? "rotate-180" : ""}`} />
+                </button>
+                <button type="button" data-testid="view-transactions-button" onClick={() => onNavigate("transactions")} className="shrink-0 text-xs font-bold text-amber-700 hover:underline dark:text-primary">{t.seeAll}</button>
               </div>
-            ))}
-            {recent.length === 0 && <p className="py-6 text-center text-xs text-slate-500 dark:text-muted-foreground" data-testid="recent-empty-state">{t.noData}</p>}
-          </div>
+            }
+          />
+          {isRecentExpanded ? (
+            <div className="mt-2 divide-y divide-slate-200/80 dark:divide-border/40">
+              {recent.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 py-2.5">
+                  <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.kind === "income" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-600 dark:border-transparent dark:bg-emerald-500/12 dark:text-emerald-400" : "border border-rose-200/60 bg-rose-50 text-rose-600 dark:border-transparent dark:bg-red-500/12 dark:text-red-400"}`}>{item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold leading-tight text-slate-900 dark:text-foreground">{item.description}</p>
+                    <p className="truncate text-[10px] text-slate-500 dark:text-muted-foreground">{item.category} · {accountName(item.accountId)} · {shortDate(item.date, state.locale)}</p>
+                  </div>
+                  <p className={`shrink-0 font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-foreground"}`}>{item.kind === "income" ? "+" : "−"}{money(item.baseAmount)}</p>
+                </div>
+              ))}
+              {recent.length === 0 && <p className="py-6 text-center text-xs text-slate-500 dark:text-muted-foreground" data-testid="recent-empty-state">{t.noData}</p>}
+            </div>
+          ) : (
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{recent.length} {isId ? "transaksi tercatat" : "recorded transactions"}</span>
+              <button
+                type="button"
+                onClick={() => setIsRecentExpanded(true)}
+                className="font-semibold text-amber-700 dark:text-primary hover:underline cursor-pointer"
+              >
+                {isId ? "Buka riwayat →" : "View history →"}
+              </button>
+            </div>
+          )}
         </Card>
       )}
 
-      {/* 8. Budget Guardrails Section */}
+      {/* 8. Budget Guardrails Section with MobileDisclosure Collapsible */}
       {isWidgetVisible("budget_guardrails") && (
-        <div data-testid="mobile-budget-section" className="w-full">
+        <MobileDisclosure
+          testid="mobile-budget-section"
+          title={t.budgets || (isId ? "Budget guardrails" : "Budget guardrails")}
+          hint={t.budgetSubtitle || (isId ? "Batas kategori dengan insight otomatis" : "Category limits with automatic insights")}
+          showLabel={isId ? "Lihat selengkapnya" : "Show more"}
+          hideLabel={isId ? "Sembunyikan" : "Hide"}
+          defaultOpen={false}
+        >
           <BudgetGuardrails
             state={state}
             labels={
@@ -466,7 +540,7 @@ export function MobileOverview({
             onDelete={onDeleteBudget}
             className="mt-0"
           />
-        </div>
+        </MobileDisclosure>
       )}
 
       {/* 9. Financial Cycle Banner (Positioned at the very bottom as requested) */}

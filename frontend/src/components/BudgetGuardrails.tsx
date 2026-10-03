@@ -46,7 +46,7 @@ export function BudgetGuardrails({
   const [limit, setLimit] = useState("");
   const cycleDay = state.customCycleDay || 1;
 
-  const BUDGETS_PREVIEW_LIMIT = 3;
+  const BUDGETS_PREVIEW_LIMIT = 4;
   const [showAllBudgets, setShowAllBudgets] = useState(false);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
@@ -135,7 +135,7 @@ export function BudgetGuardrails({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {visibleRows.map((row) => (
           <BudgetRow
             key={row.id}
