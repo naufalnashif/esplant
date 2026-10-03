@@ -76,6 +76,8 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
 }) => {
   const isDark = state.theme === "dark";
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isScrollingProgrammatically = useRef(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   // Available visible slides in order
@@ -99,6 +101,7 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
   if (slides.length === 0) return null;
 
   const handleScroll = () => {
+    if (isScrollingProgrammatically.current) return;
     const el = scrollContainerRef.current;
     if (!el) return;
     const scrollLeft = el.scrollLeft;
@@ -110,9 +113,16 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
   const scrollToSlide = (idx: number) => {
     const el = scrollContainerRef.current;
     if (!el || !el.children[idx]) return;
+    // Lock scroll handler to prevent race condition with smooth scroll
+    isScrollingProgrammatically.current = true;
+    setActiveIndex(idx);
     const targetChild = el.children[idx] as HTMLElement;
     targetChild.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    setActiveIndex(idx);
+    // Release lock after smooth scroll finishes (~400ms)
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      isScrollingProgrammatically.current = false;
+    }, 420);
   };
 
   return (
@@ -429,25 +439,6 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
           return null;
         })}
       </div>
-
-      {/* Pagination dots */}
-      {slides.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 pt-1" aria-hidden="true" data-testid="carousel-dots-indicator">
-          {slides.map((s, idx) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => scrollToSlide(idx)}
-              aria-label={`Ke slide ${idx + 1}`}
-              className={`size-1.5 rounded-full transition-all duration-200 cursor-pointer ${
-                activeIndex === idx
-                  ? "bg-amber-600 dark:bg-primary scale-125 shadow-xs"
-                  : "bg-slate-300 dark:bg-zinc-700 hover:bg-slate-400"
-              }`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 };
