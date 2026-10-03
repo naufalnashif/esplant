@@ -33,6 +33,7 @@ import { AccountsPanel } from "@/components/AccountsPanel";
 import { GoalsPanel } from "@/components/GoalsPanel";
 import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { BundlesPanel } from "@/components/BundlesPanel";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
@@ -56,6 +57,11 @@ import {
 } from "@/lib/categoryChart";
 import { EraseConfirmModal, type EraseOptions } from "@/components/EraseConfirmModal";
 import { APP_VERSION, getUnseenVersion, markVersionSeen, CHANGELOG } from "@/lib/version";
+import {
+  getCycleKeyForTransaction,
+  getPreviousCycleKey,
+  buildMultiCycleTrend,
+} from "@/lib/analyticsEngine";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
 // Single source of truth with localDb so a fresh workspace and the dropdowns never disagree.
@@ -130,6 +136,7 @@ export default function Home() {
   const [showEraseModal, setShowEraseModal] = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
   const [showAddCommitmentModal, setShowAddCommitmentModal] = useState(false);
+  const [showBundlesModal, setShowBundlesModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
@@ -166,9 +173,14 @@ export default function Home() {
   });
   const t = copy[state.locale];
   const categories = useMemo(() => Array.from(new Set([...categoryFallbacks, ...state.categories.filter((item) => !item.archived).map((item) => item.name), ...state.transactions.map((item) => item.category)])), [state.categories, state.transactions]);
-  const previous = previousMonth(compareMonth);
-  const currentTransactions = state.transactions.filter((item) => monthKey(item.date) === compareMonth);
-  const previousTransactions = state.transactions.filter((item) => monthKey(item.date) === previous);
+  const cycleDay = state.customCycleDay || 1;
+  const previous = cycleDay === 1 ? previousMonth(compareMonth) : getPreviousCycleKey(compareMonth);
+  const currentTransactions = state.transactions.filter((item) =>
+    cycleDay === 1 ? monthKey(item.date) === compareMonth : getCycleKeyForTransaction(item.date, cycleDay) === compareMonth
+  );
+  const previousTransactions = state.transactions.filter((item) =>
+    cycleDay === 1 ? monthKey(item.date) === previous : getCycleKeyForTransaction(item.date, cycleDay) === previous
+  );
   const displayRate = state.exchangeRates[state.baseCurrency] || 1;
   const currentSpend = currentTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
   const previousSpend = previousTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
@@ -177,7 +189,11 @@ export default function Home() {
   const thisMonthKey = compareMonth;
   const committed = state.bills
     .filter((bill) => bill.active !== false && (bill.remainingInstallments === undefined || bill.remainingInstallments > 0))
-    .filter((bill) => !bill.lastPaidDate || String(bill.lastPaidDate).slice(0, 7) !== thisMonthKey)
+    .filter((bill) => {
+      if (!bill.lastPaidDate) return true;
+      const paidKey = cycleDay === 1 ? String(bill.lastPaidDate).slice(0, 7) : getCycleKeyForTransaction(String(bill.lastPaidDate), cycleDay);
+      return paidKey !== thisMonthKey;
+    })
     .reduce((sum, bill) => sum + toBase(bill.amount, bill.currency, state.exchangeRates), 0) / displayRate;
   const spendDelta = previousSpend ? Math.round(((currentSpend - previousSpend) / previousSpend) * 100) : 0;
   const filteredTransactions = useMemo(() => [...state.transactions].filter((item) => {
@@ -193,12 +209,17 @@ export default function Home() {
     () => buildCategoryChart(currentTransactions, previousTransactions, displayRate, t.otherCategory),
     [currentTransactions, previousTransactions, displayRate, t.otherCategory],
   );
-  const flowChart = useMemo(() => Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(); date.setMonth(date.getMonth() - (5 - index));
-    const key = date.toISOString().slice(0, 7);
-    const items = state.transactions.filter((item) => monthKey(item.date) === key);
-    return { month: new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", { month: "short" }).format(date), income: items.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, expense: items.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate };
-  }), [state.locale, state.transactions, displayRate]);
+  const flowChart = useMemo(() => {
+    const raw = buildMultiCycleTrend(state.transactions, cycleDay, 6, state.locale, displayRate);
+    return raw.map((item) => ({
+      month: item.shortLabel || item.label,
+      label: item.label,
+      cycleKey: item.cycleKey,
+      income: item.income,
+      expense: item.expense,
+      net: item.net,
+    }));
+  }, [state.transactions, cycleDay, state.locale, displayRate]);
   const save = (next: FinanceState) => { queryClient.setQueryData(stateQueryKey, next); saveMutation.mutate(next); };
 
   /*
@@ -789,7 +810,7 @@ export default function Home() {
   ];
   const activeNavLabel = navItems.find((item) => item.key === tab)?.label ?? "";
   const moreActions = [
-    { key: "landing", label: state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page", icon: ArrowLeft, onClick: () => navigate("/") },
+    { key: "landing", label: state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page", icon: ArrowLeft, onClick: () => navigate("/landing") },
     { key: "tester", label: "Join Tester", icon: UserPlus, href: TESTER_URL },
     { key: "feedback", label: "Feedback", icon: MessageSquarePlus, onClick: () => setShowFeedback(true) },
   ];
@@ -847,8 +868,8 @@ export default function Home() {
           </div>
         </aside>
         <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ height: "100svh" }}>
-          <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
-            <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 bg-background/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} isDemo={isDemoMode} />
               {!healthReport.ok && (
@@ -857,7 +878,7 @@ export default function Home() {
                   data-testid="data-health-header-badge"
                   onClick={() => setTab("settings")}
                   title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"}
-                  className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20 cursor-pointer"
+                  className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20 cursor-pointer"
                 >
                   <Activity size={13} />
                   <span>{healthReport.errors + healthReport.warnings}</span>
@@ -869,8 +890,8 @@ export default function Home() {
                 onOpenAddTransaction={openAddTransaction}
                 onOpenAddCommitment={() => setShowAddCommitmentModal(true)}
               />
-              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary cursor-pointer">{state.locale.toUpperCase()}</button>
-              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9 cursor-pointer">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="hidden sm:inline-flex rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary cursor-pointer">{state.locale.toUpperCase()}</button>
+              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="hidden sm:grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9 cursor-pointer">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
               <div className="hidden h-8 w-px bg-border sm:block" />
               <button
                 type="button"
@@ -923,7 +944,7 @@ export default function Home() {
                     data-testid="demo-exit-button"
                     onClick={() => {
                       exitDemoMode();
-                      navigate("/");
+                      navigate("/landing");
                       toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
                     }}
                     className="rounded-lg bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
@@ -936,7 +957,7 @@ export default function Home() {
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
-            {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} />}
+            {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} onOpenBundles={() => setShowBundlesModal(true)} />}
             {tab === "commitments" && (
               <CommitmentsPanel
                 state={state}
@@ -1018,6 +1039,25 @@ export default function Home() {
       />
       {showTransactionForm && <TransactionModal state={state} t={t} categories={categories} form={transactionForm} setForm={setTransactionForm} onChange={updateTransaction} onClose={() => { setShowTransactionForm(false); setEditingTransaction(null); }} onSubmit={handleAddTransaction} editingTransaction={editingTransaction} />}
       {showPdfModal && <PDFReportModal state={state} onClose={() => setShowPdfModal(false)} />}
+      <BundlesPanel
+        open={showBundlesModal}
+        onClose={() => setShowBundlesModal(false)}
+        state={state}
+        onApplyBatch={(newTxs, updatedAccounts) => {
+          save({
+            ...state,
+            transactions: [...newTxs, ...state.transactions],
+            accounts: updatedAccounts,
+          });
+        }}
+        onSaveBundles={(bundles) => {
+          save({ ...state, bundles });
+        }}
+        onFilterByBundle={(bundleTag) => {
+          setTab("transactions");
+          setFilter((f) => ({ ...f, search: bundleTag }));
+        }}
+      />
       {showFeedback && <FeedbackDialog open onOpenChange={setShowFeedback} />}
       {showProfileMenu && (
         <ProfileModal
@@ -1255,8 +1295,8 @@ function Overview({
               <RefreshCw size={12} /> Live
             </Badge>
           </div>
-          <div className="mt-5 h-[105px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="mt-5 h-[105px] w-full min-h-[105px]">
+            <ResponsiveContainer width="100%" height="100%" minHeight={105}>
               <AreaChart data={flowChart}>
                 <defs>
                   <linearGradient id="cashflow" x1="0" y1="0" x2="0" y2="1">
@@ -1264,6 +1304,7 @@ function Overview({
                     <stop offset="100%" stopColor="#ffa116" stopOpacity={0} />
                   </linearGradient>
                 </defs>
+                <YAxis hide domain={[0, (dataMax: number) => (dataMax <= 0 ? 100000 : Math.ceil(dataMax * 1.15))]} />
                 <Tooltip
                   contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
                   formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}

@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
 import type { Currency, FinanceState, Transaction } from "@/lib/localDb";
+import {
+  getCycleKeyForTransaction,
+  getCycleRangeForDate,
+  getPreviousCycleKey,
+} from "@/lib/analyticsEngine";
 
 export type PeriodKey = "today" | "week" | "month" | "year" | "all";
 export interface PeriodStats { income: number; expense: number; net: number; count: number }
@@ -29,10 +34,14 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
   const isId = state.locale === "id";
   const [periodFilter, setPeriodFilter] = useState<PeriodKey>("month");
   const displayRate = state.exchangeRates[state.baseCurrency] || 1;
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
   const monthIso = todayIso.slice(0, 7);
   const yearIso = todayIso.slice(0, 4);
   const weekBounds = useMemo(() => getWeekBounds(todayIso), [todayIso]);
+
+  const cycleDay = state.customCycleDay || 1;
+  const currentCycleRange = useMemo(() => getCycleRangeForDate(today, cycleDay), [today, cycleDay]);
 
   const activeBills = useMemo(
     () => state.bills.filter((b) => b.active !== false && (b.remainingInstallments === undefined || b.remainingInstallments > 0)),
@@ -42,10 +51,13 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
     if (periodFilter === "all") return true;
     if (periodFilter === "today") return bill.nextDueDate === todayIso;
     if (periodFilter === "week") return bill.nextDueDate >= weekBounds.start && bill.nextDueDate <= weekBounds.end;
-    if (periodFilter === "month") return bill.nextDueDate.slice(0, 7) === monthIso;
+    if (periodFilter === "month") {
+      if (cycleDay === 1) return bill.nextDueDate.slice(0, 7) === monthIso;
+      return bill.nextDueDate >= currentCycleRange.startDate && bill.nextDueDate <= currentCycleRange.endDate;
+    }
     if (periodFilter === "year") return bill.nextDueDate.slice(0, 4) === yearIso;
     return true;
-  }), [activeBills, periodFilter, todayIso, weekBounds, monthIso, yearIso]);
+  }), [activeBills, periodFilter, todayIso, weekBounds, monthIso, yearIso, cycleDay, currentCycleRange]);
   const upcoming = useMemo(
     () => [...filteredBillsByPeriod].sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate)).slice(0, 4),
     [filteredBillsByPeriod],
@@ -59,13 +71,15 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
     const options = [];
     const now = new Date();
     for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = d.toISOString().slice(0, 7);
-      const label = new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", { month: "long", year: "numeric" }).format(d);
-      options.push({ value, label });
+      const d = new Date(now.getFullYear(), now.getMonth() - i, Math.min(cycleDay, 28));
+      const range = getCycleRangeForDate(d, cycleDay);
+      const label = cycleDay === 1
+        ? new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", { month: "long", year: "numeric" }).format(d)
+        : range.label;
+      options.push({ value: range.key, label });
     }
     return options;
-  }, [state.locale]);
+  }, [state.locale, cycleDay]);
 
   const periodStats = useMemo(() => {
     const calcStats = (txs: Transaction[]): PeriodStats => {
@@ -76,22 +90,34 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
     return {
       today: calcStats(state.transactions.filter((t) => t.date === todayIso)),
       week: calcStats(state.transactions.filter((t) => t.date >= weekBounds.start && t.date <= weekBounds.end)),
-      month: calcStats(state.transactions.filter((t) => t.date.slice(0, 7) === monthIso)),
+      month: calcStats(
+        state.transactions.filter((t) =>
+          cycleDay === 1
+            ? t.date.slice(0, 7) === monthIso
+            : getCycleKeyForTransaction(t.date, cycleDay) === currentCycleRange.key,
+        ),
+      ),
       year: calcStats(state.transactions.filter((t) => t.date.slice(0, 4) === yearIso)),
       all: calcStats(state.transactions),
     } satisfies Record<PeriodKey, PeriodStats>;
-  }, [state.transactions, todayIso, weekBounds, monthIso, yearIso, displayRate]);
+  }, [state.transactions, todayIso, weekBounds, monthIso, yearIso, displayRate, cycleDay, currentCycleRange.key]);
   const activeStats = periodStats[periodFilter];
 
   const periodLabels: Record<PeriodKey, string> = {
     today: isId ? "Hari ini" : "Today",
     week: isId ? "Minggu ini" : "This Week",
-    month: isId ? "Bulan ini" : "This Month",
+    month: isId ? (cycleDay === 1 ? "Bulan ini" : "Siklus ini") : (cycleDay === 1 ? "This Month" : "This Cycle"),
     year: isId ? "Tahun ini" : "This Year",
     all: isId ? "Semua" : "All",
   };
 
-  const previousIncome = state.transactions.filter((item) => monthKey(item.date) === previousMonth(currentMonth) && item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
+  const prevCycleKey = cycleDay === 1 ? previousMonth(currentMonth) : getPreviousCycleKey(currentMonth);
+  const previousIncome = state.transactions
+    .filter((item) => {
+      const key = cycleDay === 1 ? monthKey(item.date) : getCycleKeyForTransaction(item.date, cycleDay);
+      return key === prevCycleKey && item.kind === "income";
+    })
+    .reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
   const incomeDelta = previousIncome ? Math.round(((currentIncome - previousIncome) / previousIncome) * 100) : 0;
 
   const totalSavings = useMemo(

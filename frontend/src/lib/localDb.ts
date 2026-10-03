@@ -1,3 +1,5 @@
+import { createDefaultBundles, type SpendingBundle } from "./templates";
+
 export type Locale = "id" | "en";
 export type Theme = "light" | "dark";
 export type Currency = "IDR" | "USD" | "EUR" | "SGD" | "MYR" | "JPY" | "AUD";
@@ -129,6 +131,10 @@ export interface FinanceState {
   budgets: Budget[];
   categories: Category[];
   schedule: ScheduleSettings;
+  /** Custom day of month when the financial cycle starts (1-31). Defaults to 1. E.g. 25 means cycle is 25th to 24th. */
+  customCycleDay?: number;
+  /** Recurring monthly spending bundles/templates */
+  bundles?: SpendingBundle[];
 }
 
 export type StorageNamespace = "production" | "demo";
@@ -189,6 +195,8 @@ export const createInitialState = (): FinanceState => ({
   budgets: [],
   categories: DEFAULT_CATEGORIES.map((name) => ({ id: `category-${name.toLowerCase()}`, name, archived: false })),
   schedule: { enabled: false, frequency: "daily", email: "", browserReminder: false },
+  customCycleDay: 1,
+  bundles: createDefaultBundles("id"),
 });
 
 const withoutDummy = <T extends { isDummy?: boolean }>(items: T[]): T[] => items.filter((item) => !item.isDummy);
@@ -252,6 +260,11 @@ export const sanitizeImportedState = (raw: unknown): FinanceState | null => {
     budgets: arr(value.budgets, base.budgets),
     categories: arr(value.categories, base.categories),
     schedule: { ...base.schedule, ...(typeof value.schedule === "object" && value.schedule ? value.schedule : {}) },
+    customCycleDay:
+      typeof value.customCycleDay === "number" && value.customCycleDay >= 1 && value.customCycleDay <= 31
+        ? Math.floor(value.customCycleDay)
+        : 1,
+    bundles: arr(value.bundles, base.bundles || []),
   };
   if (!next.accounts.every((item) => item && typeof item.id === "string" && typeof item.name === "string" && Number.isFinite(item.balance))) return null;
   if (!next.transactions.every((item) => item && typeof item.id === "string" && Number.isFinite(item.amount))) return null;

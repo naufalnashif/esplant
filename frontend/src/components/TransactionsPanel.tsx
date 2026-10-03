@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight,
+  ArrowDownLeft, ArrowUpRight, Boxes, ChevronDown, ChevronLeft, ChevronRight,
   ListFilter, Pencil, Plus, Search, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,7 @@ const PAGE_SIZE_OPTIONS = [5, 7, 10, 15, 20];
 
 export function TransactionsPanel({
   state, labels, categories, filteredTransactions, filter, setFilter,
-  accountName, onAdd, onEdit, onDelete,
+  accountName, onAdd, onEdit, onDelete, onOpenBundles,
 }: {
   state: FinanceState;
   labels: TransactionLabels;
@@ -42,6 +42,7 @@ export function TransactionsPanel({
   onAdd: () => void;
   onEdit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
+  onOpenBundles?: () => void;
 }) {
   const isId = state.locale === "id";
   const [showFilters, setShowFilters] = useState(false);
@@ -110,9 +111,23 @@ export function TransactionsPanel({
         title="Transactions"
         description={isId ? "Satu ledger yang mudah dicari, difilter, dan dikelola." : "One ledger, easily searched, filtered, and managed."}
         action={
-          <Button data-testid="transactions-add-button" onClick={onAdd} className="hidden gap-2 md:inline-flex">
-            <Plus size={17} />{labels.addTransaction}
-          </Button>
+          <div className="flex items-center gap-2">
+            {onOpenBundles && (
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="transactions-bundles-button"
+                onClick={onOpenBundles}
+                className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 text-xs font-bold"
+              >
+                <Boxes size={14} />
+                {isId ? "Paket Rutin" : "Bundles"}
+              </Button>
+            )}
+            <Button data-testid="transactions-add-button" onClick={onAdd} className="hidden gap-2 md:inline-flex">
+              <Plus size={17} />{labels.addTransaction}
+            </Button>
+          </div>
         }
       />
 
@@ -130,6 +145,17 @@ export function TransactionsPanel({
                 className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
               />
             </label>
+            {onOpenBundles && (
+              <button
+                type="button"
+                data-testid="mobile-transactions-bundles-button"
+                onClick={onOpenBundles}
+                className="grid size-10 shrink-0 place-items-center rounded-lg border border-primary/40 bg-background text-primary md:hidden"
+                title={isId ? "Paket Rutin" : "Bundles"}
+              >
+                <Boxes size={16} />
+              </button>
+            )}
             <button
               type="button"
               data-testid="transaction-filter-toggle"

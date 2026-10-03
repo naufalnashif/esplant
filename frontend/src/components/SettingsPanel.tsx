@@ -15,11 +15,14 @@ import {
   Database,
   RefreshCw,
   AlertTriangle,
+  Calendar,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { FinanceState } from "@/lib/localDb";
+import { getCycleRangeForDate } from "@/lib/analyticsEngine";
 import { CategoryManager } from "@/components/CategoryManager";
 import { DataHealthPanel } from "@/components/DataHealthPanel";
 import { useStorage } from "@/lib/storageContext";
@@ -210,6 +213,110 @@ function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (n
       )}
 
       <ConnectSheetDialog open={showConnect} onClose={() => setShowConnect(false)} />
+    </Card>
+  );
+}
+
+function FinancialCycleCard({
+  state,
+  updateState,
+}: {
+  state: FinanceState;
+  updateState: (updates: Partial<FinanceState>) => void;
+}) {
+  const isId = state.locale === "id";
+  const cycleDay = state.customCycleDay || 1;
+  const activeRange = getCycleRangeForDate(new Date(), cycleDay);
+
+  const presets = [
+    { day: 1, label: isId ? "Tgl 1 (Bulan Kalender)" : "1st (Calendar Month)" },
+    { day: 25, label: isId ? "Tgl 25 (Gajian)" : "25th (Payday)" },
+    { day: 28, label: isId ? "Tgl 28" : "28th" },
+  ];
+
+  return (
+    <Card className="border-border/70 bg-card/75 p-5 sm:p-6" data-testid="settings-financial-cycle-card">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">
+          <Calendar size={18} />
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {isId ? "Siklus Akuntansi & Gajian" : "Accounting & Payday Cycle"}
+          </p>
+          <h2 className="font-heading text-xl font-bold">
+            {isId ? "Siklus Keuangan Bulanan" : "Monthly Financial Cycle"}
+          </h2>
+        </div>
+      </div>
+
+      <p className="text-xs leading-relaxed text-muted-foreground mb-4">
+        {isId
+          ? "Tentukan tanggal awal siklus pencatatan keuangan Anda. Jika Anda gajian setiap tanggal 25, atur ke 25 agar ringkasan bulanan, grafik tren, dan guardrail anggaran otomatis dihitung dari tanggal 25 s/d 24 bulan berikutnya."
+          : "Define the start date of your monthly accounting cycle. If you receive your salary on the 25th, set it to 25 so your monthly overviews, trends, and budget guardrails automatically track from the 25th to the 24th of the next month."}
+      </p>
+
+      <div className="space-y-4">
+        <div>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">
+            {isId ? "Pilihan Cepat / Preset" : "Quick Presets"}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {presets.map((p) => {
+              const selected = cycleDay === p.day;
+              return (
+                <button
+                  key={p.day}
+                  type="button"
+                  data-testid={`cycle-preset-${p.day}`}
+                  onClick={() => updateState({ customCycleDay: p.day })}
+                  className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                    selected
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
+          <div className="flex items-center gap-2">
+            <label htmlFor="custom-cycle-day-input" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+              {isId ? "Tanggal Mulai Kustom (1 - 31):" : "Custom Start Day (1 - 31):"}
+            </label>
+            <input
+              id="custom-cycle-day-input"
+              data-testid="custom-cycle-day-input"
+              type="number"
+              min={1}
+              max={31}
+              value={cycleDay}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 1 && val <= 31) {
+                  updateState({ customCycleDay: val });
+                }
+              }}
+              className="w-20 rounded-lg border border-border bg-background px-3 py-1.5 font-data text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div
+            data-testid="active-cycle-preview"
+            className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary"
+          >
+            <CalendarClock size={14} className="shrink-0" />
+            <span>
+              <strong>{isId ? "Siklus aktif: " : "Active cycle: "}</strong>
+              {activeRange.label} ({activeRange.startDate} → {activeRange.endDate})
+            </span>
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
@@ -480,6 +587,9 @@ export function SettingsPanel({
               </div>
             </div>
           </Card>
+
+          {/* Financial Accounting & Payday Cycle */}
+          <FinancialCycleCard state={state} updateState={updateState} />
 
           {/* Database & Storage Mode */}
           <DatabaseConnectionCard state={state} save={save} />
