@@ -227,12 +227,27 @@ function FinancialCycleCard({
   const isId = state.locale === "id";
   const cycleDay = state.customCycleDay || 1;
   const activeRange = getCycleRangeForDate(new Date(), cycleDay);
+  const isCustomPreset = cycleDay === 1 || cycleDay === 25 || cycleDay === 28;
+  const [showCustomInput, setShowCustomInput] = useState(!isCustomPreset);
+  const [localCustom, setLocalCustom] = useState(String(cycleDay));
 
-  const presets = [
-    { day: 1, label: isId ? "Tgl 1 (Bulan Kalender)" : "1st (Calendar Month)" },
-    { day: 25, label: isId ? "Tgl 25 (Gajian)" : "25th (Payday)" },
-    { day: 28, label: isId ? "Tgl 28" : "28th" },
+  const SEGMENTS = [
+    { value: 1, label: "Tgl 1", sublabel: isId ? "Kalender" : "Calendar" },
+    { value: 25, label: "Tgl 25", sublabel: isId ? "Gajian" : "Payday" },
+    { value: 28, label: "Tgl 28", sublabel: isId ? "Gajian" : "Payday" },
+    { value: -1, label: isId ? "Kustom" : "Custom", sublabel: "" },
   ];
+
+  const activeSegment = !isCustomPreset ? -1 : cycleDay;
+
+  const handleSegment = (val: number) => {
+    if (val === -1) {
+      setShowCustomInput(true);
+    } else {
+      setShowCustomInput(false);
+      updateState({ customCycleDay: val });
+    }
+  };
 
   return (
     <Card className="border-border/70 bg-card/75 p-5 sm:p-6" data-testid="settings-financial-cycle-card">
@@ -242,80 +257,82 @@ function FinancialCycleCard({
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {isId ? "Siklus Akuntansi & Gajian" : "Accounting & Payday Cycle"}
+            {isId ? "Siklus Akuntansi" : "Accounting Cycle"}
           </p>
           <h2 className="font-heading text-xl font-bold">
-            {isId ? "Siklus Keuangan Bulanan" : "Monthly Financial Cycle"}
+            {isId ? "Siklus Keuangan" : "Financial Cycle"}
           </h2>
         </div>
       </div>
 
-      <p className="text-xs leading-relaxed text-muted-foreground mb-4">
+      <p className="mb-4 text-xs text-muted-foreground">
         {isId
-          ? "Tentukan tanggal awal siklus pencatatan keuangan Anda. Jika Anda gajian setiap tanggal 25, atur ke 25 agar ringkasan bulanan, grafik tren, dan guardrail anggaran otomatis dihitung dari tanggal 25 s/d 24 bulan berikutnya."
-          : "Define the start date of your monthly accounting cycle. If you receive your salary on the 25th, set it to 25 so your monthly overviews, trends, and budget guardrails automatically track from the 25th to the 24th of the next month."}
+          ? "Pilih tanggal awal pembukuan sesuai tanggal gajian Anda."
+          : "Pick your cycle start date — usually your payday."}
       </p>
 
-      <div className="space-y-4">
-        <div>
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">
-            {isId ? "Pilihan Cepat / Preset" : "Quick Presets"}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {presets.map((p) => {
-              const selected = cycleDay === p.day;
-              return (
-                <button
-                  key={p.day}
-                  type="button"
-                  data-testid={`cycle-preset-${p.day}`}
-                  onClick={() => updateState({ customCycleDay: p.day })}
-                  className={`rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
-                    selected
-                      ? "border-primary bg-primary/10 text-primary shadow-sm"
-                      : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* Segmented Control */}
+      <div className="grid grid-cols-4 gap-1.5 rounded-xl border border-border/70 bg-background/50 p-1">
+        {SEGMENTS.map((seg) => {
+          const active = seg.value === activeSegment;
+          return (
+            <button
+              key={seg.value}
+              type="button"
+              data-testid={`cycle-preset-${seg.value}`}
+              onClick={() => handleSegment(seg.value)}
+              className={`flex flex-col items-center justify-center rounded-lg px-2 py-2.5 text-center transition-all ${
+                active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <span className="text-xs font-extrabold leading-none">{seg.label}</span>
+              {seg.sublabel && (
+                <span className={`mt-0.5 text-[9px] leading-none ${active ? "text-primary-foreground/70" : "text-muted-foreground/70"}`}>
+                  {seg.sublabel}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
-          <div className="flex items-center gap-2">
-            <label htmlFor="custom-cycle-day-input" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-              {isId ? "Tanggal Mulai Kustom (1 - 31):" : "Custom Start Day (1 - 31):"}
-            </label>
-            <input
-              id="custom-cycle-day-input"
-              data-testid="custom-cycle-day-input"
-              type="number"
-              min={1}
-              max={31}
-              value={cycleDay}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val) && val >= 1 && val <= 31) {
-                  updateState({ customCycleDay: val });
-                }
-              }}
-              className="w-20 rounded-lg border border-border bg-background px-3 py-1.5 font-data text-xs font-bold text-foreground focus:border-primary focus:outline-none"
-            />
-          </div>
-
-          <div
-            data-testid="active-cycle-preview"
-            className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary"
-          >
-            <CalendarClock size={14} className="shrink-0" />
-            <span>
-              <strong>{isId ? "Siklus aktif: " : "Active cycle: "}</strong>
-              {activeRange.label} ({activeRange.startDate} → {activeRange.endDate})
-            </span>
-          </div>
+      {/* Custom input — revealed when Kustom is selected */}
+      {showCustomInput && (
+        <div className="mt-3 flex items-center gap-2">
+          <label htmlFor="custom-cycle-day-input" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+            {isId ? "Tanggal (1 – 31):" : "Day (1 – 31):"}
+          </label>
+          <input
+            id="custom-cycle-day-input"
+            data-testid="custom-cycle-day-input"
+            type="number"
+            min={1}
+            max={31}
+            value={localCustom}
+            onChange={(e) => {
+              setLocalCustom(e.target.value);
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val) && val >= 1 && val <= 31) {
+                updateState({ customCycleDay: val });
+              }
+            }}
+            className="w-20 rounded-lg border border-primary/40 bg-background px-3 py-1.5 font-data text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+          />
         </div>
+      )}
+
+      {/* Active cycle badge */}
+      <div
+        data-testid="active-cycle-preview"
+        className="mt-3 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2"
+      >
+        <CalendarClock size={13} className="shrink-0 text-primary" />
+        <span className="text-xs font-semibold text-primary">
+          {isId ? "Siklus Aktif: " : "Active Cycle: "}
+          <span className="font-bold">{activeRange.label}</span>
+        </span>
       </div>
     </Card>
   );

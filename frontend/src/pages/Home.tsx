@@ -34,6 +34,7 @@ import { GoalsPanel } from "@/components/GoalsPanel";
 import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { BundlesPanel } from "@/components/BundlesPanel";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
@@ -56,9 +57,11 @@ import {
   type CategorySlice,
 } from "@/lib/categoryChart";
 import { EraseConfirmModal, type EraseOptions } from "@/components/EraseConfirmModal";
-import { APP_VERSION, getUnseenVersion, markVersionSeen, CHANGELOG } from "@/lib/version";
+import { APP_VERSION } from "@/lib/version";
+import { useAppVersionCheck } from "@/lib/useAppVersionCheck";
 import {
   getCycleKeyForTransaction,
+  getCycleRangeForDate,
   getPreviousCycleKey,
   buildMultiCycleTrend,
 } from "@/lib/analyticsEngine";
@@ -255,18 +258,8 @@ export default function Home() {
     document.documentElement.lang = state.locale === "id" ? "id" : "en";
   }, [state.locale, state.theme]);
 
-  // Version update notification — fires once per new version
-  useEffect(() => {
-    const unseen = getUnseenVersion();
-    if (unseen) {
-      const entry = CHANGELOG[0];
-      toast.info(entry?.summary ?? `_self.manage telah diperbarui ke v${unseen}`, {
-        duration: 6000,
-        action: { label: "Lihat", onClick: () => navigate("/changelog") },
-      });
-      markVersionSeen();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Version update notification & notification center sync
+  useAppVersionCheck();
 
   // Onboarding gate runs after every hook so the hook order never changes between renders.
   if (!profile || !profile.onboarded) {
@@ -954,6 +947,23 @@ export default function Home() {
                 </div>
               </div>
             )}
+            {/* Mini cycle banner — shows remaining days in current financial cycle */}
+            {tab === "overview" && (() => {
+              const cr = getCycleRangeForDate(new Date(), cycleDay);
+              const remaining = Math.max(0, Math.ceil((new Date(cr.endDate + "T23:59:59").getTime() - Date.now()) / 86400000));
+              return (
+                <div data-testid="cycle-banner" className="mb-4 flex items-center gap-2 rounded-xl bg-primary/8 border border-primary/15 px-3 py-2">
+                  <CalendarClock size={13} className="text-primary shrink-0" />
+                  <span className="text-xs font-semibold text-foreground">
+                    {state.locale === "id" ? "Siklus aktif: " : "Active cycle: "}
+                    <strong className="text-primary">{cr.label}</strong>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    · {remaining} {state.locale === "id" ? "hari tersisa" : "days left"}
+                  </span>
+                </div>
+              );
+            })()}
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
@@ -1088,6 +1098,16 @@ export default function Home() {
         onClose={() => setShowEraseModal(false)}
         onConfirm={handleEraseConfirm}
       />
+      {/* First-run onboarding wizard — shown once if onboardingDone is false */}
+      {!state.onboardingDone && (
+        <OnboardingModal
+          state={state}
+          onComplete={(profileName, customCycleDay) => {
+            save({ ...state, profileName, customCycleDay, onboardingDone: true });
+            toast.success(state.locale === "id" ? `Selamat datang, ${profileName}! 🎉` : `Welcome, ${profileName}! 🎉`);
+          }}
+        />
+      )}
     </div>
   );
 }

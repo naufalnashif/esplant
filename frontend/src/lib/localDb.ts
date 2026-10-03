@@ -135,6 +135,8 @@ export interface FinanceState {
   customCycleDay?: number;
   /** Recurring monthly spending bundles/templates */
   bundles?: SpendingBundle[];
+  /** True once the user has completed the first-run onboarding wizard. */
+  onboardingDone?: boolean;
 }
 
 export type StorageNamespace = "production" | "demo";
@@ -197,6 +199,7 @@ export const createInitialState = (): FinanceState => ({
   schedule: { enabled: false, frequency: "daily", email: "", browserReminder: false },
   customCycleDay: 1,
   bundles: createDefaultBundles("id"),
+  onboardingDone: false,
 });
 
 const withoutDummy = <T extends { isDummy?: boolean }>(items: T[]): T[] => items.filter((item) => !item.isDummy);

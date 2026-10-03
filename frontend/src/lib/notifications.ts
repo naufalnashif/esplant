@@ -2,7 +2,7 @@ import type { FinanceState, Locale } from "./localDb";
 import { openDb, STORE_NOTIFICATIONS } from "./localDb";
 import { formatMoney } from "./formatters";
 
-export type NotificationType = "bill_due" | "anomaly" | "daily_checkin" | "budget_alert" | "system";
+export type NotificationType = "bill_due" | "anomaly" | "daily_checkin" | "budget_alert" | "system" | "system_update";
 
 export interface AppNotification {
   id: string;
@@ -11,7 +11,7 @@ export interface AppNotification {
   message: string;
   timestamp: number; // epoch ms
   read: boolean;
-  priority: "high" | "medium" | "low";
+  priority: "high" | "medium" | "low" | "normal";
   actionTarget?: {
     tab?: "overview" | "transactions" | "commitments" | "goals" | "accounts" | "settings";
     modal?: "transaction" | "commitment";
@@ -20,6 +20,20 @@ export interface AppNotification {
 }
 
 const NOTIFICATIONS_LS_KEY = "selfmanage-notifications";
+
+/** Appends a notification to storage if not already present by id. */
+export async function pushStoredNotification(notification: AppNotification): Promise<AppNotification[]> {
+  const current = await getStoredNotifications();
+  if (current.some((n) => n.id === notification.id)) {
+    return current;
+  }
+  const updated = [notification, ...current];
+  await saveStoredNotifications(updated);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("selfmanage-notifications-changed"));
+  }
+  return updated;
+}
 
 /** Reads all stored notifications from IndexedDB (with localStorage fallback). */
 export async function getStoredNotifications(): Promise<AppNotification[]> {

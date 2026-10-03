@@ -49,6 +49,23 @@ const LEGACY_PROFILE_KEY = "esplan-user-profile";
 const SAVED_PROD_PROFILE_KEY = "selfmanage-saved-prod-profile";
 const LAST_SYNC_KEY = "selfmanage-last-sync";
 
+/**
+ * Synchronous check — reads isDemoMode directly from localStorage without
+ * waiting for React state to settle. Used by DashboardGate to avoid a
+ * race condition where enterDemoMode() has written to localStorage but
+ * the React context hasn't re-rendered yet.
+ */
+export function readIsDemoModeSync(): boolean {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY) ?? localStorage.getItem(LEGACY_PROFILE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { isDemoMode?: boolean };
+    return Boolean(parsed?.isDemoMode);
+  } catch {
+    return false;
+  }
+}
+
 const readProfile = (): UserProfile | null => {
   try {
     const raw = localStorage.getItem(PROFILE_KEY) ?? localStorage.getItem(LEGACY_PROFILE_KEY);
