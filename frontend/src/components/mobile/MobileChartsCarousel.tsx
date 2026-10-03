@@ -10,11 +10,12 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ShieldCheck, Target, WalletCards } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { FinanceState } from "@/lib/localDb";
 import type { CategorySlice } from "@/lib/categoryChart";
+import { formatMoney } from "@/lib/formatters";
 
 export interface MobileChartsCarouselProps {
   flowChart: { month: string; income: number; expense: number }[];
@@ -30,6 +31,7 @@ export interface MobileChartsCarouselProps {
   money: (value: number) => string;
   sliceColor: (slice: CategorySlice, index: number) => string;
   tooltipStyle: React.CSSProperties;
+  isBalanceVisible?: boolean;
   isFlowVisible?: boolean;
   isCategoryVisible?: boolean;
   isAllocationVisible?: boolean;
@@ -38,6 +40,10 @@ export interface MobileChartsCarouselProps {
   compareMax: number;
   previousTotal: number;
   topCategories: CategorySlice[];
+  totalBalance?: number;
+  totalSavings?: number;
+  onOpenAccountsModal?: () => void;
+  onNavigate?: (tab: "accounts" | "settings" | "commitments" | "transactions" | "goals") => void;
 }
 
 export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
@@ -54,6 +60,7 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
   money,
   sliceColor,
   tooltipStyle,
+  isBalanceVisible = true,
   isFlowVisible = true,
   isCategoryVisible = true,
   isAllocationVisible = true,
@@ -62,13 +69,23 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
   compareMax,
   previousTotal,
   topCategories,
+  totalBalance = 0,
+  totalSavings = 0,
+  onOpenAccountsModal,
+  onNavigate,
 }) => {
   const isDark = state.theme === "dark";
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   // Available visible slides in order
-  const slides: { id: "cashflow_trend" | "category_comparison" | "spending_allocation"; label: string }[] = [];
+  const slides: {
+    id: "hero_balance" | "cashflow_trend" | "category_comparison" | "spending_allocation";
+    label: string;
+  }[] = [];
+  if (isBalanceVisible) {
+    slides.push({ id: "hero_balance", label: isId ? "Total Saldo" : "Total Balance" });
+  }
   if (isFlowVisible) {
     slides.push({ id: "cashflow_trend", label: isId ? "Arus Kas" : "Cash Flow" });
   }
@@ -135,6 +152,73 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
         data-testid="mobile-charts-swipe-track"
       >
         {slides.map((slide) => {
+          if (slide.id === "hero_balance") {
+            return (
+              <div
+                key="hero_balance"
+                className="w-[calc(100vw-36px)] sm:w-[380px] shrink-0 snap-center"
+              >
+                <Card
+                  className="relative flex h-full min-h-[290px] flex-col justify-between overflow-hidden border border-amber-500/20 bg-white p-5 text-slate-900 shadow-soft dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10"
+                  data-testid="mobile-balance-card"
+                >
+                  <div className="absolute -right-16 -top-20 size-56 rounded-full border-[24px] border-amber-500/10 pointer-events-none dark:border-white/8" />
+                  <div className="absolute -right-12 -top-12 size-40 rounded-full bg-gradient-to-bl from-amber-500/12 via-amber-500/4 to-transparent blur-2xl pointer-events-none dark:hidden" />
+                  <div className="relative flex flex-col justify-between h-full">
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-white/65">
+                          {t.totalBalance} · {state.baseCurrency}
+                        </p>
+                        {onOpenAccountsModal && (
+                          <button
+                            type="button"
+                            data-testid="mobile-total-balance-accounts-trigger"
+                            onClick={onOpenAccountsModal}
+                            title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
+                            aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
+                            className="flex items-center justify-center rounded-lg border border-slate-200/80 bg-slate-50/80 p-1.5 text-slate-700 shadow-xs transition-all duration-200 active:scale-90 hover:bg-slate-100 hover:border-amber-400 cursor-pointer dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:border-white/40"
+                          >
+                            <WalletCards size={16} />
+                          </button>
+                        )}
+                      </div>
+                      <p className="mt-3 font-heading text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white" data-testid="total-balance-value">
+                        {formatMoney(totalBalance, state.baseCurrency, state.locale)}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-200/80 pt-3.5 text-[11px] text-slate-600 dark:border-white/10 dark:text-white/70">
+                      {onOpenAccountsModal && (
+                        <button
+                          type="button"
+                          data-testid="mobile-active-accounts-count-trigger"
+                          onClick={onOpenAccountsModal}
+                          className="flex items-center gap-1.5 transition-colors hover:text-slate-900 cursor-pointer dark:hover:text-white"
+                          title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
+                        >
+                          <span className="size-2 rounded-full bg-emerald-500 dark:bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
+                        </button>
+                      )}
+                      {totalSavings > 0 && onNavigate && (
+                        <button
+                          type="button"
+                          data-testid="mobile-total-savings-trigger"
+                          onClick={() => onNavigate("goals")}
+                          className="flex items-center gap-1.5 transition-colors hover:text-slate-900 cursor-pointer dark:hover:text-white"
+                          title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
+                        >
+                          <Target size={13} className="text-teal-600 dark:text-teal-300" />
+                          <span>{isId ? "Tabungan" : "Saved"}: {money(totalSavings)}</span>
+                        </button>
+                      )}
+                      <span className="flex items-center gap-1.5"><ShieldCheck size={13} /> {isId ? "Privat & Aman" : "Saved"}</span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            );
+          }
           if (slide.id === "cashflow_trend") {
             return (
               <div

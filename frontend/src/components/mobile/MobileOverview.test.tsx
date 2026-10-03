@@ -118,21 +118,21 @@ describe("MobileOverview default layout and widget disclosure behavior", () => {
     expect(html).toContain("mobile-budget-section-toggle");
 
     // 5. Verify order of elements in HTML output:
-    // Balance (1) -> Quick Filters (2) -> Financial Summary (3) -> Carousel (4) -> Due Soon (5) -> Recent (6) -> Budget (7) -> Payday (bottom)
+    // Carousel with Balance (1) -> Quick Filters (2) -> Financial Summary (3) -> Due Soon (4) -> Recent (5) -> Budget (6) -> Payday (bottom)
+    const posCarousel = html.indexOf("mobile-charts-carousel-wrapper");
     const posBalance = html.indexOf("mobile-balance-card");
     const posFilters = html.indexOf("period-filter-bar");
     const posSummary = html.indexOf("mobile-kpi-container");
-    const posCarousel = html.indexOf("mobile-charts-carousel-wrapper");
     const posDueSoon = html.indexOf("mobile-due-soon");
     const posRecent = html.indexOf("mobile-recent");
     const posBudget = html.indexOf("mobile-budget-section");
     const posPayday = html.indexOf("mobile-cycle-banner-bottom");
 
-    expect(posBalance).toBeGreaterThan(-1);
-    expect(posFilters).toBeGreaterThan(posBalance);
+    expect(posCarousel).toBeGreaterThan(-1);
+    expect(posBalance).toBeGreaterThan(posCarousel); // Balance card is inside carousel
+    expect(posFilters).toBeGreaterThan(posCarousel);
     expect(posSummary).toBeGreaterThan(posFilters);
-    expect(posCarousel).toBeGreaterThan(posSummary);
-    expect(posDueSoon).toBeGreaterThan(posCarousel);
+    expect(posDueSoon).toBeGreaterThan(posSummary);
     expect(posRecent).toBeGreaterThan(posDueSoon);
     expect(posBudget).toBeGreaterThan(posRecent);
     expect(posPayday).toBeGreaterThan(posBudget);

@@ -73,11 +73,11 @@ describe("dashboardLayout sanitization and types", () => {
 
     expect(sortedDefaultIds).toEqual([
       "hero_balance",
-      "quick_filters",
-      "financial_summary",
       "cashflow_trend",
       "category_comparison",
       "spending_allocation",
+      "quick_filters",
+      "financial_summary",
       "upcoming_bills",
       "recent_transactions",
       "budget_guardrails",
