@@ -11,7 +11,7 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-export const APP_VERSION = "1.0.0-beta";
+export const APP_VERSION = "2.1.0";
 
 /** ISO date of the latest release — shown on the changelog page. */
 export const APP_VERSION_DATE = "2026-10-03";
@@ -39,6 +39,21 @@ const TYPE_LABELS: Record<ChangelogEntry["changes"][number]["type"], string> = {
 export const getTypeLabel = (type: ChangelogEntry["changes"][number]["type"]) => TYPE_LABELS[type];
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "2.1.0",
+    date: "2026-10-03",
+    title: "Update Stabilitas, Desain Mobile, & Siklus Keuangan",
+    summary: "Pembaruan v2.1.0: Perbaikan re-entry demo, UI BottomSheet notifikasi mobile, Segmented Control siklus keuangan, dan dukungan dual deployment (Netlify + Vercel).",
+    changes: [
+      { type: "fixed", text: "Hotfix re-entry mode demo lokal agar langsung memuat dashboard tanpa blank page" },
+      { type: "improved", text: "Pembaruan popup notifikasi di mobile menjadi pola BottomSheet yang responsif & fluid" },
+      { type: "improved", text: "Penyederhanaan UI siklus keuangan dengan preset Segmented Control (Tgl 1, 25, 28, Kustom)" },
+      { type: "added", text: "First-run onboarding wizard interaktif untuk nama panggilan dan tanggal siklus keuangan" },
+      { type: "added", text: "Banner indikator siklus keuangan aktif di ringkasan overview (menampilkan sisa hari)" },
+      { type: "improved", text: "Konfigurasi routing SPA & cache headers terpisah untuk Netlify (_redirects) dan Vercel (vercel.json)" },
+      { type: "added", text: "Sistem update version terintegrasi ke notification center dengan notifikasi otomatis" },
+    ],
+  },
   {
     version: "1.0.0-beta",
     date: "2026-10-03",

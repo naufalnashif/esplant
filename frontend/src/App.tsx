@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Toaster } from "sonner";
-import { StorageProvider, useStorage } from "@/lib/storageContext";
+import { StorageProvider, useStorage, readIsDemoModeSync } from "@/lib/storageContext";
 import { LandingPreview } from "@/components/LandingPreview";
 import { BrandMark } from "@/components/BrandMark";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -28,9 +28,13 @@ function DashboardLoader() {
 }
 
 // /dashboard/* — gated on an onboarded workspace; otherwise send to the connect flow.
+// Also accepts isDemoMode (read synchronously from localStorage) as a bypass so that
+// EnterDemo's navigate("/dashboard") never sees a stale null profile.
 function DashboardGate() {
   const { profile } = useStorage();
-  if (!profile?.onboarded) return <Navigate to="/connect" replace />;
+  // readIsDemoModeSync() reads localStorage directly — always in sync with enterDemoMode()
+  // even if the React context render cycle hasn't finished yet.
+  if (!profile?.onboarded && !readIsDemoModeSync()) return <Navigate to="/connect" replace />;
   return (
     <ErrorBoundary>
       <Suspense fallback={<DashboardLoader />}>
@@ -41,13 +45,16 @@ function DashboardGate() {
 }
 
 // /demo — switch context to isolated sandbox demo, then straight to the dashboard.
+// enterDemoMode() writes to localStorage synchronously (via setProfile → localStorage.setItem),
+// so by the time navigate("/dashboard") fires, readIsDemoModeSync() in DashboardGate
+// will already return true — no race condition.
 function EnterDemo() {
   const { enterDemoMode } = useStorage();
   const navigate = useNavigate();
   useEffect(() => {
     enterDemoMode();
     navigate("/dashboard", { replace: true });
-  }, [enterDemoMode, navigate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return <DashboardLoader />;
 }
 

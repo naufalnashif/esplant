@@ -34,6 +34,9 @@ import { GoalsPanel } from "@/components/GoalsPanel";
 import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { BundlesPanel } from "@/components/BundlesPanel";
+import { OnboardingModal } from "@/components/OnboardingModal";
+import { FinancialCycleBanner } from "@/components/FinancialCycleBanner";
+import { FinancialCycleModal } from "@/components/FinancialCycleModal";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
@@ -56,7 +59,8 @@ import {
   type CategorySlice,
 } from "@/lib/categoryChart";
 import { EraseConfirmModal, type EraseOptions } from "@/components/EraseConfirmModal";
-import { APP_VERSION, getUnseenVersion, markVersionSeen, CHANGELOG } from "@/lib/version";
+import { APP_VERSION } from "@/lib/version";
+import { useAppVersionCheck } from "@/lib/useAppVersionCheck";
 import {
   getCycleKeyForTransaction,
   getPreviousCycleKey,
@@ -125,9 +129,9 @@ export default function Home() {
   const [tab, setTabRaw] = useState<Tab>("overview");
   const setTab = (next: Tab) => {
     setTabRaw(next);
-    // Scroll the main content area back to the top whenever the user switches panels
-    mainRef.current?.scrollTo({ top: 0, behavior: "instant" });
-    window.scrollTo({ top: 0, behavior: "instant" });
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
   };
   const [compareMonth, setCompareMonth] = useState(currentMonth);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -141,6 +145,7 @@ export default function Home() {
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showCycleModal, setShowCycleModal] = useState(false);
   const [transactionForm, setTransactionForm] = useState({
     kind: "expense" as TransactionKind,
     amount: "",
@@ -174,27 +179,27 @@ export default function Home() {
   const t = copy[state.locale];
   const categories = useMemo(() => Array.from(new Set([...categoryFallbacks, ...state.categories.filter((item) => !item.archived).map((item) => item.name), ...state.transactions.map((item) => item.category)])), [state.categories, state.transactions]);
   const cycleDay = state.customCycleDay || 1;
-  const previous = cycleDay === 1 ? previousMonth(compareMonth) : getPreviousCycleKey(compareMonth);
-  const currentTransactions = state.transactions.filter((item) =>
+  const previous = useMemo(() => (cycleDay === 1 ? previousMonth(compareMonth) : getPreviousCycleKey(compareMonth)), [cycleDay, compareMonth]);
+  const currentTransactions = useMemo(() => state.transactions.filter((item) =>
     cycleDay === 1 ? monthKey(item.date) === compareMonth : getCycleKeyForTransaction(item.date, cycleDay) === compareMonth
-  );
-  const previousTransactions = state.transactions.filter((item) =>
+  ), [state.transactions, cycleDay, compareMonth]);
+  const previousTransactions = useMemo(() => state.transactions.filter((item) =>
     cycleDay === 1 ? monthKey(item.date) === previous : getCycleKeyForTransaction(item.date, cycleDay) === previous
-  );
+  ), [state.transactions, cycleDay, previous]);
   const displayRate = state.exchangeRates[state.baseCurrency] || 1;
-  const currentSpend = currentTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const previousSpend = previousTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const currentIncome = currentTransactions.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const totalBalance = state.accounts.reduce((sum, account) => sum + toBase(account.balance, account.currency, state.exchangeRates), 0) / displayRate;
+  const currentSpend = useMemo(() => currentTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, [currentTransactions, displayRate]);
+  const previousSpend = useMemo(() => previousTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, [previousTransactions, displayRate]);
+  const currentIncome = useMemo(() => currentTransactions.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, [currentTransactions, displayRate]);
+  const totalBalance = useMemo(() => state.accounts.reduce((sum, account) => sum + toBase(account.balance, account.currency, state.exchangeRates), 0) / displayRate, [state.accounts, state.exchangeRates, displayRate]);
   const thisMonthKey = compareMonth;
-  const committed = state.bills
+  const committed = useMemo(() => state.bills
     .filter((bill) => bill.active !== false && (bill.remainingInstallments === undefined || bill.remainingInstallments > 0))
     .filter((bill) => {
       if (!bill.lastPaidDate) return true;
       const paidKey = cycleDay === 1 ? String(bill.lastPaidDate).slice(0, 7) : getCycleKeyForTransaction(String(bill.lastPaidDate), cycleDay);
       return paidKey !== thisMonthKey;
     })
-    .reduce((sum, bill) => sum + toBase(bill.amount, bill.currency, state.exchangeRates), 0) / displayRate;
+    .reduce((sum, bill) => sum + toBase(bill.amount, bill.currency, state.exchangeRates), 0) / displayRate, [state.bills, cycleDay, thisMonthKey, state.exchangeRates, displayRate]);
   const spendDelta = previousSpend ? Math.round(((currentSpend - previousSpend) / previousSpend) * 100) : 0;
   const filteredTransactions = useMemo(() => [...state.transactions].filter((item) => {
     const query = filter.search.toLowerCase();
@@ -255,18 +260,8 @@ export default function Home() {
     document.documentElement.lang = state.locale === "id" ? "id" : "en";
   }, [state.locale, state.theme]);
 
-  // Version update notification — fires once per new version
-  useEffect(() => {
-    const unseen = getUnseenVersion();
-    if (unseen) {
-      const entry = CHANGELOG[0];
-      toast.info(entry?.summary ?? `_self.manage telah diperbarui ke v${unseen}`, {
-        duration: 6000,
-        action: { label: "Lihat", onClick: () => navigate("/changelog") },
-      });
-      markVersionSeen();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Version update notification & notification center sync
+  useAppVersionCheck();
 
   // Onboarding gate runs after every hook so the hook order never changes between renders.
   if (!profile || !profile.onboarded) {
@@ -867,7 +862,7 @@ export default function Home() {
             </Link>
           </div>
         </aside>
-        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ height: "100svh" }}>
+        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 bg-background/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-2.5 sm:gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
@@ -911,23 +906,17 @@ export default function Home() {
               </button>
             </div>
           </header>
-          <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
+          <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
             {isDemoMode && (
-              <div data-testid="demo-sandbox-banner" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-200">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/20 text-base">🎮</span>
-                  <div>
-                    <p className="text-xs font-bold text-amber-300">
-                      {state.locale === "id" ? "Mode Sandbox Demo Aktif" : "Demo Sandbox Active"}
-                    </p>
-                    <p className="text-[11px] text-amber-300/80">
-                      {state.locale === "id" 
-                        ? "Data contoh ini terisolasi sepenuhnya di browser sandbox. Data offline & akun produksi Anda tetap aman." 
-                        : "Isolated sandbox data. Your offline data & production account remain untouched."}
-                    </p>
-                  </div>
+              <div data-testid="demo-sandbox-banner" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm shrink-0">🎮</span>
+                  <p className="truncate font-semibold text-amber-300">
+                    <span className="font-bold">{state.locale === "id" ? "Mode Demo Sandbox" : "Demo Sandbox"}</span>
+                    <span className="hidden sm:inline text-amber-300/80"> · {state.locale === "id" ? "Data contoh terisolasi" : "Isolated sample data"}</span>
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     data-testid="demo-reset-data-button"
@@ -935,9 +924,9 @@ export default function Home() {
                       loadSample?.();
                       toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
                     }}
-                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
                   >
-                    {state.locale === "id" ? "Reset Data Demo" : "Reset Demo"}
+                    Reset
                   </button>
                   <button
                     type="button"
@@ -947,11 +936,20 @@ export default function Home() {
                       navigate("/landing");
                       toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
                     }}
-                    className="rounded-lg bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+                    className="rounded-lg bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
                   >
-                    {state.locale === "id" ? "Keluar Demo" : "Exit Demo"}
+                    {state.locale === "id" ? "Keluar" : "Exit"}
                   </button>
                 </div>
+              </div>
+            )}
+            {/* Compact Financial Cycle Pill — space saving and clear */}
+            {tab === "overview" && (
+              <div className="mb-2 flex items-center">
+                <FinancialCycleBanner
+                  state={state}
+                  onOpenEditCycle={() => setShowCycleModal(true)}
+                />
               </div>
             )}
             {tab === "overview" && (isMobile
@@ -1088,6 +1086,25 @@ export default function Home() {
         onClose={() => setShowEraseModal(false)}
         onConfirm={handleEraseConfirm}
       />
+      {/* Financial Cycle Quick Editor Modal */}
+      <FinancialCycleModal
+        open={showCycleModal}
+        onClose={() => setShowCycleModal(false)}
+        state={state}
+        onSaveCycle={(newDay) => {
+          save({ ...state, customCycleDay: newDay });
+        }}
+      />
+      {/* First-run onboarding wizard — shown once if onboardingDone is false */}
+      {!state.onboardingDone && (
+        <OnboardingModal
+          state={state}
+          onComplete={(profileName, customCycleDay) => {
+            save({ ...state, profileName, customCycleDay, onboardingDone: true });
+            toast.success(state.locale === "id" ? `Selamat datang, ${profileName}! 🎉` : `Welcome, ${profileName}! 🎉`);
+          }}
+        />
+      )}
     </div>
   );
 }

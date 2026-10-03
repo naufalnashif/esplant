@@ -151,3 +151,27 @@ describe("Relative time formatter", () => {
     expect(formatRelativeTime(now - 25 * 3600 * 1000, "en")).toBe("Yesterday");
   });
 });
+
+describe("System update and pushStoredNotification", () => {
+  it("preserves system_update notifications during rule evaluation", () => {
+    const state = createInitialState();
+    const existing: AppNotification[] = [
+      {
+        id: "version-2.1.0",
+        type: "system_update",
+        title: "Update v2.1.0",
+        message: "Perbaikan dan fitur baru",
+        timestamp: Date.now(),
+        read: false,
+        priority: "normal",
+      },
+    ];
+
+    const { notifications } = evaluateNotificationRules(state, existing);
+    const updateNotif = notifications.find((n) => n.id === "version-2.1.0");
+    expect(updateNotif).toBeDefined();
+    expect(updateNotif?.type).toBe("system_update");
+    expect(updateNotif?.read).toBe(false);
+  });
+});
+
