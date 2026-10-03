@@ -119,7 +119,9 @@ const kpis = [
   { label: "Arus kas bersih", value: "+Rp 4,5 Jt", note: "Pemasukan − Pengeluaran", tone: "teal", icon: ArrowUpRight },
 ] as const;
 const tones: Record<string, string> = {
-  rose: "bg-red-500/12 text-red-400", indigo: "bg-indigo-500/12 text-indigo-400", teal: "bg-primary/12 text-primary",
+  rose: "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400",
+  indigo: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400",
+  teal: "bg-primary/12 text-primary",
 };
 
 const features = [

@@ -303,7 +303,7 @@ export function ConnectSheetDialog({ open, onClose, onConnected }: { open: boole
                     disabled={working}
                     className="flex w-full items-center gap-2.5 rounded-xl border border-border bg-background/60 px-3 py-2.5 text-left transition-colors hover:border-primary hover:bg-primary/5 disabled:opacity-60"
                   >
-                    <FileSpreadsheet size={15} className="shrink-0 text-emerald-400" />
+                    <FileSpreadsheet size={15} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-bold">{sheet.name}</span>
                       <span className="block truncate text-[10px] text-muted-foreground">

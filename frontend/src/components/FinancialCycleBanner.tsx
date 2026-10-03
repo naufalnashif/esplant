@@ -36,7 +36,7 @@ export function FinancialCycleBanner({
     <div
       data-testid="cycle-banner-card"
       onClick={onOpenEditCycle}
-      className="group mb-3 inline-flex max-w-full items-center justify-between gap-2 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs text-foreground transition-all hover:border-primary/40 hover:bg-primary/12 active:scale-[0.99] cursor-pointer touch-manipulation select-none"
+      className="group mb-3 inline-flex max-w-full items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-amber-50/70 px-3 py-1.5 text-xs text-slate-800 transition-all hover:border-amber-400 hover:bg-amber-100/60 active:scale-[0.99] cursor-pointer touch-manipulation select-none dark:border-primary/20 dark:bg-primary/8 dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-primary/12"
       title={isId ? "Klik untuk mengubah tanggal siklus keuangan" : "Click to change financial cycle date"}
       role="button"
       tabIndex={0}
@@ -48,22 +48,22 @@ export function FinancialCycleBanner({
       }}
     >
       <div className="flex min-w-0 items-center gap-2 truncate">
-        <CalendarClock size={13} className="text-primary shrink-0" />
-        <span className="truncate font-semibold text-foreground">
+        <CalendarClock size={13} className="text-amber-600 dark:text-primary shrink-0" />
+        <span className="truncate font-semibold text-slate-800 dark:text-foreground">
           {isId ? "Siklus: " : "Cycle: "}
-          <strong className="text-primary font-bold">{activeRange.label}</strong>
+          <strong className="text-amber-700 dark:text-primary font-bold">{activeRange.label}</strong>
         </span>
-        <span className="hidden sm:inline-block rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-extrabold text-primary shrink-0">
+        <span className="hidden sm:inline-block rounded-md bg-amber-100/80 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-800 dark:bg-primary/15 dark:text-primary shrink-0">
           {badgeText}
         </span>
-        <span className="text-[11px] text-muted-foreground shrink-0">
+        <span className="text-[11px] text-slate-500 dark:text-muted-foreground shrink-0">
           · {remainingDays} {isId ? "hari lagi" : "days left"}
         </span>
       </div>
 
       <div
         data-testid="cycle-banner-edit-button"
-        className="flex items-center gap-1 text-[11px] font-bold text-primary shrink-0 ml-1"
+        className="flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-primary shrink-0 ml-1"
       >
         <SlidersHorizontal size={11} className="shrink-0" />
         <span className="underline underline-offset-2">{isId ? "Ubah" : "Edit"}</span>

@@ -203,10 +203,10 @@ export function AccountsPanel({
             icon={<Target size={18} />}
             tone="emerald"
             badge={isId ? "Goals" : "Goals"}
-            badgeClass="border-emerald-500/20 text-emerald-400"
+            badgeClass="border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
             label={isId ? "Total Tertabung (Goals)" : "Total Saved (Goals)"}
             value={formatMoney(totalSavings, state.baseCurrency, state.locale)}
-            valueClass="text-emerald-400"
+            valueClass="text-emerald-600 dark:text-emerald-400"
             note={`${state.savings.length} ${isId ? "target impian aktif" : "active savings goals"}`}
           />
         )}
@@ -237,7 +237,7 @@ export function AccountsPanel({
               data-testid="account-card-savings-goals"
             >
               <div className="flex items-start gap-3">
-                <div className="grid size-10 place-items-center rounded-xl bg-teal-500/12 text-teal-400 border border-teal-500/25">
+                <div className="grid size-10 place-items-center rounded-xl bg-teal-500/10 text-teal-600 dark:bg-teal-500/12 dark:text-teal-400 border border-teal-500/25">
                   <Target size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -245,7 +245,7 @@ export function AccountsPanel({
                     <p className="truncate text-sm font-semibold text-foreground">
                       {isId ? "Total Tertabung (Goals)" : "Total Savings (Goals)"}
                     </p>
-                    <Badge variant="outline" className="border-teal-500/40 text-teal-400 text-[9px]">
+                    <Badge variant="outline" className="border-teal-500/40 text-teal-600 dark:text-teal-400 text-[9px]">
                       {isId ? "Khusus Tabungan" : "Savings Only"}
                     </Badge>
                   </div>
@@ -253,13 +253,13 @@ export function AccountsPanel({
                     {state.savings.length} {isId ? "target impian aktif · Non-transaksi langsung" : "active goals · Non-transactional"}
                   </p>
                 </div>
-                <p className="font-data text-sm font-bold text-teal-400">
+                <p className="font-data text-sm font-bold text-teal-600 dark:text-teal-400">
                   {formatMoney(totalSavings, state.baseCurrency, state.locale)}
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
                 <span>{isId ? "Saldo teralokasi khusus target tabungan" : "Balance dedicated to savings goals"}</span>
-                <span className="font-semibold text-teal-400">{isId ? "Dikelola di Menu Goals" : "Managed in Goals"}</span>
+                <span className="font-semibold text-teal-600 dark:text-teal-400">{isId ? "Dikelola di Menu Goals" : "Managed in Goals"}</span>
               </div>
             </div>
           )}
@@ -275,9 +275,9 @@ export function AccountsPanel({
                 <div
                   className={`grid size-10 place-items-center rounded-xl ${
                     account.type === "credit"
-                      ? "bg-red-500/12 text-red-400"
+                      ? "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"
                       : account.type === "ewallet"
-                        ? "bg-indigo-500/12 text-indigo-400"
+                        ? "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400"
                         : "bg-primary/12 text-primary"
                   }`}
                 >
@@ -292,7 +292,7 @@ export function AccountsPanel({
                     {account.brand} · {account.currency}
                   </p>
                 </div>
-                <p className={`font-data text-sm font-bold ${account.balance < 0 ? "text-red-400" : ""}`}>
+                <p className={`font-data text-sm font-bold ${account.balance < 0 ? "text-rose-600 dark:text-red-400" : ""}`}>
                   {formatMoney(account.balance, account.currency, state.locale)}
                 </p>
               </div>
@@ -309,7 +309,7 @@ export function AccountsPanel({
                   type="button"
                   data-testid={`account-remove-${account.id}-button`}
                   onClick={() => onRemove(account)}
-                  className="flex items-center gap-1 text-[10px] font-bold text-red-400 hover:underline"
+                  className="flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-red-400 hover:underline"
                 >
                   <Trash2 size={12} />{labels.remove}
                 </button>

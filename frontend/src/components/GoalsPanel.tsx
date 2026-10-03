@@ -72,7 +72,7 @@ function SavingsGoalCard({
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
               className={`grid size-9 sm:size-10 shrink-0 place-items-center rounded-xl ${
-                isCompleted ? "bg-emerald-500/15 text-emerald-400" : "bg-primary/15 text-primary"
+                isCompleted ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-primary/15 text-primary"
               }`}
             >
               {isCompleted ? <CheckCircle2 size={18} /> : <Target size={18} />}
@@ -91,7 +91,7 @@ function SavingsGoalCard({
           <Badge
             variant="outline"
             className={`shrink-0 text-[10px] font-bold ${
-              isCompleted ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : ""
+              isCompleted ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : ""
             }`}
           >
             {isCompleted ? (isId ? "✓ Tercapai" : "✓ Goal Reached") : `${progress}%`}
@@ -102,7 +102,7 @@ function SavingsGoalCard({
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              isCompleted ? "bg-emerald-400" : "bg-primary"
+              isCompleted ? "bg-emerald-500 dark:bg-emerald-400" : "bg-primary"
             }`}
             style={{ width: `${progress}%` }}
           />
@@ -152,7 +152,7 @@ function SavingsGoalCard({
             title={isId ? "Hapus goal" : "Delete goal"}
             data-testid={`savings-delete-${goal.id}-button`}
             onClick={() => onDelete(goal)}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:bg-red-400/10 dark:hover:text-red-400"
           >
             <Trash2 size={13} />
           </button>

@@ -216,14 +216,14 @@ export function TransactionsPanel({
           return (
             <div key={item.id} data-testid={`transaction-card-${item.id}`} className="rounded-2xl border border-border/70 bg-card/75">
               <button type="button" data-testid={`transaction-card-toggle-${item.id}`} aria-expanded={open} onClick={() => setExpandedId(open ? null : item.id)} className="flex w-full items-center gap-3 p-3 text-left">
-                <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.kind === "income" ? "bg-emerald-500/12 text-emerald-400" : "bg-red-500/12 text-red-400"}`}>
+                <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.kind === "income" ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400" : "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"}`}>
                   {item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold leading-tight">{item.description}</p>
                   <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{shortDate(item.date, state.locale)} · {item.category}</p>
                 </div>
-                <p className={`shrink-0 font-data text-[13px] font-bold ${item.kind === "income" ? "text-emerald-400" : ""}`}>
+                <p className={`shrink-0 font-data text-[13px] font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
                   {item.kind === "income" ? "+" : "−"}{formatMoney(item.baseAmount, state)}
                 </p>
                 <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
@@ -244,7 +244,7 @@ export function TransactionsPanel({
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <button type="button" data-testid={`transaction-card-edit-${item.id}-button`} onClick={() => onEdit(item)} className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"><Pencil size={14} /></button>
-                    <button type="button" data-testid={`transaction-card-delete-${item.id}-button`} onClick={() => onDelete(item)} className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"><Trash2 size={14} /></button>
+                    <button type="button" data-testid={`transaction-card-delete-${item.id}-button`} onClick={() => onDelete(item)} className="grid size-9 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:bg-red-400/10 dark:hover:text-red-400"><Trash2 size={14} /></button>
                   </div>
                 </div>
               )}
@@ -302,7 +302,7 @@ export function TransactionsPanel({
                     <td className="px-5 py-4 text-xs text-muted-foreground">{shortDate(item.date, state.locale)}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`grid size-8 place-items-center rounded-lg ${item.kind === "income" ? "bg-emerald-500/12 text-emerald-400" : "bg-red-500/12 text-red-400"}`}>
+                        <div className={`grid size-8 place-items-center rounded-lg ${item.kind === "income" ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400" : "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"}`}>
                           {item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
                         </div>
                         <div>
@@ -320,13 +320,13 @@ export function TransactionsPanel({
                     </td>
                     <td className="px-5 py-4"><Badge variant="outline">{item.category}</Badge></td>
                     <td className="px-5 py-4 text-xs text-muted-foreground">{accountName(item.accountId)}</td>
-                    <td className={`px-5 py-4 text-right font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-400" : ""}`}>
+                    <td className={`px-5 py-4 text-right font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
                       {item.kind === "income" ? "+" : "−"}{formatMoney(item.baseAmount, state)}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-1">
                         <button type="button" data-testid={`transaction-edit-${item.id}-button`} onClick={() => onEdit(item)} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"><Pencil size={13} /></button>
-                        <button type="button" data-testid={`transaction-delete-${item.id}-button`} onClick={() => onDelete(item)} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"><Trash2 size={13} /></button>
+                        <button type="button" data-testid={`transaction-delete-${item.id}-button`} onClick={() => onDelete(item)} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:bg-red-400/10 dark:hover:text-red-400"><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>

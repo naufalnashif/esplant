@@ -147,7 +147,7 @@ export function PayCommitmentDialog({
         >
           {target.subtitle}
           {target.lastPaidDate && (
-            <span className="ml-1 text-amber-500">
+            <span className="ml-1 text-amber-600 dark:text-amber-500">
               · {isId ? "terakhir dibayar" : "last paid"} {target.lastPaidDate}
             </span>
           )}
@@ -200,7 +200,7 @@ export function PayCommitmentDialog({
               </span>
             )}
             {overCap && (
-              <span className="mt-1 block text-[10px] font-bold text-red-400" data-testid="pay-commitment-over-cap">
+              <span className="mt-1 block text-[10px] font-bold text-rose-600 dark:text-red-400" data-testid="pay-commitment-over-cap">
                 {isId ? "Nominal melebihi sisa komitmen." : "Amount exceeds the outstanding balance."}
               </span>
             )}
@@ -278,25 +278,25 @@ export function PayCommitmentDialog({
               <p className="font-data text-[10px] text-muted-foreground">
                 {formatMoney(account.balance, state.baseCurrency, state.locale)}
                 <span className="mx-1">→</span>
-                <span className={goesNegative ? "font-bold text-red-400" : "font-bold text-foreground"}>
+                <span className={goesNegative ? "font-bold text-rose-600 dark:text-red-400" : "font-bold text-foreground"}>
                   {formatMoney(balanceAfter, state.baseCurrency, state.locale)}
                 </span>
               </p>
             </div>
-            <span className={`shrink-0 font-data text-xs font-bold ${target.direction === "income" ? "text-emerald-400" : "text-red-400"}`}>
+            <span className={`shrink-0 font-data text-xs font-bold ${target.direction === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-red-400"}`}>
               {target.direction === "income" ? "+" : "−"}
               {validAmount ? money(amount) : money(0)}
             </span>
           </div>
         ) : (
-          <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-[11px] font-semibold text-red-400" data-testid="pay-commitment-no-account">
+          <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-[11px] font-semibold text-rose-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-400" data-testid="pay-commitment-no-account">
             {isId ? "Tambahkan akun dulu di tab Akun & saldo." : "Add an account first in the Accounts tab."}
           </p>
         )}
 
         {goesNegative && (
           <p
-            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-[11px] font-semibold text-amber-500"
+            className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[11px] font-semibold text-amber-600 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-500"
             data-testid="pay-commitment-negative-warning"
           >
             {isId

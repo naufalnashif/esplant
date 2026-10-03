@@ -34,7 +34,7 @@ function DashboardGate() {
   const { profile } = useStorage();
   // readIsDemoModeSync() reads localStorage directly — always in sync with enterDemoMode()
   // even if the React context render cycle hasn't finished yet.
-  if (!profile?.onboarded && !readIsDemoModeSync()) return <Navigate to="/connect" replace />;
+  if (!profile?.onboarded && !readIsDemoModeSync()) return <Navigate to="/" replace />;
   return (
     <ErrorBoundary>
       <Suspense fallback={<DashboardLoader />}>

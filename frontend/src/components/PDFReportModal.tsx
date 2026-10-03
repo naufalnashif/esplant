@@ -189,22 +189,22 @@ export function PDFReportModal({
           {/* KPI Summary Grid */}
           <div className="grid grid-cols-3 gap-3 print:break-inside-avoid">
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-3.5 text-center">
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
                 {isId ? "Total Pemasukan" : "Total Income"}
               </p>
-              <p className="mt-1 font-data text-base font-extrabold text-emerald-400">
+              <p className="mt-1 font-data text-base font-extrabold text-emerald-600 dark:text-emerald-400">
                 +{formatMoney(totalIncome, state.baseCurrency, state.locale, true)}
               </p>
             </div>
-            <div className="rounded-xl border border-red-500/30 bg-red-500/8 p-3.5 text-center">
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-red-400">
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/8 dark:border-red-500/30 dark:bg-red-500/8 p-3.5 text-center">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-red-400">
                 {isId ? "Total Pengeluaran" : "Total Expense"}
               </p>
-              <p className="mt-1 font-data text-base font-extrabold text-red-400">
+              <p className="mt-1 font-data text-base font-extrabold text-rose-600 dark:text-red-400">
                 −{formatMoney(totalExpense, state.baseCurrency, state.locale, true)}
               </p>
             </div>
-            <div className={`rounded-xl border p-3.5 text-center ${netFlow >= 0 ? "border-primary/30 bg-primary/8 text-primary" : "border-red-500/30 bg-red-500/8 text-red-400"}`}>
+            <div className={`rounded-xl border p-3.5 text-center ${netFlow >= 0 ? "border-primary/30 bg-primary/8 text-primary" : "border-rose-500/30 bg-rose-500/8 text-rose-600 dark:border-red-500/30 dark:bg-red-500/8 dark:text-red-400"}`}>
               <p className="text-[10px] font-extrabold uppercase tracking-wider">
                 {isId ? "Arus Bersih (Net)" : "Net Flow"}
               </p>
@@ -235,7 +235,7 @@ export function PDFReportModal({
                     <tr key={row.category} className="hover:bg-secondary/20 print:break-inside-avoid">
                       <td className="px-3 py-2 font-semibold">{row.category}</td>
                       <td className="px-3 py-2 text-center text-muted-foreground">{row.count}</td>
-                      <td className="px-3 py-2 text-right font-data font-bold text-red-400">
+                      <td className="px-3 py-2 text-right font-data font-bold text-rose-600 dark:text-red-400">
                         {row.expense > 0 ? `−${formatMoney(row.expense, state.baseCurrency, state.locale, true)}` : "—"}
                       </td>
                       <td className="px-3 py-2 text-right font-data text-muted-foreground">
@@ -280,7 +280,7 @@ export function PDFReportModal({
                       <td className="px-3 py-2 font-semibold">{tx.description}</td>
                       <td className="px-3 py-2 text-muted-foreground">{tx.category}</td>
                       <td className="px-3 py-2 text-muted-foreground">{accountName(tx.accountId)}</td>
-                      <td className={`px-3 py-2 text-right font-data font-bold ${tx.kind === "income" ? "text-emerald-400" : ""}`}>
+                      <td className={`px-3 py-2 text-right font-data font-bold ${tx.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
                         {tx.kind === "income" ? "+" : "−"}
                         {formatMoney(tx.baseAmount, state.baseCurrency, state.locale, true)}
                       </td>

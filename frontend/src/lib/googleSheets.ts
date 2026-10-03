@@ -424,6 +424,8 @@ export function stateToRows(state: FinanceState): Record<TabKey, string[][]> {
       ["theme", str(state.theme)],
       ["exchangeRates", JSON.stringify(state.exchangeRates ?? {})],
       ["schedule", JSON.stringify(state.schedule ?? {})],
+      ["customCycleDay", str(state.customCycleDay || 1)],
+      ["onboardingDone", str(state.onboardingDone ? "true" : "false")],
     ],
     accounts: state.accounts.map((a) => [a.id, a.name, a.type, str(a.brand), str(a.balance), a.currency, str(a.openingBalance)]),
     transactions: state.transactions.map((t) => [
@@ -453,6 +455,11 @@ export function rowsToState(rows: Partial<Record<TabKey, string[][]>>): FinanceS
       else if (key === "theme" && value) state.theme = value === "light" ? "light" : "dark";
       else if (key === "exchangeRates" && value) state.exchangeRates = { ...base.exchangeRates, ...JSON.parse(value) };
       else if (key === "schedule" && value) state.schedule = { ...base.schedule, ...JSON.parse(value) };
+      else if (key === "customCycleDay" && value) {
+        const parsedDay = parseInt(value, 10);
+        if (!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31) state.customCycleDay = parsedDay;
+      }
+      else if (key === "onboardingDone") state.onboardingDone = value === "true";
     } catch {
       /* malformed cell — keep default */
     }

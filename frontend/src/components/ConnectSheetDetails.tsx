@@ -28,9 +28,9 @@ export const ConnectSetupNotice = ({ configured, authFailed, appOrigin }: {
 }) => {
   if (configured && !authFailed) return null;
   return (
-    <div className={`mb-4 rounded-2xl border p-3 ${configured ? "border-red-500/35 bg-red-500/8" : "border-amber-500/35 bg-amber-500/8"}`}
+    <div className={`mb-4 rounded-2xl border p-3 ${configured ? "border-rose-500/35 bg-rose-500/8 dark:border-red-500/35 dark:bg-red-500/8" : "border-amber-500/35 bg-amber-500/8"}`}
       role="status" data-testid={configured ? "origin-mismatch-help" : "google-setup-notice"}>
-      <p className={`text-xs font-bold ${configured ? "text-red-400" : "text-amber-500"}`} data-testid="connect-setup-title">
+      <p className={`text-xs font-bold ${configured ? "text-rose-600 dark:text-red-400" : "text-amber-600 dark:text-amber-500"}`} data-testid="connect-setup-title">
         {configured ? "Koneksi Google belum berhasil" : "Google OAuth belum dikonfigurasi"}
       </p>
       <details className="connect-sheet-details mt-1" data-testid="connect-setup-details">

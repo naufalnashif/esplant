@@ -28,22 +28,22 @@ function getAccountIconAndStyle(type: Account["type"]) {
     case "debit":
       return {
         icon: Landmark,
-        className: "bg-emerald-500/12 text-emerald-400 border border-emerald-500/25",
+        className: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400 border border-emerald-500/25",
       };
     case "credit":
       return {
         icon: CreditCard,
-        className: "bg-red-500/12 text-red-400 border border-red-500/25",
+        className: "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400 border border-rose-500/25",
       };
     case "ewallet":
       return {
         icon: Smartphone,
-        className: "bg-indigo-500/12 text-indigo-400 border border-indigo-500/25",
+        className: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400 border border-indigo-500/25",
       };
     case "cash":
       return {
         icon: Banknote,
-        className: "bg-amber-500/12 text-amber-400 border border-amber-500/25",
+        className: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400 border border-amber-500/25",
       };
     case "investment":
       return {
@@ -285,7 +285,7 @@ export function AccountsBreakdownModal({
                     <div className="text-right">
                       <p
                         className={`font-data text-sm font-extrabold ${
-                          account.balance < 0 ? "text-red-400" : "text-foreground"
+                          account.balance < 0 ? "text-rose-600 dark:text-red-400" : "text-foreground"
                         }`}
                       >
                         {formatMoney(account.balance, account.currency, state.locale)}

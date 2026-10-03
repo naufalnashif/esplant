@@ -430,10 +430,10 @@ export function CommitmentsPanel({
           icon={<ArrowUpRight size={18} />}
           tone="rose"
           badge={isId ? "Harus Dibayar" : "Owed"}
-          badgeClass="border-red-500/20 text-red-400"
+          badgeClass="border-rose-500/20 text-rose-600 dark:text-red-400"
           label={isId ? "Total Utang Saya" : "Total Debt Owed"}
           value={formatMoney(totalDebt, state.baseCurrency, state.locale, true)}
-          valueClass="text-red-400"
+          valueClass="text-rose-600 dark:text-red-400"
           note={`${state.debts.filter((d) => d.type === "debt").length} ${isId ? "catatan utang" : "debt records"}`}
         />
         <KpiCard
@@ -441,10 +441,10 @@ export function CommitmentsPanel({
           icon={<ArrowDownLeft size={18} />}
           tone="emerald"
           badge={isId ? "Akan Diterima" : "Receivable"}
-          badgeClass="border-emerald-500/20 text-emerald-400"
+          badgeClass="border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
           label={isId ? "Total Piutang Saya" : "Total Receivables"}
           value={formatMoney(totalReceivables, state.baseCurrency, state.locale, true)}
-          valueClass="text-emerald-400"
+          valueClass="text-emerald-600 dark:text-emerald-400"
           note={`${state.debts.filter((d) => d.type === "receivable").length} ${isId ? "catatan piutang" : "receivable records"}`}
         />
         <KpiCard
@@ -452,10 +452,10 @@ export function CommitmentsPanel({
           icon={<CalendarClock size={18} />}
           tone="amber"
           badge={isId ? "Rutin & Cicilan" : "Recurring"}
-          badgeClass="border-amber-500/20 text-amber-400"
+          badgeClass="border-amber-500/20 text-amber-600 dark:text-amber-400"
           label={isId ? "Cicilan/Tagihan Aktif" : "Active Bills Due"}
           value={formatMoney(totalBillsThisMonth, state.baseCurrency, state.locale, true)}
-          valueClass="text-amber-400"
+          valueClass="text-amber-600 dark:text-amber-400"
           note={`${activeBills.length} ${isId ? "tagihan/cicilan berjalan" : "active bills"}`}
         />
         <KpiCard
@@ -463,7 +463,7 @@ export function CommitmentsPanel({
           icon={<Landmark size={18} />}
           tone="indigo"
           badge={isId ? "Net Berjalan" : "Net Pending"}
-          badgeClass="border-indigo-500/20 text-indigo-400"
+          badgeClass="border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
           label={isId ? "Total Tanggungan Net" : "Net Obligations"}
           value={formatMoney(netObligations, state.baseCurrency, state.locale, true)}
           note={isId ? "Utang + Tagihan − Piutang" : "Debt + Bills − Receivables"}
@@ -496,7 +496,7 @@ export function CommitmentsPanel({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <CreditCard size={13} className="text-amber-400" />
+            <CreditCard size={13} className="text-amber-600 dark:text-amber-400" />
             <span className="sm:hidden">{isId ? "Tagihan" : "Bills"}</span>
             <span className="hidden sm:inline">{isId ? "Tagihan & Cicilan" : "Bills & Installments"}</span>
             ({state.bills.length})
@@ -511,7 +511,7 @@ export function CommitmentsPanel({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <HandCoins size={13} className="text-indigo-400" />
+            <HandCoins size={13} className="text-indigo-600 dark:text-indigo-400" />
             <span className="sm:hidden">{isId ? "Utang" : "Debts"}</span>
             <span className="hidden sm:inline">{isId ? "Utang & Piutang" : "Debts & Receivables"}</span>
             ({state.debts.length})
@@ -540,7 +540,7 @@ export function CommitmentsPanel({
             <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-4 sm:px-6">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <CreditCard size={16} className="text-amber-400" />
+                  <CreditCard size={16} className="text-amber-600 dark:text-amber-400" />
                   <h2 className="font-heading text-base font-bold sm:text-lg">
                     {isId ? "Tagihan Rutin & Cicilan" : "Recurring Bills & Installments"}
                   </h2>
@@ -594,7 +594,7 @@ export function CommitmentsPanel({
                           ? "bg-secondary text-muted-foreground"
                           : paidThisMonth
                           ? "bg-secondary/70 text-muted-foreground"
-                          : "bg-amber-500/12 text-amber-400"
+                          : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400"
                       }
                       title={item.name}
                       subtitle={`${isId ? "Jatuh Tempo" : "Due"}: ${item.nextDueDate}${
@@ -618,7 +618,7 @@ export function CommitmentsPanel({
                           <Badge
                             variant="outline"
                             className={`text-[10px] font-bold ${
-                              isFinished ? "border-emerald-500/30 text-emerald-400" : "border-amber-500/30 text-amber-400"
+                              isFinished ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "border-amber-500/30 text-amber-600 dark:text-amber-400"
                             }`}
                           >
                             {isFinished
@@ -627,7 +627,7 @@ export function CommitmentsPanel({
                           </Badge>
                         )}
                         {paidThisMonth && (
-                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-400">
+                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                             {isId ? "Sudah dibayar bulan ini" : "Paid this month"}
                           </Badge>
                         )}
@@ -642,7 +642,7 @@ export function CommitmentsPanel({
                             type="button"
                             data-testid={`bill-pay-installment-${item.id}-button`}
                             onClick={() => { openBillPayment(item); setExpandedBillId(null); }}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
                           >
                             <CheckCircle2 size={13} />
                             {isId ? "Bayar 1x Cicilan" : "Pay 1x Installment"}
@@ -663,7 +663,7 @@ export function CommitmentsPanel({
                           type="button"
                           data-testid={`bill-delete-crud-${item.id}-button`}
                           onClick={() => setDeletingTarget({ kind: "bill", id: item.id, name: item.name })}
-                          className="grid size-9 place-items-center rounded-xl border border-border/60 text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                          className="grid size-9 place-items-center rounded-xl border border-border/60 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-red-400"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -717,7 +717,7 @@ export function CommitmentsPanel({
                               ? "bg-secondary text-muted-foreground"
                               : paidThisMonth
                               ? "bg-secondary/70 text-muted-foreground"
-                              : "bg-amber-500/12 text-amber-400"
+                              : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400"
                           }`}
                         >
                           <CreditCard size={16} />
@@ -730,7 +730,7 @@ export function CommitmentsPanel({
                               <Badge
                                 variant="outline"
                                 className={`text-[10px] font-bold ${
-                                  isFinished ? "border-emerald-500/30 text-emerald-400" : "border-amber-500/30 text-amber-400"
+                                  isFinished ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "border-amber-500/30 text-amber-600 dark:text-amber-400"
                                 }`}
                               >
                                 {isFinished
@@ -739,7 +739,7 @@ export function CommitmentsPanel({
                               </Badge>
                             )}
                             {paidThisMonth && (
-                              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-400">
+                              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                                 {isId ? "Sudah dibayar bulan ini" : "Paid this month"}
                               </Badge>
                             )}
@@ -760,7 +760,7 @@ export function CommitmentsPanel({
                             title={isId ? "Bayar 1x cicilan" : "Pay 1x installment"}
                             data-testid={`bill-pay-installment-${item.id}-button`}
                             onClick={() => openBillPayment(item)}
-                            className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20"
+                            className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
                           >
                             <CheckCircle2 size={13} />
                             {isId ? "Bayar" : "Pay"}
@@ -781,7 +781,7 @@ export function CommitmentsPanel({
                           type="button"
                           data-testid={`bill-delete-crud-${item.id}-button`}
                           onClick={() => setDeletingTarget({ kind: "bill", id: item.id, name: item.name })}
-                          className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                          className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-red-400"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -820,7 +820,7 @@ export function CommitmentsPanel({
             <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-4 sm:px-6">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <HandCoins size={16} className="text-indigo-400" />
+                  <HandCoins size={16} className="text-indigo-600 dark:text-indigo-400" />
                   <h2 className="font-heading text-base font-bold sm:text-lg">
                     {isId ? "Utang & Piutang" : "Debts & Receivables"}
                   </h2>
@@ -858,7 +858,7 @@ export function CommitmentsPanel({
                       key={item.id}
                       testid={`debt-card-${item.id}`}
                       icon={isDebt ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
-                      iconClass={isSettled ? "bg-secondary text-muted-foreground" : isDebt ? "bg-red-500/12 text-red-400" : "bg-emerald-500/12 text-emerald-400"}
+                      iconClass={isSettled ? "bg-secondary text-muted-foreground" : isDebt ? "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400" : "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400"}
                       title={item.name}
                       subtitle={`${isDebt ? (isId ? "Utang ke" : "Owed to") : (isId ? "Piutang dari" : "From")}: ${item.person}`}
                       value={formatMoney(remaining, item.currency, state.locale)}
@@ -868,14 +868,14 @@ export function CommitmentsPanel({
                       className={`transition-colors ${isSettled ? "border-dashed border-border/40 bg-muted/15 opacity-50" : ""}`}
                     >
                       <div className="flex flex-wrap gap-1.5">
-                        <Badge variant="outline" className={`text-[10px] font-bold ${isDebt ? "border-red-500/30 text-red-400" : "border-emerald-500/30 text-emerald-400"}`}>
+                        <Badge variant="outline" className={`text-[10px] font-bold ${isDebt ? "border-rose-500/30 text-rose-600 dark:text-red-400" : "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"}`}>
                           {isDebt ? (isId ? "Utang Saya" : "I Owe") : (isId ? "Piutang" : "Receivable")}
                         </Badge>
                         <Badge variant="outline" className="text-[10px] text-muted-foreground">
                           {isId ? "Jatuh Tempo" : "Due"}: {item.dueDate}
                         </Badge>
                         {isSettled && (
-                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-400">
+                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                             {isId ? "✓ Lunas" : "✓ Settled"}
                           </Badge>
                         )}
@@ -888,7 +888,7 @@ export function CommitmentsPanel({
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                           <div
-                            className={`h-full rounded-full transition-all ${isDebt ? "bg-red-400" : "bg-emerald-400"}`}
+                            className={`h-full rounded-full transition-all ${isDebt ? "bg-rose-500 dark:bg-red-400" : "bg-emerald-500 dark:bg-emerald-400"}`}
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -921,7 +921,7 @@ export function CommitmentsPanel({
                           type="button"
                           data-testid={`debt-delete-crud-${item.id}-button`}
                           onClick={() => setDeletingTarget({ kind: "debt", id: item.id, name: item.name })}
-                          className="grid size-9 place-items-center rounded-xl border border-border/60 text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                          className="grid size-9 place-items-center rounded-xl border border-border/60 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-red-400"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -970,7 +970,7 @@ export function CommitmentsPanel({
                         <div className="flex items-center gap-3 min-w-0">
                           <div
                             className={`grid size-9 shrink-0 place-items-center rounded-xl ${
-                              isSettled ? "bg-secondary text-muted-foreground" : isDebt ? "bg-red-500/12 text-red-400" : "bg-emerald-500/12 text-emerald-400"
+                              isSettled ? "bg-secondary text-muted-foreground" : isDebt ? "bg-rose-500/12 text-rose-600 dark:text-red-400" : "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
                             }`}
                           >
                             {isDebt ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
@@ -978,11 +978,11 @@ export function CommitmentsPanel({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="truncate text-sm font-semibold">{item.name}</p>
-                              <Badge variant="outline" className={`text-[10px] font-bold ${isDebt ? "border-red-500/30 text-red-400" : "border-emerald-500/30 text-emerald-400"}`}>
+                              <Badge variant="outline" className={`text-[10px] font-bold ${isDebt ? "border-rose-500/30 text-rose-600 dark:text-red-400" : "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"}`}>
                                 {isDebt ? (isId ? "Utang Saya" : "I Owe") : (isId ? "Piutang" : "Receivable")}
                               </Badge>
                               {isSettled && (
-                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-400">
+                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                                   {isId ? "✓ Lunas" : "✓ Settled"}
                                 </Badge>
                               )}
@@ -1029,7 +1029,7 @@ export function CommitmentsPanel({
                             type="button"
                             data-testid={`debt-delete-crud-${item.id}-button`}
                             onClick={() => setDeletingTarget({ kind: "debt", id: item.id, name: item.name })}
-                            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:bg-red-400/10 dark:hover:text-red-400"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -1038,7 +1038,7 @@ export function CommitmentsPanel({
 
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                         <div
-                          className={`h-full rounded-full transition-all ${isDebt ? "bg-red-400" : "bg-emerald-400"}`}
+                          className={`h-full rounded-full transition-all ${isDebt ? "bg-rose-500 dark:bg-red-400" : "bg-emerald-500 dark:bg-emerald-400"}`}
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -1092,7 +1092,7 @@ export function CommitmentsPanel({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <CreditCard size={14} className="text-amber-400" />
+              <CreditCard size={14} className="text-amber-600 dark:text-amber-400" />
               {isId ? "Cicilan / Tagihan" : "Bill"}
             </button>
             <button
@@ -1105,7 +1105,7 @@ export function CommitmentsPanel({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <ArrowUpRight size={14} className="text-red-400" />
+              <ArrowUpRight size={14} className="text-rose-600 dark:text-red-400" />
               {isId ? "Utang Saya" : "Debt"}
             </button>
             <button
@@ -1118,7 +1118,7 @@ export function CommitmentsPanel({
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <ArrowDownLeft size={14} className="text-emerald-400" />
+              <ArrowDownLeft size={14} className="text-emerald-600 dark:text-emerald-400" />
               {isId ? "Piutang" : "Receivable"}
             </button>
           </div>

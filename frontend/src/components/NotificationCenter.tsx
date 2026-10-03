@@ -39,13 +39,13 @@ interface NotificationCenterProps {
 function NotifIcon({ type }: { type: AppNotification["type"] }) {
   switch (type) {
     case "bill_due":
-      return <CalendarClock size={16} className="text-amber-400 shrink-0" />;
+      return <CalendarClock size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />;
     case "anomaly":
-      return <AlertTriangle size={16} className="text-rose-400 shrink-0" />;
+      return <AlertTriangle size={16} className="text-rose-600 dark:text-rose-400 shrink-0" />;
     case "daily_checkin":
       return <Sparkles size={16} className="text-primary shrink-0" />;
     case "system_update":
-      return <Sparkles size={16} className="text-emerald-400 shrink-0" />;
+      return <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />;
     default:
       return <ShieldAlert size={16} className="text-muted-foreground shrink-0" />;
   }

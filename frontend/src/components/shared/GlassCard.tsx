@@ -27,8 +27,8 @@ const PADDING: Record<NonNullable<GlassCardProps["padding"]>, string> = {
 };
 
 const VARIANT: Record<NonNullable<GlassCardProps["variant"]>, string> = {
-  default: "border-border/70 bg-card/75 shadow-sm backdrop-blur-xl",
-  accent: "border-primary/20 bg-primary/8",
+  default: "border-border/80 bg-card/95 shadow-xs backdrop-blur-xl dark:border-border/70 dark:bg-card/75",
+  accent: "border-primary/25 bg-primary/6 dark:border-primary/20 dark:bg-primary/8",
 };
 
 export function GlassCard({
