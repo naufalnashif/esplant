@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/formatters";
 import type { Budget, FinanceState } from "@/lib/localDb";
+import { getCycleKeyForTransaction } from "@/lib/analyticsEngine";
 
 interface BudgetLabels {
   budgets: string;
@@ -40,12 +41,15 @@ export function BudgetGuardrails({
   const isId = state.locale === "id";
   const [category, setCategory] = useState(categories[0] ?? "Food");
   const [limit, setLimit] = useState("");
+  const cycleDay = state.customCycleDay || 1;
 
   const rows = state.budgets.map((budget) => {
     const spent = state.transactions
-      .filter(
-        (item) => item.kind === "expense" && item.date.slice(0, 7) === currentMonth && item.category === budget.category
-      )
+      .filter((item) => {
+        if (item.kind !== "expense" || item.category !== budget.category) return false;
+        const key = cycleDay === 1 ? item.date.slice(0, 7) : getCycleKeyForTransaction(item.date, cycleDay);
+        return key === currentMonth;
+      })
       .reduce((sum, item) => sum + item.baseAmount, 0);
 
     const limitBase = baseValue(budget.limit, budget.currency, state);

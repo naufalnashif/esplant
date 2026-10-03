@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Toaster } from "sonner";
 import { StorageProvider, useStorage } from "@/lib/storageContext";
 import { LandingPreview } from "@/components/LandingPreview";
@@ -68,10 +68,13 @@ function NotFound() {
   );
 }
 
-// "/" — if the user has already onboarded, skip landing and go to dashboard.
+// "/" — if the user has already onboarded, skip landing and go to dashboard unless ?preview=true is specified.
 function LandingGate() {
   const { profile } = useStorage();
-  if (profile?.onboarded) return <Navigate to="/dashboard" replace />;
+  const [searchParams] = useSearchParams();
+  if (profile?.onboarded && searchParams.get("preview") !== "true") {
+    return <Navigate to="/dashboard" replace />;
+  }
   return <LandingPreview />;
 }
 
@@ -80,6 +83,8 @@ export default function App() {
     <StorageProvider>
       <Routes>
         <Route path="/" element={<LandingGate />} />
+        <Route path="/landing" element={<LandingPreview />} />
+        <Route path="/welcome" element={<LandingPreview />} />
         <Route path="/connect" element={<LandingPreview autoConnect />} />
         <Route path="/demo" element={<EnterDemo />} />
         <Route path="/dashboard/*" element={<DashboardGate />} />

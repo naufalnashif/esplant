@@ -1,4 +1,4 @@
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ArrowDownLeft, ArrowUpRight, CalendarClock, ChevronRight, Plus, RefreshCw, ShieldCheck, Sparkles,
   Target, TrendingDown, TrendingUp, WalletCards,
@@ -198,8 +198,8 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
 
       <Card className="border-border/70 bg-card/75 p-4" data-testid="mobile-main-chart">
         <MobileCardHeader eyebrow={isId ? "Tren Finansial" : "Smart snapshot"} title={t.cashFlow} action={<Badge variant="secondary" className="shrink-0 gap-1"><RefreshCw size={11} /> Live</Badge>} />
-        <div className="mt-3 h-[170px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="mt-3 h-[170px] w-full min-h-[170px]">
+          <ResponsiveContainer width="100%" height="100%" minHeight={170}>
             <AreaChart data={flowChart} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}>
               <defs>
                 <linearGradient id="cashflow-mobile" x1="0" y1="0" x2="0" y2="1">
@@ -208,6 +208,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
                 </linearGradient>
               </defs>
               <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis hide domain={[0, (dataMax: number) => (dataMax <= 0 ? 100000 : Math.ceil(dataMax * 1.15))]} />
               <Tooltip contentStyle={tooltipStyle} formatter={(value) => money(Number(value))} />
               <Area type="monotone" dataKey="income" stroke="#2cbb5d" strokeWidth={2} fill="url(#cashflow-mobile)" />
               <Area type="monotone" dataKey="expense" stroke="#ef4743" strokeWidth={2} fill="transparent" />

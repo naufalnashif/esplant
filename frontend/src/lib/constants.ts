@@ -91,6 +91,8 @@ export const APP_LINKS = {
   /* ── Internal routes ── */
   ROUTES: {
     home: "/",
+    landing: "/landing",
+    welcome: "/welcome",
     connect: "/connect",
     demo: "/demo",
     dashboard: "/dashboard",
