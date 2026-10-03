@@ -129,9 +129,9 @@ export default function Home() {
   const [tab, setTabRaw] = useState<Tab>("overview");
   const setTab = (next: Tab) => {
     setTabRaw(next);
-    // Scroll the main content area back to the top whenever the user switches panels
-    mainRef.current?.scrollTo({ top: 0, behavior: "instant" });
-    window.scrollTo({ top: 0, behavior: "instant" });
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
   };
   const [compareMonth, setCompareMonth] = useState(currentMonth);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -179,27 +179,27 @@ export default function Home() {
   const t = copy[state.locale];
   const categories = useMemo(() => Array.from(new Set([...categoryFallbacks, ...state.categories.filter((item) => !item.archived).map((item) => item.name), ...state.transactions.map((item) => item.category)])), [state.categories, state.transactions]);
   const cycleDay = state.customCycleDay || 1;
-  const previous = cycleDay === 1 ? previousMonth(compareMonth) : getPreviousCycleKey(compareMonth);
-  const currentTransactions = state.transactions.filter((item) =>
+  const previous = useMemo(() => (cycleDay === 1 ? previousMonth(compareMonth) : getPreviousCycleKey(compareMonth)), [cycleDay, compareMonth]);
+  const currentTransactions = useMemo(() => state.transactions.filter((item) =>
     cycleDay === 1 ? monthKey(item.date) === compareMonth : getCycleKeyForTransaction(item.date, cycleDay) === compareMonth
-  );
-  const previousTransactions = state.transactions.filter((item) =>
+  ), [state.transactions, cycleDay, compareMonth]);
+  const previousTransactions = useMemo(() => state.transactions.filter((item) =>
     cycleDay === 1 ? monthKey(item.date) === previous : getCycleKeyForTransaction(item.date, cycleDay) === previous
-  );
+  ), [state.transactions, cycleDay, previous]);
   const displayRate = state.exchangeRates[state.baseCurrency] || 1;
-  const currentSpend = currentTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const previousSpend = previousTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const currentIncome = currentTransactions.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate;
-  const totalBalance = state.accounts.reduce((sum, account) => sum + toBase(account.balance, account.currency, state.exchangeRates), 0) / displayRate;
+  const currentSpend = useMemo(() => currentTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, [currentTransactions, displayRate]);
+  const previousSpend = useMemo(() => previousTransactions.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, [previousTransactions, displayRate]);
+  const currentIncome = useMemo(() => currentTransactions.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, [currentTransactions, displayRate]);
+  const totalBalance = useMemo(() => state.accounts.reduce((sum, account) => sum + toBase(account.balance, account.currency, state.exchangeRates), 0) / displayRate, [state.accounts, state.exchangeRates, displayRate]);
   const thisMonthKey = compareMonth;
-  const committed = state.bills
+  const committed = useMemo(() => state.bills
     .filter((bill) => bill.active !== false && (bill.remainingInstallments === undefined || bill.remainingInstallments > 0))
     .filter((bill) => {
       if (!bill.lastPaidDate) return true;
       const paidKey = cycleDay === 1 ? String(bill.lastPaidDate).slice(0, 7) : getCycleKeyForTransaction(String(bill.lastPaidDate), cycleDay);
       return paidKey !== thisMonthKey;
     })
-    .reduce((sum, bill) => sum + toBase(bill.amount, bill.currency, state.exchangeRates), 0) / displayRate;
+    .reduce((sum, bill) => sum + toBase(bill.amount, bill.currency, state.exchangeRates), 0) / displayRate, [state.bills, cycleDay, thisMonthKey, state.exchangeRates, displayRate]);
   const spendDelta = previousSpend ? Math.round(((currentSpend - previousSpend) / previousSpend) * 100) : 0;
   const filteredTransactions = useMemo(() => [...state.transactions].filter((item) => {
     const query = filter.search.toLowerCase();
@@ -906,23 +906,17 @@ export default function Home() {
               </button>
             </div>
           </header>
-          <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
+          <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
             {isDemoMode && (
-              <div data-testid="demo-sandbox-banner" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-200">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/20 text-base">🎮</span>
-                  <div>
-                    <p className="text-xs font-bold text-amber-300">
-                      {state.locale === "id" ? "Mode Sandbox Demo Aktif" : "Demo Sandbox Active"}
-                    </p>
-                    <p className="text-[11px] text-amber-300/80">
-                      {state.locale === "id" 
-                        ? "Data contoh ini terisolasi sepenuhnya di browser sandbox. Data offline & akun produksi Anda tetap aman." 
-                        : "Isolated sandbox data. Your offline data & production account remain untouched."}
-                    </p>
-                  </div>
+              <div data-testid="demo-sandbox-banner" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm shrink-0">🎮</span>
+                  <p className="truncate font-semibold text-amber-300">
+                    <span className="font-bold">{state.locale === "id" ? "Mode Demo Sandbox" : "Demo Sandbox"}</span>
+                    <span className="hidden sm:inline text-amber-300/80"> · {state.locale === "id" ? "Data contoh terisolasi" : "Isolated sample data"}</span>
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     data-testid="demo-reset-data-button"
@@ -930,9 +924,9 @@ export default function Home() {
                       loadSample?.();
                       toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
                     }}
-                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
                   >
-                    {state.locale === "id" ? "Reset Data Demo" : "Reset Demo"}
+                    Reset
                   </button>
                   <button
                     type="button"
@@ -942,19 +936,21 @@ export default function Home() {
                       navigate("/landing");
                       toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
                     }}
-                    className="rounded-lg bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+                    className="rounded-lg bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
                   >
-                    {state.locale === "id" ? "Keluar Demo" : "Exit Demo"}
+                    {state.locale === "id" ? "Keluar" : "Exit"}
                   </button>
                 </div>
               </div>
             )}
-            {/* Interactive Financial Cycle Banner on overview dashboard */}
+            {/* Compact Financial Cycle Pill — space saving and clear */}
             {tab === "overview" && (
-              <FinancialCycleBanner
-                state={state}
-                onOpenEditCycle={() => setShowCycleModal(true)}
-              />
+              <div className="mb-2 flex items-center">
+                <FinancialCycleBanner
+                  state={state}
+                  onOpenEditCycle={() => setShowCycleModal(true)}
+                />
+              </div>
             )}
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />

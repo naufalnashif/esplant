@@ -7,6 +7,10 @@ export interface FinancialCycleBannerProps {
   onOpenEditCycle: () => void;
 }
 
+/**
+ * Compact, space-saving Financial Cycle Pill.
+ * Designed to provide instant context without pushing down primary dashboard cards.
+ */
 export function FinancialCycleBanner({
   state,
   onOpenEditCycle,
@@ -16,76 +20,54 @@ export function FinancialCycleBanner({
   const today = new Date();
   const activeRange = getCycleRangeForDate(today, cycleDay);
 
-  const startDate = new Date(activeRange.startDate + "T00:00:00");
   const endDate = new Date(activeRange.endDate + "T23:59:59");
-  const totalDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000));
-  const elapsedDays = Math.max(1, Math.min(totalDays, Math.ceil((today.getTime() - startDate.getTime()) / 86400000)));
   const remainingDays = Math.max(0, Math.ceil((endDate.getTime() - today.getTime()) / 86400000));
-  const progressPercent = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
 
   const badgeText =
     cycleDay === 1
       ? isId ? "Kalender (Tgl 1)" : "Calendar (Day 1)"
       : cycleDay === 25
-      ? isId ? "Gajian (Tgl 25)" : "Payday (Day 25)"
+      ? isId ? "Gajian Tgl 25" : "Payday Day 25"
       : cycleDay === 28
-      ? isId ? "Gajian (Tgl 28)" : "Payday (Day 28)"
-      : isId ? `Kustom (Tgl ${cycleDay})` : `Custom (Day ${cycleDay})`;
+      ? isId ? "Gajian Tgl 28" : "Payday Day 28"
+      : isId ? `Kustom Tgl ${cycleDay}` : `Custom Day ${cycleDay}`;
 
   return (
     <div
       data-testid="cycle-banner-card"
-      className="group relative mb-5 overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-card p-3.5 sm:p-4 shadow-sm transition-all hover:border-primary/45 backdrop-blur-md"
+      onClick={onOpenEditCycle}
+      className="group mb-3 inline-flex max-w-full items-center justify-between gap-2 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs text-foreground transition-all hover:border-primary/40 hover:bg-primary/12 active:scale-[0.99] cursor-pointer touch-manipulation select-none"
+      title={isId ? "Klik untuk mengubah tanggal siklus keuangan" : "Click to change financial cycle date"}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpenEditCycle();
+        }
+      }}
     >
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        {/* Left: Info & Range */}
-        <div className="flex items-start gap-3">
-          <div className="grid size-9 sm:size-10 place-items-center rounded-xl bg-primary/20 text-primary shrink-0 shadow-xs">
-            <CalendarClock size={18} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                {isId ? "Siklus Keuangan Aktif" : "Active Financial Cycle"}
-              </span>
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
-                {badgeText}
-              </span>
-            </div>
-
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-2">
-              <h3 className="font-heading text-sm sm:text-base font-extrabold text-foreground">
-                {activeRange.label}
-              </h3>
-              <span className="text-[11px] font-medium text-muted-foreground">
-                · {isId ? `Hari ke-${elapsedDays} (${remainingDays} hari lagi)` : `Day ${elapsedDays} (${remainingDays}d left)`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Quick action button */}
-        <button
-          type="button"
-          data-testid="cycle-banner-edit-button"
-          onClick={onOpenEditCycle}
-          aria-label={isId ? "Ubah siklus keuangan" : "Change financial cycle"}
-          className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 sm:py-2 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-primary-foreground active:scale-95 cursor-pointer shadow-xs"
-        >
-          <SlidersHorizontal size={13} />
-          <span>{isId ? "Ubah Siklus" : "Change Cycle"}</span>
-          <ChevronRight size={13} className="opacity-60" />
-        </button>
+      <div className="flex min-w-0 items-center gap-2 truncate">
+        <CalendarClock size={13} className="text-primary shrink-0" />
+        <span className="truncate font-semibold text-foreground">
+          {isId ? "Siklus: " : "Cycle: "}
+          <strong className="text-primary font-bold">{activeRange.label}</strong>
+        </span>
+        <span className="hidden sm:inline-block rounded-md bg-primary/15 px-1.5 py-0.5 text-[10px] font-extrabold text-primary shrink-0">
+          {badgeText}
+        </span>
+        <span className="text-[11px] text-muted-foreground shrink-0">
+          · {remainingDays} {isId ? "hari lagi" : "days left"}
+        </span>
       </div>
 
-      {/* Mini cycle progress bar */}
-      <div className="mt-3 space-y-1">
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-background/80 border border-border/50">
-          <div
-            className="h-full bg-gradient-to-r from-primary via-amber-400 to-primary transition-all duration-500 rounded-full"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
+      <div
+        data-testid="cycle-banner-edit-button"
+        className="flex items-center gap-1 text-[11px] font-bold text-primary shrink-0 ml-1"
+      >
+        <SlidersHorizontal size={11} className="shrink-0" />
+        <span className="underline underline-offset-2">{isId ? "Ubah" : "Edit"}</span>
+        <ChevronRight size={12} className="opacity-70 group-hover:translate-x-0.5 transition-transform shrink-0" />
       </div>
     </div>
   );

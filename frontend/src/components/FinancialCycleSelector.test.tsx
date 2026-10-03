@@ -45,7 +45,7 @@ describe("FinancialCycleBanner", () => {
 
     expect(html).toContain("data-testid=\"cycle-banner-card\"");
     expect(html).toContain("data-testid=\"cycle-banner-edit-button\"");
-    expect(html).toContain("Gajian (Tgl 25)");
-    expect(html).toContain("Ubah Siklus");
+    expect(html).toContain("Gajian Tgl 25");
+    expect(html).toContain("Ubah");
   });
 });
