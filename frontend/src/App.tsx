@@ -40,22 +40,14 @@ function DashboardGate() {
   );
 }
 
-// /demo — one tap into local (IndexedDB) mode, then straight to the dashboard.
+// /demo — switch context to isolated sandbox demo, then straight to the dashboard.
 function EnterDemo() {
-  const { profile, setProfile } = useStorage();
+  const { enterDemoMode } = useStorage();
   const navigate = useNavigate();
   useEffect(() => {
-    if (!profile?.onboarded) {
-      setProfile({
-        nickname: profile?.nickname ?? "",
-        spreadsheetId: "",
-        spreadsheetName: "",
-        storageMode: "local",
-        onboarded: true,
-      });
-    }
+    enterDemoMode();
     navigate("/dashboard", { replace: true });
-  }, [profile, setProfile, navigate]);
+  }, [enterDemoMode, navigate]);
   return <DashboardLoader />;
 }
 

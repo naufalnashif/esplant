@@ -1,5 +1,6 @@
 import type { FinanceState } from "./localDb";
 import { loadLocalState, saveLocalState, sanitizeImportedState, createInitialState, createErasedState } from "./localDb";
+import { createSampleState } from "./sampleData";
 import { readState, writeState, isSignedIn, authorize, AuthRequiredError } from "./googleSheets";
 import { isCacheFresh, getCachedState, setCachedState, invalidateCache } from "./sheetsCache";
 
@@ -24,8 +25,23 @@ const failureStatus = (error: unknown): SyncStatus => {
   return error instanceof AuthRequiredError ? "disconnected" : "error";
 };
 
-/** Reads the active workspace: the user's spreadsheet when connected, otherwise this browser. */
-export async function loadFinanceState(mode: StorageMode, spreadsheetId: string): Promise<FinanceState> {
+/** Reads the active workspace: isolated demo cache when in demo mode, spreadsheet when connected, otherwise production browser cache. */
+export async function loadFinanceState(
+  mode: StorageMode,
+  spreadsheetId: string,
+  isDemo?: boolean,
+): Promise<FinanceState> {
+  if (isDemo) {
+    const demo = await loadLocalState("demo");
+    // If the demo store has no transactions and no accounts, auto-seed with deterministic 6-month sample data
+    if (demo.transactions.length === 0 && demo.accounts.length === 0) {
+      const seeded = createSampleState(demo);
+      await saveLocalState(seeded, "demo");
+      return seeded;
+    }
+    return demo;
+  }
+
   if (mode === "sheets" && spreadsheetId) {
     // SWR: return cached data immediately if still fresh
     if (isCacheFresh(spreadsheetId)) {
@@ -38,17 +54,17 @@ export async function loadFinanceState(mode: StorageMode, spreadsheetId: string)
       if (!isSignedIn()) await authorize(false);
       const remote = await readState(spreadsheetId);
       const clean = sanitizeImportedState(remote) ?? createInitialState();
-      await saveLocalState(clean); // offline mirror
+      await saveLocalState(clean, "production"); // offline mirror
       setCachedState(spreadsheetId, clean); // update SWR cache
       emit("saved");
       return clean;
     } catch (error) {
       emit(failureStatus(error), error instanceof Error ? error.message : undefined);
       // Always degrade to the offline mirror — losing the session must not blank the workspace.
-      return loadLocalState();
+      return loadLocalState("production");
     }
   }
-  return loadLocalState();
+  return loadLocalState("production");
 }
 
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -93,13 +109,19 @@ export async function retrySync(spreadsheetId: string, state: FinanceState): Pro
   await flush();
 }
 
-/** Writes locally right away, then pushes to the spreadsheet (debounced, coalesced). */
+/** Writes locally right away, then pushes to the spreadsheet (debounced, coalesced) when connected. */
 export async function saveFinanceState(
   mode: StorageMode,
   spreadsheetId: string,
   state: FinanceState,
+  isDemo?: boolean,
 ): Promise<FinanceState> {
-  await saveLocalState(state);
+  if (isDemo) {
+    await saveLocalState(state, "demo");
+    return state;
+  }
+
+  await saveLocalState(state, "production");
 
   if (mode === "sheets" && spreadsheetId) {
     pending = { spreadsheetId, state };
@@ -117,19 +139,23 @@ export async function pushNow(spreadsheetId: string, state: FinanceState): Promi
 }
 
 /**
- * "Hapus semua data": wipes every financial record locally (localStorage + IndexedDB, both
- * updated synchronously by saveLocalState) and, if a spreadsheet is connected, immediately clears
- * it too instead of waiting on the normal 1.2s debounce — this is a destructive action, so the
- * user needs to know right away whether the remote side actually succeeded. Categories and app
- * settings are preserved by createErasedState.
+ * "Hapus semua data": wipes financial records locally (localStorage + IndexedDB).
+ * When in demo mode, only the demo sandbox is reset.
+ * When in sheets mode, immediately clears remote spreadsheet as well.
  */
 export async function eraseAllData(
   mode: StorageMode,
   spreadsheetId: string,
   state: FinanceState,
+  isDemo?: boolean,
 ): Promise<{ state: FinanceState; sheetsError?: string }> {
   const erased = createErasedState(state);
-  await saveLocalState(erased);
+  if (isDemo) {
+    await saveLocalState(erased, "demo");
+    return { state: erased };
+  }
+
+  await saveLocalState(erased, "production");
 
   if (mode === "sheets" && spreadsheetId) {
     // Drop any stale queued write so it cannot race the erase and resurrect old rows afterward.

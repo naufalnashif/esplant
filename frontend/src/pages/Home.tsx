@@ -110,7 +110,7 @@ const percent = (value: number, total: number) => total ? Math.min(100, Math.rou
 const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) => ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / rates[currency];
 
 export default function Home() {
-  const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime, reconnect, needsReconnect } = useStorage();
+  const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime, reconnect, needsReconnect, isDemoMode, exitDemoMode } = useStorage();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -149,16 +149,18 @@ export default function Home() {
   });
   // NOTE: wishForm state removed from Home — GoalsPanel is now self-contained
 
+  const stateQueryKey = useMemo(() => ["finance-state", storageMode, spreadsheetId, isDemoMode ? "demo" : "prod"], [storageMode, spreadsheetId, isDemoMode]);
+
   const stateQuery = useQuery({
-    queryKey: ["finance-state", storageMode, spreadsheetId],
-    queryFn: () => loadFinanceState(storageMode, spreadsheetId),
+    queryKey: stateQueryKey,
+    queryFn: () => loadFinanceState(storageMode, spreadsheetId, isDemoMode),
     staleTime: Infinity,
     retry: false,
   });
   const state = stateQuery.data ?? createInitialState();
   const saveMutation = useMutation({
-    mutationFn: (next: FinanceState) => saveFinanceState(storageMode, spreadsheetId, next),
-    onSuccess: (next) => queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], next),
+    mutationFn: (next: FinanceState) => saveFinanceState(storageMode, spreadsheetId, next, isDemoMode),
+    onSuccess: (next) => queryClient.setQueryData(stateQueryKey, next),
     onError: () => toast.error("Data belum tersimpan. Coba lagi."),
   });
   const t = copy[state.locale];
@@ -196,7 +198,7 @@ export default function Home() {
     const items = state.transactions.filter((item) => monthKey(item.date) === key);
     return { month: new Intl.DateTimeFormat(state.locale === "id" ? "id-ID" : "en-US", { month: "short" }).format(date), income: items.filter((item) => item.kind === "income").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate, expense: items.filter((item) => item.kind === "expense").reduce((sum, item) => sum + item.baseAmount, 0) / displayRate };
   }), [state.locale, state.transactions, displayRate]);
-  const save = (next: FinanceState) => { queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], next); saveMutation.mutate(next); };
+  const save = (next: FinanceState) => { queryClient.setQueryData(stateQueryKey, next); saveMutation.mutate(next); };
 
   /*
     One button for both jobs: if the Google session lapsed, re-auth interactively (only ever from
@@ -763,7 +765,7 @@ export default function Home() {
           wishlist: options.wishlist ? sheetErased.wishlist : state.wishlist,
           budgets: options.budgets ? sheetErased.budgets : state.budgets,
         };
-        queryClient.setQueryData(["finance-state", storageMode, spreadsheetId], merged);
+        queryClient.setQueryData(stateQueryKey, merged);
         save(merged);
         if (sheetsError) {
           toast.error(state.locale === "id" ? `Data lokal terhapus, tapi gagal di spreadsheet: ${sheetsError}` : `Local erased, but spreadsheet failed: ${sheetsError}`);
@@ -779,7 +781,7 @@ export default function Home() {
     }
   };
   const openAddTransaction = () => { setEditingTransaction(null); setTransactionForm((form) => ({ ...form, accountId: form.accountId || state.accounts[0]?.id || "" })); setShowTransactionForm(true); };
-  const loadSample = storageMode === "local" ? () => { save(createSampleState(state)); toast.success(state.locale === "id" ? "Data contoh dimuat. Hapus kapan saja lewat Pengaturan." : "Sample data loaded. Erase anytime from Settings."); } : undefined;
+  const loadSample = (isDemoMode || storageMode === "local") ? () => { save(createSampleState(state)); toast.success(state.locale === "id" ? "Data contoh dimuat. Hapus kapan saja lewat Pengaturan." : "Sample data loaded. Erase anytime from Settings."); } : undefined;
 
   const navItems: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
     { key: "overview", label: t.overview, icon: LayoutDashboard }, { key: "transactions", label: t.transactions, icon: ReceiptText }, { key: "commitments", label: t.commitments, icon: Landmark }, { key: "goals", label: t.goals, icon: Target }, { key: "accounts", label: t.accounts, icon: WalletCards }, { key: "settings", label: t.settings, icon: Settings2 },
@@ -814,7 +816,30 @@ export default function Home() {
             <button key={action.key} type="button" data-testid={`sidebar-${action.key}-button`} onClick={action.onClick} className={className}><Icon size={18} className="shrink-0" /><span>{action.label}</span></button>
           ); })}</nav>
           <div className="mt-auto space-y-3">
-            <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
+            <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card">
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck size={17} className="text-primary" />
+                <span className="text-xs font-bold">
+                  {isDemoMode ? (state.locale === "id" ? "Sandbox Terisolasi" : "Isolated Sandbox") : storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {isDemoMode 
+                  ? (state.locale === "id" ? "Ruang uji coba data contoh, terpisah sepenuhnya dari data offline produksi." : "Isolated sandbox environment, completely separated from production offline cache.")
+                  : storageMode === "sheets" 
+                    ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." 
+                    : "Data tersimpan di perangkat ini, bukan di server aplikasi."}
+              </p>
+              {isDemoMode ? (
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                  <span className="size-1.5 rounded-full bg-amber-400 animate-pulse-soft" /> Sandbox active
+                </div>
+              ) : storageMode === "sheets" && sheetUrl ? (
+                <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a>
+              ) : (
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>
+              )}
+            </div>
             <Link to="/changelog" data-testid="sidebar-version-badge" className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-card/60 px-3 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary hover:text-primary">
               <Sparkles size={11} className="text-primary" /> v{APP_VERSION}
             </Link>
@@ -824,7 +849,7 @@ export default function Home() {
           <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
-              <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} />
+              <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} isDemo={isDemoMode} />
               {!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}
               <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button>
               <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
@@ -839,7 +864,7 @@ export default function Home() {
               >
                 <div className="hidden text-right sm:block">
                   <p className="text-xs font-bold leading-tight text-foreground">{state.profileName || "_self.manage"}</p>
-                  <p className="text-[10px] text-muted-foreground">{storageMode === "sheets" ? "Google Sheets" : "Local Workspace"}</p>
+                  <p className="text-[10px] text-muted-foreground">{isDemoMode ? "Demo Sandbox" : storageMode === "sheets" ? "Google Sheets" : "Local Workspace"}</p>
                 </div>
                 <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-amber-500 text-xs font-extrabold text-primary-foreground sm:size-8 shadow-sm">
                   {(state.profileName || "S").slice(0, 1).toUpperCase()}
@@ -848,6 +873,48 @@ export default function Home() {
             </div>
           </header>
           <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
+            {isDemoMode && (
+              <div data-testid="demo-sandbox-banner" className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-200">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-amber-500/20 text-base">🎮</span>
+                  <div>
+                    <p className="text-xs font-bold text-amber-300">
+                      {state.locale === "id" ? "Mode Sandbox Demo Aktif" : "Demo Sandbox Active"}
+                    </p>
+                    <p className="text-[11px] text-amber-300/80">
+                      {state.locale === "id" 
+                        ? "Data contoh ini terisolasi sepenuhnya di browser sandbox. Data offline & akun produksi Anda tetap aman." 
+                        : "Isolated sandbox data. Your offline data & production account remain untouched."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <button
+                    type="button"
+                    data-testid="demo-reset-data-button"
+                    onClick={() => {
+                      loadSample?.();
+                      toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
+                    }}
+                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                  >
+                    {state.locale === "id" ? "Reset Data Demo" : "Reset Demo"}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="demo-exit-button"
+                    onClick={() => {
+                      exitDemoMode();
+                      navigate("/");
+                      toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
+                    }}
+                    className="rounded-lg bg-primary px-3 py-1 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+                  >
+                    {state.locale === "id" ? "Keluar Demo" : "Exit Demo"}
+                  </button>
+                </div>
+              </div>
+            )}
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
@@ -967,7 +1034,10 @@ export default function Home() {
   );
 }
 
-function SyncPill({ mode, status, lastSyncTime, busy, onRefresh }: { mode: "local" | "sheets"; status: string; lastSyncTime: Date | null; busy: boolean; onRefresh: () => void }) {
+function SyncPill({ mode, status, lastSyncTime, busy, onRefresh, isDemo }: { mode: "local" | "sheets"; status: string; lastSyncTime: Date | null; busy: boolean; onRefresh: () => void; isDemo?: boolean }) {
+  if (isDemo) {
+    return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-400 sm:flex"><Sparkles size={13} /> Demo Sandbox</span>;
+  }
   if (mode !== "sheets") {
     return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground sm:flex"><ShieldCheck size={13} /> Lokal</span>;
   }
