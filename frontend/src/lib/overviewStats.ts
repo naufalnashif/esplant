@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Currency, FinanceState, Transaction } from "@/lib/localDb";
+import type { Currency, FinanceState } from "@/lib/localDb";
 import {
   getCycleKeyForTransaction,
   getCycleRangeForDate,
@@ -81,27 +81,42 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
     return options;
   }, [state.locale, cycleDay]);
 
-  const periodStats = useMemo(() => {
-    const calcStats = (txs: Transaction[]): PeriodStats => {
-      const income = txs.filter((t) => t.kind === "income").reduce((s, t) => s + t.baseAmount, 0) / displayRate;
-      const expense = txs.filter((t) => t.kind === "expense").reduce((s, t) => s + t.baseAmount, 0) / displayRate;
-      return { income, expense, net: income - expense, count: txs.length };
-    };
+  const activeStats = useMemo((): PeriodStats => {
+    let filteredTxs = state.transactions;
+    if (periodFilter === "today") {
+      filteredTxs = state.transactions.filter((t) => t.date === todayIso);
+    } else if (periodFilter === "week") {
+      filteredTxs = state.transactions.filter((t) => t.date >= weekBounds.start && t.date <= weekBounds.end);
+    } else if (periodFilter === "month") {
+      filteredTxs = state.transactions.filter((t) =>
+        cycleDay === 1
+          ? t.date.slice(0, 7) === monthIso
+          : getCycleKeyForTransaction(t.date, cycleDay) === currentCycleRange.key,
+      );
+    } else if (periodFilter === "year") {
+      filteredTxs = state.transactions.filter((t) => t.date.slice(0, 4) === yearIso);
+    }
+
+    let income = 0;
+    let expense = 0;
+    for (let i = 0; i < filteredTxs.length; i++) {
+      const tx = filteredTxs[i];
+      if (tx.kind === "income") {
+        income += tx.baseAmount;
+      } else if (tx.kind === "expense") {
+        expense += tx.baseAmount;
+      }
+    }
+    income /= displayRate;
+    expense /= displayRate;
+
     return {
-      today: calcStats(state.transactions.filter((t) => t.date === todayIso)),
-      week: calcStats(state.transactions.filter((t) => t.date >= weekBounds.start && t.date <= weekBounds.end)),
-      month: calcStats(
-        state.transactions.filter((t) =>
-          cycleDay === 1
-            ? t.date.slice(0, 7) === monthIso
-            : getCycleKeyForTransaction(t.date, cycleDay) === currentCycleRange.key,
-        ),
-      ),
-      year: calcStats(state.transactions.filter((t) => t.date.slice(0, 4) === yearIso)),
-      all: calcStats(state.transactions),
-    } satisfies Record<PeriodKey, PeriodStats>;
-  }, [state.transactions, todayIso, weekBounds, monthIso, yearIso, displayRate, cycleDay, currentCycleRange.key]);
-  const activeStats = periodStats[periodFilter];
+      income,
+      expense,
+      net: income - expense,
+      count: filteredTxs.length,
+    };
+  }, [state.transactions, periodFilter, todayIso, weekBounds, cycleDay, monthIso, yearIso, currentCycleRange.key, displayRate]);
 
   const periodLabels: Record<PeriodKey, string> = {
     today: isId ? "Hari ini" : "Today",
@@ -125,5 +140,5 @@ export function useOverviewStats(state: FinanceState, currentMonth: string, curr
     [state.savings, state.exchangeRates, state.baseCurrency, displayRate]
   );
 
-  return { isId, periodFilter, setPeriodFilter, displayRate, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings };
+  return { isId, periodFilter, setPeriodFilter, displayRate, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings };
 }

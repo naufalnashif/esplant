@@ -1185,8 +1185,7 @@ function Overview({
   accountName: (id: string) => string;
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
-  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
-  const [showMatrix, setShowMatrix] = useState(true);
+  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   // Stacking is only meaningful ACROSS categories, so a single-category month keeps the
   // classic side-by-side "last month vs this month" bars.
@@ -1415,73 +1414,6 @@ function Overview({
           onClick={() => onNavigate("goals")}
         />
       </div>
-
-      {/* Multi-Timeframe Summary Matrix Card (Side-by-side comparison for Today, Week, Month, Year) */}
-      <Card className="mb-6 border-border/70 bg-card/75 p-4 sm:p-6" data-testid="multi-period-matrix">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{isId ? "Matriks Finansial" : "Multi-Timeframe Matrix"}</p>
-            <h3 className="mt-0.5 font-heading text-base font-bold sm:text-lg">
-              {isId ? "Performa Arus Kas Multi-Periode" : "Multi-Timeframe Summary Matrix"}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowMatrix(!showMatrix)}
-            className="flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-foreground"
-          >
-            <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-secondary">
-              {showMatrix ? (isId ? "Lipat" : "Collapse") : (isId ? "Buka Matriks" : "Expand")}
-            </Badge>
-          </button>
-        </div>
-
-        {showMatrix && (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 pt-1">
-          {(["today", "week", "month", "year"] as const).map((pKey) => {
-            const stats = periodStats[pKey];
-            const isPositive = stats.net >= 0;
-
-            return (
-              <div
-                key={pKey}
-                onClick={() => setPeriodFilter(pKey)}
-                className={`cursor-pointer rounded-xl border p-4 transition-all hover:border-primary/50 hover:shadow-md ${
-                  periodFilter === pKey ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 bg-background/35"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-foreground">{periodLabels[pKey]}</p>
-                  <span className="text-[10px] text-muted-foreground">{stats.count} tx</span>
-                </div>
-
-                <div className="mt-3 space-y-1.5 text-xs font-medium">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{isId ? "Masuk" : "Income"}:</span>
-                    <span className="font-data font-semibold text-emerald-400">
-                      +{formatMoney(stats.income, state.baseCurrency, state.locale, true)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{isId ? "Keluar" : "Expense"}:</span>
-                    <span className="font-data font-semibold text-red-400">
-                      −{formatMoney(stats.expense, state.baseCurrency, state.locale, true)}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex justify-between border-t border-border/40 pt-2 font-bold">
-                    <span>{isId ? "Net" : "Net Flow"}:</span>
-                    <span className={`font-data ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
-                      {isPositive ? "+" : ""}
-                      {formatMoney(stats.net, state.baseCurrency, state.locale, true)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        )}
-      </Card>
 
       {/* Main Bar Chart & Action Center */}
       <div className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
