@@ -41,13 +41,23 @@ function DashboardGate() {
 }
 
 // /demo — switch context to isolated sandbox demo, then straight to the dashboard.
+// Fix: wait for isDemoMode to become true before navigating so DashboardGate
+// never sees a stale null profile and issues a spurious redirect to /connect.
 function EnterDemo() {
-  const { enterDemoMode } = useStorage();
+  const { enterDemoMode, isDemoMode, profile } = useStorage();
   const navigate = useNavigate();
+
   useEffect(() => {
     enterDemoMode();
-    navigate("/dashboard", { replace: true });
-  }, [enterDemoMode, navigate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // Only navigate once the context has actually committed the demo profile.
+    if (isDemoMode || profile?.onboarded) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isDemoMode, profile?.onboarded, navigate]);
+
   return <DashboardLoader />;
 }
 

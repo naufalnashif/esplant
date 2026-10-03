@@ -45,7 +45,8 @@ export function MobileNav<K extends string>({
           data-testid="mobile-add-transaction-fab"
           aria-label={addLabel}
           onClick={onAdd}
-          className="fixed bottom-[84px] right-4 z-30 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 lg:hidden"
+          style={{ bottom: "calc(68px + max(6px, env(safe-area-inset-bottom)) + 12px)" }}
+          className="fixed right-4 z-30 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95 lg:hidden"
         >
           <Plus size={24} />
         </button>

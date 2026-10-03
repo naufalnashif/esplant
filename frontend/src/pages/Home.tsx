@@ -867,7 +867,7 @@ export default function Home() {
             </Link>
           </div>
         </aside>
-        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ height: "100svh" }}>
+        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 bg-background/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-2.5 sm:gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
