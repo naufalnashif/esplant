@@ -6,14 +6,15 @@ import * as XLSX from "xlsx";
 import { toast } from "sonner";
 
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
+  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
   ArrowDownLeft, ArrowLeft, ArrowUpRight, Activity, Calendar, CalendarClock, Check, ChevronRight,
   FileSpreadsheet, Landmark, LayoutDashboard, MessageSquarePlus,
   Moon, MoreHorizontal, Pencil, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
-  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, X, Zap,
+  Sun, Target, UserPlus, WalletCards, X, Zap,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,6 @@ import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { BrandMark } from "@/components/BrandMark";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
-import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import { MobileNav } from "@/components/mobile/MobileNav";
 import { MobileOverview } from "@/components/mobile/MobileOverview";
 import { AccountsBreakdownModal } from "@/components/AccountsBreakdownModal";
@@ -54,7 +54,7 @@ import { runDataHealth } from "@/lib/dataHealth";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, useOverviewStats } from "@/lib/overviewStats";
 import { createSampleState } from "@/lib/sampleData";
-import { KpiCard, SectionHeading } from "@/components/shared";
+import { SectionHeading } from "@/components/shared";
 import {
   buildCategoryChart, buildStackedSpend, seriesKey, OTHER_SLICE_COLOR,
   type CategorySlice,
@@ -67,6 +67,15 @@ import {
   getPreviousCycleKey,
   buildMultiCycleTrend,
 } from "@/lib/analyticsEngine";
+import { useDashboardLayout } from "@/hooks/useDashboardLayout";
+import { DashboardWidgetContainer } from "@/components/dashboard/DashboardWidgetContainer";
+import { DashboardEditBar } from "@/components/dashboard/DashboardEditBar";
+import { ManageWidgetsModal } from "@/components/dashboard/ManageWidgetsModal";
+import { HeroBalanceWidget } from "@/components/dashboard/widgets/HeroBalanceWidget";
+import { CashFlowTrendWidget } from "@/components/dashboard/widgets/CashFlowTrendWidget";
+import { QuickPeriodFilterWidget } from "@/components/dashboard/widgets/QuickPeriodFilterWidget";
+import { FinancialSummaryGridWidget } from "@/components/dashboard/widgets/FinancialSummaryGridWidget";
+import { PaydayCycleStatusWidget } from "@/components/dashboard/widgets/PaydayCycleStatusWidget";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
 // Single source of truth with localDb so a fresh workspace and the dropdowns never disagree.
@@ -935,7 +944,7 @@ export default function Home() {
             </Link>
           </div>
         </aside>
-        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
+        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-200/80 bg-white/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10 dark:border-border/60 dark:bg-background/85" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
@@ -1027,25 +1036,25 @@ export default function Home() {
               </button>
             </div>
           </header>
-          <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
+          <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10 w-full max-w-full overflow-x-hidden">
             {/* Non-intrusive Google Sheets Connect Banner for local users */}
-            {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && (
+            {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && state.accounts.length > 0 && (
               <div
                 data-testid="local-sheets-prompt-banner"
-                className="mb-3 flex flex-col gap-2.5 rounded-xl border border-slate-200/90 bg-white p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-border/60 dark:bg-card/75"
+                className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-50/40 p-2.5 sm:p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-primary/20 dark:bg-primary/5"
               >
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400">
-                    <FileSpreadsheet size={16} />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400">
+                    <FileSpreadsheet size={15} />
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-xs font-bold text-slate-900 dark:text-foreground">
-                      {state.locale === "id" ? "Data Anda saat ini tersimpan lokal di browser" : "Your data is stored locally in this browser"}
+                      {state.locale === "id" ? "Data tersimpan lokal di browser" : "Data stored locally in browser"}
                     </p>
-                    <p className="text-[11px] leading-relaxed text-slate-500 dark:text-muted-foreground">
+                    <p className="hidden sm:block text-[11px] text-slate-500 dark:text-muted-foreground">
                       {state.locale === "id"
-                        ? "Hubungkan Google Spreadsheet agar data aman tersimpan di cloud pribadi Anda dan bisa disinkronkan antar-perangkat."
-                        : "Connect Google Sheets to safely sync your data across devices and keep a private cloud backup."}
+                        ? "Hubungkan Google Spreadsheet agar data aman tersimpan di cloud pribadi Anda."
+                        : "Connect Google Sheets to safely sync your data across devices."}
                     </p>
                   </div>
                 </div>
@@ -1054,9 +1063,9 @@ export default function Home() {
                     size="sm"
                     data-testid="local-sheets-connect-btn"
                     onClick={() => setShowConnectModal(true)}
-                    className="h-8 gap-1.5 px-3 text-xs font-bold shadow-xs cursor-pointer"
+                    className="h-7 sm:h-8 gap-1.5 px-2.5 sm:px-3 text-[11px] sm:text-xs font-bold shadow-xs cursor-pointer"
                   >
-                    <FileSpreadsheet size={13} />
+                    <FileSpreadsheet size={12} />
                     <span>{state.locale === "id" ? "Hubungkan Sheet" : "Connect Sheet"}</span>
                   </Button>
                   <button
@@ -1068,16 +1077,56 @@ export default function Home() {
                         localStorage.setItem("esplant_dismiss_sheets_prompt", "true");
                       } catch {}
                     }}
-                    className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground transition-colors cursor-pointer"
+                    className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground transition-colors cursor-pointer"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 </div>
               </div>
             )}
             {tab === "overview" && (isMobile
-              ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} onOpenEditCycle={() => setShowCycleModal(true)} />
-              : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} onOpenEditCycle={() => setShowCycleModal(true)} />)}
+              ? <MobileOverview
+                  state={state}
+                  t={t}
+                  totalBalance={totalBalance}
+                  currentSpend={currentSpend}
+                  currentIncome={currentIncome}
+                  categoryChart={categoryChart}
+                  flowChart={flowChart}
+                  currentMonth={compareMonth}
+                  setCompareMonth={setCompareMonth}
+                  onNavigate={setTab}
+                  onLoadSample={loadSample}
+                  accountName={accountName}
+                  onOpenEditCycle={() => setShowCycleModal(true)}
+                  categories={categories}
+                  onSaveBudget={saveBudget}
+                  onDeleteBudget={deleteBudget}
+                  budgetLabels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }}
+                />
+              : <Overview
+                  state={state}
+                  t={t}
+                  totalBalance={totalBalance}
+                  currentSpend={currentSpend}
+                  currentIncome={currentIncome}
+                  committed={committed}
+                  trendText={trendText}
+                  previousSpend={previousSpend}
+                  categoryChart={categoryChart}
+                  flowChart={flowChart}
+                  currentMonth={compareMonth}
+                  setCompareMonth={setCompareMonth}
+                  onAdd={() => openAddTransaction()}
+                  onNavigate={setTab}
+                  onLoadSample={loadSample}
+                  accountName={accountName}
+                  onOpenEditCycle={() => setShowCycleModal(true)}
+                  categories={categories}
+                  onSaveBudget={saveBudget}
+                  onDeleteBudget={deleteBudget}
+                  budgetLabels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }}
+                />)}
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} onOpenBundles={() => setShowBundlesModal(true)} />}
             {tab === "commitments" && (
               <CommitmentsPanel
@@ -1122,7 +1171,6 @@ export default function Home() {
             )}
             {tab === "settings" && <SettingsPanel state={state} updateState={updateState} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
-          {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
 
           {/* WishlistManager removed — GoalsPanel now manages wishlist inline */}
         </main>
@@ -1352,6 +1400,10 @@ function Overview({
   onLoadSample,
   accountName,
   onOpenEditCycle,
+  categories,
+  onSaveBudget,
+  onDeleteBudget,
+  budgetLabels,
 }: {
   state: FinanceState;
   t: typeof copy.id;
@@ -1370,8 +1422,38 @@ function Overview({
   onLoadSample?: () => void;
   accountName: (id: string) => string;
   onOpenEditCycle?: () => void;
+  categories?: string[];
+  onSaveBudget?: (category: string, limit: number) => void;
+  onDeleteBudget?: (category: string) => void;
+  budgetLabels?: {
+    budgets: string;
+    budgetSubtitle: string;
+    safe: string;
+    warning: string;
+    over: string;
+    setBudget: string;
+    monthlyLimit: string;
+    insightWithin: string;
+    insightOver: string;
+    save: string;
+  };
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
+  const {
+    displayLayout,
+    isEditing,
+    hasUnsavedChanges,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    setColSpan,
+    toggleVisibility,
+    moveWidget,
+    resetToDefault,
+    showAllWidgets,
+  } = useDashboardLayout();
+
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const isDark = state.theme === "dark";
   const tooltipStyle = {
@@ -1391,19 +1473,30 @@ function Overview({
     slice.isOther ? OTHER_SLICE_COLOR : CATEGORY_COLORS[index % CATEGORY_COLORS.length];
 
   return (
-    <div className="animate-rise-in">
+    <div className="animate-rise-in pb-12">
       <SectionHeading
         eyebrow="Personal finance / 01"
         title={state.profileName ? `${t.hello}, ${state.profileName}.` : `${t.hello}.`}
         description={t.command}
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {onOpenEditCycle && (
               <FinancialCycleBanner
                 state={state}
                 onOpenEditCycle={onOpenEditCycle}
               />
             )}
+            <Button
+              type="button"
+              data-testid="customize-dashboard-button"
+              variant="outline"
+              onClick={startEditing}
+              className="gap-2 shadow-xs cursor-pointer"
+            >
+              <SlidersHorizontal size={15} />
+              <span className="hidden sm:inline">{isId ? "Atur Layout" : "Edit Layout"}</span>
+              <span className="sm:hidden">{isId ? "Layout" : "Layout"}</span>
+            </Button>
             <Button data-testid="add-transaction-button" onClick={onAdd} className="gap-2 shadow-lg shadow-primary/20">
               <Plus size={17} />
               {t.addTransaction}
@@ -1449,429 +1542,406 @@ function Overview({
         </Card>
       )}
 
-      {/* Main Top Balance & Smart Snapshot */}
-      <div className="mb-6 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <Card className="relative min-h-[218px] overflow-hidden border border-amber-500/20 bg-white p-6 text-slate-900 shadow-soft sm:p-8 dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10">
-          <div className="absolute -right-20 -top-24 size-72 rounded-full border-[30px] border-amber-500/10 pointer-events-none dark:border-white/8" />
-          <div className="absolute -bottom-28 right-24 size-56 rounded-full border-[18px] border-amber-500/8 pointer-events-none dark:border-white/6" />
-          <div className="absolute -right-16 -top-16 size-60 rounded-full bg-gradient-to-bl from-amber-500/12 via-amber-500/4 to-transparent blur-2xl pointer-events-none dark:hidden" />
-          <div className="relative flex h-full flex-col justify-between">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-white/65">
-                  {t.totalBalance} · {state.baseCurrency}
-                </p>
-                <p className="mt-3 font-heading text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl dark:text-white" data-testid="total-balance-value">
-                  {formatMoney(totalBalance, state.baseCurrency, state.locale)}
-                </p>
-              </div>
-              <button
-                type="button"
-                data-testid="total-balance-accounts-trigger"
-                onClick={() => setAccountsModalOpen(true)}
-                title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
-                aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
-                className="group relative flex items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/80 p-2.5 text-slate-700 shadow-xs transition-all duration-200 hover:scale-105 hover:border-amber-400 hover:bg-slate-100 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 cursor-pointer dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/20 dark:focus-visible:ring-white/50"
-              >
-                <WalletCards size={20} className="transition-transform duration-200 group-hover:scale-110" />
-                <span className="sr-only">{isId ? "Lihat akun" : "View accounts"}</span>
-              </button>
-            </div>
-            <div className="mt-9 flex flex-wrap items-center gap-5 text-xs text-slate-600 dark:text-white/70">
-              <button
-                type="button"
-                data-testid="active-accounts-count-trigger"
-                onClick={() => setAccountsModalOpen(true)}
-                className="flex items-center gap-1.5 transition-colors hover:text-slate-900 cursor-pointer dark:hover:text-white"
-                title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
-              >
-                <span className="size-2 rounded-full bg-emerald-500 dark:bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
-              </button>
-              {totalSavings > 0 && (
+      {/* 12-Column Responsive Matrix Grid */}
+      <div className="grid grid-cols-12 gap-4 sm:gap-6">
+        {displayLayout.map((item, index) => {
+          let content: React.ReactNode = null;
+
+          if (item.id === "hero_balance") {
+            content = (
+              <HeroBalanceWidget
+                state={state}
+                totalBalance={totalBalance}
+                totalSavings={totalSavings}
+                locale={state.locale}
+                baseCurrency={state.baseCurrency}
+                onOpenAccounts={() => setAccountsModalOpen(true)}
+                onNavigateToGoals={() => onNavigate("goals")}
+                labelTotalBalance={t.totalBalance}
+              />
+            );
+          } else if (item.id === "cashflow_trend") {
+            content = (
+              <CashFlowTrendWidget
+                flowChart={flowChart}
+                baseCurrency={state.baseCurrency}
+                locale={state.locale}
+                theme={state.theme}
+                labelCashFlow={t.cashFlow}
+              />
+            );
+          } else if (item.id === "quick_filters") {
+            content = (
+              <QuickPeriodFilterWidget
+                periodFilter={periodFilter}
+                setPeriodFilter={setPeriodFilter}
+                periodLabels={periodLabels}
+                isId={isId}
+              />
+            );
+          } else if (item.id === "financial_summary") {
+            content = (
+              <FinancialSummaryGridWidget
+                activeStats={activeStats}
+                periodCommitted={periodCommitted}
+                totalSavings={totalSavings}
+                upcomingCount={upcoming.length}
+                incomeDelta={incomeDelta}
+                periodFilter={periodFilter}
+                periodLabels={periodLabels}
+                baseCurrency={state.baseCurrency}
+                locale={state.locale}
+                savingsCount={state.savings.length}
+                onNavigateToGoals={() => onNavigate("goals")}
+              />
+            );
+          } else if (item.id === "payday_status") {
+            content = onOpenEditCycle ? (
+              <PaydayCycleStatusWidget state={state} onOpenEditCycle={onOpenEditCycle} />
+            ) : null;
+          } else if (item.id === "category_comparison") {
+            content = (
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.compare}</p>
+                    <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">
+                      {t.category} · {currentMonth}
+                    </h2>
+                    {categoryChart.length > 0 && (
+                      <p className="mt-1 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground" data-testid="category-chart-hint">
+                        {stacked
+                          ? `${isId ? "Stacked per kategori" : "Stacked by category"} · ${t.topCategories}`
+                          : isId ? "Satu kategori — tampilan berdampingan" : "Single category — side-by-side view"}
+                      </p>
+                    )}
+                  </div>
+                  <select
+                    aria-label="Comparison month"
+                    data-testid="comparison-month-select"
+                    value={currentMonth}
+                    onChange={(event) => setCompareMonth(event.target.value)}
+                    className="rounded-lg border border-slate-200/80 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-amber-500 cursor-pointer dark:border-border dark:bg-background dark:text-foreground"
+                  >
+                    {monthOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div
+                  className="h-[280px] w-full"
+                  data-testid="category-bar-chart"
+                  data-chart-mode={stacked ? "stacked" : "grouped"}
+                  data-slice-count={categoryChart.length}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    {stacked ? (
+                      <BarChart data={stackedData} barGap={5}>
+                        <CartesianGrid vertical={false} stroke="currentColor" opacity={isDark ? 0.08 : 0.05} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
+                        />
+                        {categoryChart.map((slice, idx) => (
+                          <Bar
+                            key={slice.key}
+                            dataKey={seriesKey(slice)}
+                            name={slice.category}
+                            stackId="spend"
+                            fill={sliceColor(slice, idx)}
+                            radius={idx === categoryChart.length - 1 ? [5, 5, 0, 0] : undefined}
+                          />
+                        ))}
+                      </BarChart>
+                    ) : (
+                      <BarChart data={categoryChart} barGap={5}>
+                        <CartesianGrid vertical={false} stroke="currentColor" opacity={isDark ? 0.08 : 0.05} />
+                        <XAxis dataKey="category" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
+                        />
+                        <Bar dataKey="previous" name={t.lastMonth} fill={isDark ? "#5f5f5f" : "#cbd5e1"} radius={[5, 5, 0, 0]} />
+                        <Bar dataKey="current" name={t.thisMonth} fill="#ffa116" radius={[5, 5, 0, 0]} />
+                      </BarChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+                {stacked ? (
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground" data-testid="category-bar-legend">
+                    {categoryChart.map((slice, idx) => (
+                      <span
+                        key={slice.key}
+                        className="flex items-center gap-1"
+                        data-testid={`category-bar-legend-${slice.key}`}
+                        title={slice.isOther ? slice.members.join(", ") : slice.category}
+                      >
+                        <i className="size-2 rounded-full" style={{ backgroundColor: sliceColor(slice, idx) }} />
+                        {slice.category}
+                        {slice.isOther && ` (${slice.members.length})`}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-4 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <i className="size-2 rounded-full bg-primary" />
+                      {t.thisMonth}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <i className={`size-2 rounded-full ${isDark ? "bg-neutral-500" : "bg-slate-300"}`} />
+                      {t.lastMonth}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            );
+          } else if (item.id === "upcoming_bills") {
+            content = (
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.actionCenter}</p>
+                    <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{t.dueSoon}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="view-commitments-button"
+                    onClick={() => onNavigate("commitments")}
+                    className="text-xs font-bold text-amber-700 hover:underline dark:text-primary cursor-pointer"
+                  >
+                    {t.seeAll}
+                  </button>
+                </div>
+                <div className="mt-5 space-y-3 flex-1">
+                  {upcoming.map((bill) => (
+                    <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-3 dark:border-border/60 dark:bg-background/35">
+                      <div className="grid size-9 place-items-center rounded-lg border border-amber-200/60 bg-amber-50 text-amber-700 dark:border-transparent dark:bg-amber-500/12 dark:text-amber-400">
+                        <CalendarClock size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">{bill.name}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
+                          {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "remaining"}` : bill.frequency}
+                        </p>
+                      </div>
+                      <p className="font-data text-xs font-bold text-slate-900 dark:text-foreground">
+                        {formatMoney(toBase(bill.amount, bill.currency, state.exchangeRates), state.baseCurrency, state.locale, true)}
+                      </p>
+                    </div>
+                  ))}
+                  {upcoming.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
+                </div>
                 <button
                   type="button"
-                  data-testid="overview-total-savings-trigger"
-                  onClick={() => onNavigate("goals")}
-                  className="flex items-center gap-1.5 transition-colors hover:text-slate-900 cursor-pointer dark:hover:text-white"
-                  title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
+                  data-testid="open-commitment-from-action-button"
+                  onClick={() => onNavigate("commitments")}
+                  className="mt-5 flex w-full items-center justify-between rounded-xl border border-dashed border-amber-500/35 px-3 py-3 text-left text-xs font-semibold text-amber-700 hover:bg-amber-50/50 dark:border-primary/35 dark:text-primary dark:hover:bg-primary/8 cursor-pointer"
                 >
-                  <Target size={14} className="text-teal-600 dark:text-teal-300" />
-                  <span>{isId ? "Tabungan" : "Saved"}: {formatMoney(totalSavings, state.baseCurrency, state.locale, true)}</span>
-                </button>
-              )}
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck size={14} /> {isId ? "Tersinkron & Aman" : "Synchronized & Saved"}
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="border border-slate-200/80 bg-white p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none dark:backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{isId ? "Tren Finansial" : "Smart snapshot"}</p>
-              <p className="mt-2 font-heading text-lg font-bold text-slate-900 dark:text-foreground">{t.cashFlow}</p>
-            </div>
-            <Badge variant="secondary" className="gap-1">
-              <RefreshCw size={12} /> Live
-            </Badge>
-          </div>
-          <div className="mt-5 h-[105px] w-full min-h-[105px]">
-            <ResponsiveContainer width="100%" height="100%" minHeight={105}>
-              <AreaChart data={flowChart}>
-                <defs>
-                  <linearGradient id="cashflow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#ffa116" stopOpacity={0.42} />
-                    <stop offset="100%" stopColor="#ffa116" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <YAxis hide domain={[0, (dataMax: number) => (dataMax <= 0 ? 100000 : Math.ceil(dataMax * 1.15))]} />
-                <Tooltip
-                  contentStyle={tooltipStyle}
-                  formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
-                />
-                <Area type="monotone" dataKey="income" stroke={isDark ? "#2cbb5d" : "#16a34a"} strokeWidth={2} fill="url(#cashflow)" />
-                <Area type="monotone" dataKey="expense" stroke={isDark ? "#ef4743" : "#e11d48"} strokeWidth={2} fill="transparent" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-3 flex gap-4 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <i className="size-2 rounded-full bg-emerald-500" />
-              {isId ? "Pemasukan" : "Income"}
-            </span>
-            <span className="flex items-center gap-1">
-              <i className="size-2 rounded-full bg-rose-500" />
-              {isId ? "Pengeluaran" : "Expense"}
-            </span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Filter Periode Dashboard Header */}
-      <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">
-            {isId ? "Filter Periode Dashboard" : "Dashboard Period Filter"}
-          </p>
-          <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">
-            {isId ? `Ringkasan Finansial (${periodLabels[periodFilter]})` : `Financial Overview (${periodLabels[periodFilter]})`}
-          </h2>
-        </div>
-
-        {/* Period Selector Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/90 p-1.5 shadow-xs dark:border-border/70 dark:bg-card/80" data-testid="period-filter-bar">
-          {(["today", "week", "month", "year", "all"] as const).map((pKey) => (
-            <button
-              key={pKey}
-              type="button"
-              data-testid={`period-filter-${pKey}`}
-              onClick={() => setPeriodFilter(pKey)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
-                periodFilter === pKey
-                  ? "bg-amber-600 text-white shadow-xs dark:bg-primary dark:text-primary-foreground"
-                  : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground"
-              }`}
-            >
-              {periodLabels[pKey]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Dynamic KPI Cards corresponding to selected period filter */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard
-          label={isId ? `Pengeluaran (${periodLabels[periodFilter]})` : `Spent (${periodLabels[periodFilter]})`}
-          value={formatMoney(activeStats.expense, state.baseCurrency, state.locale, true)}
-          note={`${activeStats.count} ${isId ? "transaksi tercatat" : "transactions"}`}
-          icon={<TrendingDown size={19} />}
-          tone="rose"
-        />
-        <KpiCard
-          label={isId ? `Pemasukan (${periodLabels[periodFilter]})` : `Income (${periodLabels[periodFilter]})`}
-          value={formatMoney(activeStats.income, state.baseCurrency, state.locale, true)}
-          note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% ${isId ? "vs bulan lalu" : "vs last month"}` : `${periodLabels[periodFilter]}`}
-          icon={<TrendingUp size={19} />}
-          tone="emerald"
-        />
-        <KpiCard
-          label={isId ? `Arus Bersih (${periodLabels[periodFilter]})` : `Net Flow (${periodLabels[periodFilter]})`}
-          value={formatMoney(activeStats.net, state.baseCurrency, state.locale, true)}
-          note={isId ? "Pemasukan − Pengeluaran" : "Income − Expense"}
-          icon={<ArrowUpRight size={19} />}
-          tone={activeStats.net >= 0 ? "teal" : "rose"}
-        />
-        <KpiCard
-          label={isId ? `Tagihan & Cicilan (${periodLabels[periodFilter]})` : `Committed (${periodLabels[periodFilter]})`}
-          value={formatMoney(periodCommitted, state.baseCurrency, state.locale, true)}
-          note={`${upcoming.length} ${isId ? "jatuh tempo" : "due soon"}`}
-          icon={<CalendarClock size={19} />}
-          tone="amber"
-        />
-        <KpiCard
-          testid="kpi-total-savings"
-          label={isId ? "Total Tabungan" : "Total Saved"}
-          value={formatMoney(totalSavings, state.baseCurrency, state.locale, true)}
-          note={`${state.savings.length} ${isId ? "target impian aktif" : "active goals"}`}
-          icon={<Target size={19} />}
-          tone="teal"
-          onClick={() => onNavigate("goals")}
-        />
-      </div>
-
-      {/* Main Bar Chart & Action Center */}
-      <div className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.compare}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">
-                {t.category} · {currentMonth}
-              </h2>
-              {categoryChart.length > 0 && (
-                <p className="mt-1 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground" data-testid="category-chart-hint">
-                  {stacked
-                    ? `${isId ? "Stacked per kategori" : "Stacked by category"} · ${t.topCategories}`
-                    : isId ? "Satu kategori — tampilan berdampingan" : "Single category — side-by-side view"}
-                </p>
-              )}
-            </div>
-            <select
-              aria-label="Comparison month"
-              data-testid="comparison-month-select"
-              value={currentMonth}
-              onChange={(event) => setCompareMonth(event.target.value)}
-              className="rounded-lg border border-slate-200/80 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-amber-500 cursor-pointer dark:border-border dark:bg-background dark:text-foreground"
-            >
-              {monthOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div
-            className="h-[280px] w-full"
-            data-testid="category-bar-chart"
-            data-chart-mode={stacked ? "stacked" : "grouped"}
-            data-slice-count={categoryChart.length}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              {stacked ? (
-                <BarChart data={stackedData} barGap={5}>
-                  <CartesianGrid vertical={false} stroke="currentColor" opacity={isDark ? 0.08 : 0.05} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
-                  />
-                  {categoryChart.map((slice, index) => (
-                    <Bar
-                      key={slice.key}
-                      dataKey={seriesKey(slice)}
-                      name={slice.category}
-                      stackId="spend"
-                      fill={sliceColor(slice, index)}
-                      radius={index === categoryChart.length - 1 ? [5, 5, 0, 0] : undefined}
-                    />
-                  ))}
-                </BarChart>
-              ) : (
-                <BarChart data={categoryChart} barGap={5}>
-                  <CartesianGrid vertical={false} stroke="currentColor" opacity={isDark ? 0.08 : 0.05} />
-                  <XAxis dataKey="category" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
-                  />
-                  <Bar dataKey="previous" name={t.lastMonth} fill={isDark ? "#5f5f5f" : "#cbd5e1"} radius={[5, 5, 0, 0]} />
-                  <Bar dataKey="current" name={t.thisMonth} fill="#ffa116" radius={[5, 5, 0, 0]} />
-                </BarChart>
-              )}
-            </ResponsiveContainer>
-          </div>
-          {stacked ? (
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground" data-testid="category-bar-legend">
-              {categoryChart.map((slice, index) => (
-                <span
-                  key={slice.key}
-                  className="flex items-center gap-1"
-                  data-testid={`category-bar-legend-${slice.key}`}
-                  title={slice.isOther ? slice.members.join(", ") : slice.category}
-                >
-                  <i className="size-2 rounded-full" style={{ backgroundColor: sliceColor(slice, index) }} />
-                  {slice.category}
-                  {slice.isOther && ` (${slice.members.length})`}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-3 flex gap-4 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <i className="size-2 rounded-full bg-primary" />
-                {t.thisMonth}
-              </span>
-              <span className="flex items-center gap-1">
-                <i className={`size-2 rounded-full ${isDark ? "bg-neutral-500" : "bg-slate-300"}`} />
-                {t.lastMonth}
-              </span>
-            </div>
-          )}
-        </Card>
-
-        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.actionCenter}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{t.dueSoon}</h2>
-            </div>
-            <button
-              type="button"
-              data-testid="view-commitments-button"
-              onClick={() => onNavigate("commitments")}
-              className="text-xs font-bold text-amber-700 hover:underline dark:text-primary cursor-pointer"
-            >
-              {t.seeAll}
-            </button>
-          </div>
-          <div className="mt-5 space-y-3">
-            {upcoming.map((bill) => (
-              <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-3 dark:border-border/60 dark:bg-background/35">
-                <div className="grid size-9 place-items-center rounded-lg border border-amber-200/60 bg-amber-50 text-amber-700 dark:border-transparent dark:bg-amber-500/12 dark:text-amber-400">
-                  <CalendarClock size={16} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">{bill.name}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
-                    {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "remaining"}` : bill.frequency}
-                  </p>
-                </div>
-                <p className="font-data text-xs font-bold text-slate-900 dark:text-foreground">
-                  {formatMoney(toBase(bill.amount, bill.currency, state.exchangeRates), state.baseCurrency, state.locale, true)}
-                </p>
-              </div>
-            ))}
-            {upcoming.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
-          </div>
-          <button
-            type="button"
-            data-testid="open-commitment-from-action-button"
-            onClick={() => onNavigate("commitments")}
-            className="mt-5 flex w-full items-center justify-between rounded-xl border border-dashed border-amber-500/35 px-3 py-3 text-left text-xs font-semibold text-amber-700 hover:bg-amber-50/50 dark:border-primary/35 dark:text-primary dark:hover:bg-primary/8 cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <Plus size={15} /> {isId ? "Tambah Tagihan / Cicilan Baru" : "Add Bill / Installment"}
-            </span>
-            <ChevronRight size={15} />
-          </button>
-        </Card>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.recent}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{isId ? "Riwayat Transaksi" : "Your money trail"}</h2>
-            </div>
-            <button
-              type="button"
-              data-testid="view-transactions-button"
-              onClick={() => onNavigate("transactions")}
-              className="text-xs font-bold text-amber-700 hover:underline dark:text-primary cursor-pointer"
-            >
-              {t.seeAll}
-            </button>
-          </div>
-          <div className="space-y-1">
-            {recent.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-slate-100/70 dark:hover:bg-secondary/60">
-                <div
-                  className={`grid size-9 place-items-center rounded-lg ${
-                    item.kind === "income" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-600 dark:border-transparent dark:bg-emerald-500/12 dark:text-emerald-400" : "border border-rose-200/60 bg-rose-50 text-rose-600 dark:border-transparent dark:bg-red-500/12 dark:text-red-400"
-                  }`}
-                >
-                  {item.kind === "income" ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">{item.description}</p>
-                  <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
-                    {item.category} · {accountName(item.accountId)} · {shortDate(item.date, state.locale)}
-                  </p>
-                </div>
-                <p className={`font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-foreground"}`}>
-                  {item.kind === "income" ? "+" : "−"}
-                  {formatMoney(item.baseAmount, state.baseCurrency, state.locale, true)}
-                </p>
-              </div>
-            ))}
-            {recent.length === 0 && (
-              <p className="py-10 text-center text-sm text-slate-500 dark:text-muted-foreground" data-testid="recent-empty-state">
-                {t.noData}
-              </p>
-            )}
-          </div>
-        </Card>
-
-        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{isId ? "Distribusi Pengeluaran" : "Where it goes"}</h2>
-            </div>
-            <button
-              type="button"
-              data-testid="view-goals-button"
-              onClick={() => onNavigate("goals")}
-              className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-muted-foreground dark:hover:bg-secondary cursor-pointer"
-            >
-              <MoreHorizontal size={18} />
-            </button>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="h-[150px] w-[150px]" data-testid="category-donut-chart" data-slice-count={categoryChart.length}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryChart.length ? categoryChart : [{ key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] }]}
-                    dataKey="current"
-                    nameKey="category"
-                    innerRadius={45}
-                    outerRadius={68}
-                    paddingAngle={3}
-                  >
-                    {(categoryChart.length ? categoryChart : [{ key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] }]).map((item, index) => (
-                      <Cell key={item.key} fill={sliceColor(item, index)} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="min-w-0 flex-1 space-y-2" data-testid="category-donut-legend">
-              {categoryChart.map((item, index) => (
-                <div
-                  key={item.key}
-                  className="flex items-center gap-2"
-                  data-testid={`category-donut-legend-${item.key}`}
-                  title={item.isOther ? item.members.join(", ") : item.category}
-                >
-                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: sliceColor(item, index) }} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700 dark:text-foreground">
-                    {item.category}
-                    {item.isOther && <span className="ml-1 text-slate-500 dark:text-muted-foreground">({item.members.length})</span>}
+                  <span className="flex items-center gap-2">
+                    <Plus size={15} /> {isId ? "Tambah Tagihan / Cicilan Baru" : "Add Bill / Installment"}
                   </span>
-                  <span className="font-data text-[10px] text-slate-500 dark:text-muted-foreground">{percent(item.current, currentSpend)}%</span>
+                  <ChevronRight size={15} />
+                </button>
+              </Card>
+            );
+          } else if (item.id === "recent_transactions") {
+            content = (
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.recent}</p>
+                    <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{isId ? "Riwayat Transaksi" : "Your money trail"}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="view-transactions-button"
+                    onClick={() => onNavigate("transactions")}
+                    className="text-xs font-bold text-amber-700 hover:underline dark:text-primary cursor-pointer"
+                  >
+                    {t.seeAll}
+                  </button>
                 </div>
-              ))}
-              {categoryChart.length === 0 && <p className="text-xs text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
-            </div>
-          </div>
-        </Card>
+                <div className="space-y-1 flex-1">
+                  {recent.map((trans) => (
+                    <div key={trans.id} className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-slate-100/70 dark:hover:bg-secondary/60">
+                      <div
+                        className={`grid size-9 place-items-center rounded-lg ${
+                          trans.kind === "income" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-600 dark:border-transparent dark:bg-emerald-500/12 dark:text-emerald-400" : "border border-rose-200/60 bg-rose-50 text-rose-600 dark:border-transparent dark:bg-red-500/12 dark:text-red-400"
+                        }`}
+                      >
+                        {trans.kind === "income" ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">{trans.description}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
+                          {trans.category} · {accountName(trans.accountId)} · {shortDate(trans.date, state.locale)}
+                        </p>
+                      </div>
+                      <p className={`font-data text-xs font-bold ${trans.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-foreground"}`}>
+                        {trans.kind === "income" ? "+" : "−"}
+                        {formatMoney(trans.baseAmount, state.baseCurrency, state.locale, true)}
+                      </p>
+                    </div>
+                  ))}
+                  {recent.length === 0 && (
+                    <p className="py-10 text-center text-sm text-slate-500 dark:text-muted-foreground" data-testid="recent-empty-state">
+                      {t.noData}
+                    </p>
+                  )}
+                </div>
+              </Card>
+            );
+          } else if (item.id === "spending_allocation") {
+            content = (
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
+                    <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{isId ? "Distribusi Pengeluaran" : "Where it goes"}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="view-goals-button"
+                    onClick={() => onNavigate("goals")}
+                    className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-muted-foreground dark:hover:bg-secondary cursor-pointer"
+                  >
+                    <MoreHorizontal size={18} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="h-[150px] w-[150px]" data-testid="category-donut-chart" data-slice-count={categoryChart.length}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categoryChart.length ? categoryChart : [{ key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] }]}
+                          dataKey="current"
+                          nameKey="category"
+                          innerRadius={45}
+                          outerRadius={68}
+                          paddingAngle={3}
+                        >
+                          {(categoryChart.length ? categoryChart : [{ key: "no-data", category: t.noData, current: 1, previous: 0, isOther: false, members: [] }]).map((donutItem, idx) => (
+                            <Cell key={donutItem.key} fill={sliceColor(donutItem, idx)} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2" data-testid="category-donut-legend">
+                    {categoryChart.map((donutItem, idx) => (
+                      <div
+                        key={donutItem.key}
+                        className="flex items-center gap-2"
+                        data-testid={`category-donut-legend-${donutItem.key}`}
+                        title={donutItem.isOther ? donutItem.members.join(", ") : donutItem.category}
+                      >
+                        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: sliceColor(donutItem, idx) }} />
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700 dark:text-foreground">
+                          {donutItem.category}
+                          {donutItem.isOther && <span className="ml-1 text-slate-500 dark:text-muted-foreground">({donutItem.members.length})</span>}
+                        </span>
+                        <span className="font-data text-[10px] text-slate-500 dark:text-muted-foreground">{percent(donutItem.current, currentSpend)}%</span>
+                      </div>
+                    ))}
+                    {categoryChart.length === 0 && <p className="text-xs text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
+                  </div>
+                </div>
+              </Card>
+            );
+          } else if (item.id === "budget_guardrails") {
+            content = (
+              <div data-testid="mobile-budget-section" className="w-full">
+                <BudgetGuardrails
+                  state={state}
+                  labels={
+                    budgetLabels || {
+                      budgets: t.budgets,
+                      budgetSubtitle: t.budgetSubtitle,
+                      safe: t.safe,
+                      warning: t.warning,
+                      over: t.over,
+                      setBudget: t.setBudget,
+                      monthlyLimit: t.monthlyLimit,
+                      insightWithin: t.insightWithin,
+                      insightOver: t.insightOver,
+                      save: t.save,
+                    }
+                  }
+                  categories={categories || []}
+                  currentMonth={currentMonth}
+                  onSave={onSaveBudget || (() => {})}
+                  onDelete={onDeleteBudget}
+                  className="mt-0"
+                />
+              </div>
+            );
+          }
+
+          if (!content) return null;
+
+          const widgetTitles: Record<string, string> = {
+            hero_balance: isId ? "Total Saldo & Akun" : "Total Balance & Accounts",
+            cashflow_trend: isId ? "Grafik Arus Kas" : "Cash Flow Trend",
+            quick_filters: isId ? "Filter Periode" : "Period Filter",
+            financial_summary: isId ? "Ringkasan Finansial" : "Financial Summary",
+            payday_status: isId ? "Status Siklus Gajian" : "Payday Cycle Status",
+            category_comparison: isId ? "Bandingkan Kategori" : "Category Comparison",
+            upcoming_bills: isId ? "Tagihan & Cicilan Jatuh Tempo" : "Upcoming Bills",
+            recent_transactions: isId ? "Riwayat Transaksi" : "Recent Activity",
+            spending_allocation: isId ? "Distribusi Alokasi Pengeluaran" : "Spending Allocation",
+            budget_guardrails: isId ? "Budget Guardrails" : "Budget Guardrails",
+          };
+
+          return (
+            <DashboardWidgetContainer
+              key={item.id}
+              id={item.id}
+              title={widgetTitles[item.id] || item.id}
+              isVisible={item.isVisible}
+              isEditing={isEditing}
+              colSpan={item.desktopColSpan}
+              order={item.order}
+              isFirst={index === 0}
+              isLast={index === displayLayout.length - 1}
+              onColSpanChange={(span) => setColSpan(item.id, span)}
+              onToggleVisibility={() => toggleVisibility(item.id)}
+              onMoveUp={() => moveWidget(item.id, "up")}
+              onMoveDown={() => moveWidget(item.id, "down")}
+            >
+              {content}
+            </DashboardWidgetContainer>
+          );
+        })}
       </div>
+
+      {isEditing && (
+        <DashboardEditBar
+          onSave={saveEditing}
+          onCancel={cancelEditing}
+          onOpenManageModal={() => setManageModalOpen(true)}
+          onResetDefault={resetToDefault}
+          hasUnsavedChanges={hasUnsavedChanges}
+          isId={isId}
+        />
+      )}
+
+      <ManageWidgetsModal
+        open={manageModalOpen}
+        onClose={() => setManageModalOpen(false)}
+        items={displayLayout}
+        onToggleVisibility={toggleVisibility}
+        onMoveWidget={moveWidget}
+        onResetDefault={resetToDefault}
+        onShowAll={showAllWidgets}
+        isId={isId}
+      />
 
       <AccountsBreakdownModal
         open={accountsModalOpen}
