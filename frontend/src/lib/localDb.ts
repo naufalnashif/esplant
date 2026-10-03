@@ -258,7 +258,7 @@ export const sanitizeImportedState = (raw: unknown): FinanceState | null => {
   return withOpeningBalances(next);
 };
 
-const openDb = (): Promise<IDBDatabase> =>
+export const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
       reject(new Error("IndexedDB unavailable"));

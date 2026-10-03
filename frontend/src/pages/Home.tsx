@@ -10,7 +10,7 @@ import {
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bell, Calendar, CalendarClock, Check, ChevronRight,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, Activity, Calendar, CalendarClock, Check, ChevronRight,
   Landmark, LayoutDashboard, MessageSquarePlus,
   Moon, MoreHorizontal, Pencil, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
   Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, Zap,
@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import type {
   Account, Currency, Debt, FinanceState, Locale, SavingsGoal,
   Transaction, TransactionKind,
@@ -850,9 +851,26 @@ export default function Home() {
             <div className="flex min-w-0 items-center gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} isDemo={isDemoMode} />
-              {!healthReport.ok && <button type="button" data-testid="data-health-header-badge" onClick={() => setTab("settings")} title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"} className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20"><Bell size={13} />{healthReport.errors + healthReport.warnings}</button>}
-              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary">{state.locale.toUpperCase()}</button>
-              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+              {!healthReport.ok && (
+                <button
+                  type="button"
+                  data-testid="data-health-header-badge"
+                  onClick={() => setTab("settings")}
+                  title={state.locale === "id" ? "Ada inkonsistensi data — buka Data Health" : "Data inconsistencies found — open Data Health"}
+                  className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-500 transition-colors hover:bg-amber-500/20 cursor-pointer"
+                >
+                  <Activity size={13} />
+                  <span>{healthReport.errors + healthReport.warnings}</span>
+                </button>
+              )}
+              <NotificationCenter
+                state={state}
+                onNavigate={setTab}
+                onOpenAddTransaction={openAddTransaction}
+                onOpenAddCommitment={() => setShowAddCommitmentModal(true)}
+              />
+              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary cursor-pointer">{state.locale.toUpperCase()}</button>
+              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9 cursor-pointer">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
               <div className="hidden h-8 w-px bg-border sm:block" />
               <button
                 type="button"
