@@ -51,23 +51,23 @@
 }
 
 :root {
-    --background: #f7f8fa;
-    --foreground: #262626;
+    --background: #f8fafc;
+    --foreground: #0f172a;
     --card: #ffffff;
-    --card-foreground: #262626;
+    --card-foreground: #0f172a;
     --popover: #ffffff;
-    --popover-foreground: #262626;
+    --popover-foreground: #0f172a;
     --primary: #ffa116;
-    --primary-foreground: #1a1a1a;
-    --secondary: #f0f0f0;
-    --secondary-foreground: #262626;
-    --muted: #f0f0f0;
-    --muted-foreground: #737373;
-    --accent: #fff4e0;
-    --accent-foreground: #b26a00;
-    --destructive: #ef4743;
-    --border: #e5e5e5;
-    --input: #e5e5e5;
+    --primary-foreground: #18181b;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: #fff7ed;
+    --accent-foreground: #c2410c;
+    --destructive: #e11d48;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
     --ring: #ffa116;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -131,6 +131,9 @@
     }
   body {
     min-width: 320px;
+    background-image: radial-gradient(circle at 80% -10%, rgba(255, 161, 22, 0.04), transparent 32rem);
+  }
+  .dark body, body:is(.dark *) {
     background-image: radial-gradient(circle at 80% -10%, rgba(255, 161, 22, 0.07), transparent 34rem);
   }
   button, a, input, select, textarea {

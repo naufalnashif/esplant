@@ -281,7 +281,7 @@ export function CategoryManager({
                       data-testid={`category-delete-${item.id}-button`}
                       onClick={() => remove(item)}
                       title={isId ? "Hapus" : "Delete"}
-                      className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-red-400/10 hover:text-red-400"
+                      className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:bg-red-400/10 dark:hover:text-red-400"
                     >
                       <Trash2 size={11} />
                     </button>

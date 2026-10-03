@@ -17,9 +17,9 @@
 
 export const BACKDROP = {
   /** Standard backdrop for BottomSheet, PDFReportModal, LandingDrawer, etc. */
-  overlay: "bg-black/65 backdrop-blur-sm",
+  overlay: "bg-slate-950/35 backdrop-blur-xs dark:bg-black/65 dark:backdrop-blur-sm",
   /** Lighter overlay used by shadcn Dialog / Sheet primitives. */
-  dialogOverlay: "bg-black/65 backdrop-blur-sm",
+  dialogOverlay: "bg-slate-950/35 backdrop-blur-xs dark:bg-black/65 dark:backdrop-blur-sm",
 } as const;
 
 /* ══════════════════════════════════════════════════════════════

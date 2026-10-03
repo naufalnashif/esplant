@@ -37,7 +37,6 @@ export interface MobileOverviewProps {
 
 const PERIODS: PeriodKey[] = ["today", "week", "month", "year", "all"];
 const shortDate = (date: string, locale: FinanceState["locale"]) => new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { day: "2-digit", month: "short" }).format(new Date(`${date}T00:00:00`));
-const tooltipStyle = { background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 };
 
 // MiniKpi: thin wrapper around shared KpiCard using compact mobile sizing
 function MiniKpi({ label, value, note, icon, tone, testid, onClick }: { label: string; value: string; note: string; icon: React.ReactNode; tone: "teal" | "rose" | "amber" | "indigo"; testid: string; onClick?: () => void }) {
@@ -63,6 +62,15 @@ function MobileCardHeader({ eyebrow, title, action }: { eyebrow: string; title: 
 export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName }: MobileOverviewProps) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
+  const isDark = state.theme === "dark";
+  const tooltipStyle = {
+    background: isDark ? "#282828" : "#ffffff",
+    border: isDark ? "1px solid #3c3c3c" : "1px solid #e2e8f0",
+    borderRadius: 12,
+    fontSize: 11,
+    color: isDark ? "#eff1f6" : "#0f172a",
+    boxShadow: isDark ? "0 4px 12px rgba(0,0,0,0.4)" : "0 10px 15px -3px rgba(0,0,0,0.08)",
+  };
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const flowIncome = flowChart.reduce((sum, item) => sum + item.income, 0);
   const flowExpense = flowChart.reduce((sum, item) => sum + item.expense, 0);
@@ -103,42 +111,42 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         </Card>
       )}
 
-      <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-[#303030] via-[#262626] to-[#1c1c1c] p-5 text-white shadow-xl shadow-primary/10" data-testid="mobile-balance-card">
-        <div className="absolute -right-16 -top-20 size-56 rounded-full border-[24px] border-white/8" />
+      <Card className="relative overflow-hidden border border-primary/25 bg-gradient-to-br from-amber-500/10 via-card to-primary/5 p-5 text-foreground shadow-lg shadow-primary/5 dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10" data-testid="mobile-balance-card">
+        <div className="absolute -right-16 -top-20 size-56 rounded-full border-[24px] border-primary/10 pointer-events-none dark:border-white/8" />
         <div className="relative">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">{t.totalBalance} · {state.baseCurrency}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground dark:text-white/65">{t.totalBalance} · {state.baseCurrency}</p>
             <button
               type="button"
               data-testid="mobile-total-balance-accounts-trigger"
               onClick={() => setAccountsModalOpen(true)}
               title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
               aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
-              className="flex items-center justify-center rounded-lg border border-white/20 bg-white/10 p-1.5 text-white shadow-sm transition-all duration-200 active:scale-90 hover:bg-white/20 hover:border-white/40 cursor-pointer"
+              className="flex items-center justify-center rounded-lg border border-border/80 bg-background/80 p-1.5 text-foreground shadow-xs transition-all duration-200 active:scale-90 hover:bg-secondary hover:border-primary/40 cursor-pointer dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:border-white/40"
             >
               <WalletCards size={16} />
             </button>
           </div>
-          <p className="mt-2 font-heading text-3xl font-extrabold tracking-tight" data-testid="total-balance-value">{formatMoney(totalBalance, state.baseCurrency, state.locale)}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-white/70">
+          <p className="mt-2 font-heading text-3xl font-extrabold tracking-tight text-foreground dark:text-white" data-testid="total-balance-value">{formatMoney(totalBalance, state.baseCurrency, state.locale)}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground dark:text-white/70">
             <button
               type="button"
               data-testid="mobile-active-accounts-count-trigger"
               onClick={() => setAccountsModalOpen(true)}
-              className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+              className="flex items-center gap-1.5 transition-colors hover:text-foreground cursor-pointer dark:hover:text-white"
               title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
             >
-              <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
+              <span className="size-2 rounded-full bg-emerald-500 dark:bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
             </button>
             {totalSavings > 0 && (
               <button
                 type="button"
                 data-testid="mobile-total-savings-trigger"
                 onClick={() => onNavigate("goals")}
-                className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                className="flex items-center gap-1.5 transition-colors hover:text-foreground cursor-pointer dark:hover:text-white"
                 title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
               >
-                <Target size={13} className="text-teal-300" />
+                <Target size={13} className="text-teal-600 dark:text-teal-300" />
                 <span>{isId ? "Tabungan" : "Saved"}: {money(totalSavings)}</span>
               </button>
             )}
@@ -209,14 +217,14 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
               <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis hide domain={[0, (dataMax: number) => (dataMax <= 0 ? 100000 : Math.ceil(dataMax * 1.15))]} />
               <Tooltip contentStyle={tooltipStyle} formatter={(value) => money(Number(value))} />
-              <Area type="monotone" dataKey="income" stroke="#2cbb5d" strokeWidth={2} fill="url(#cashflow-mobile)" />
-              <Area type="monotone" dataKey="expense" stroke="#ef4743" strokeWidth={2} fill="transparent" />
+              <Area type="monotone" dataKey="income" stroke={isDark ? "#2cbb5d" : "#16a34a"} strokeWidth={2} fill="url(#cashflow-mobile)" />
+              <Area type="monotone" dataKey="expense" stroke={isDark ? "#ef4743" : "#e11d48"} strokeWidth={2} fill="transparent" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/50 pt-3 text-[11px]">
-          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-emerald-400" /> {isId ? "Pemasukan" : "Income"}</p><p className="mt-0.5 font-data text-xs font-bold text-emerald-400" data-testid="mobile-flow-income-total">+{money(flowIncome)}</p></div>
-          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-red-400" /> {isId ? "Pengeluaran" : "Expense"}</p><p className="mt-0.5 font-data text-xs font-bold text-red-400" data-testid="mobile-flow-expense-total">−{money(flowExpense)}</p></div>
+          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-emerald-500" /> {isId ? "Pemasukan" : "Income"}</p><p className="mt-0.5 font-data text-xs font-bold text-emerald-600 dark:text-emerald-400" data-testid="mobile-flow-income-total">+{money(flowIncome)}</p></div>
+          <div><p className="flex items-center gap-1 font-semibold text-muted-foreground"><i className="size-2 rounded-full bg-rose-500" /> {isId ? "Pengeluaran" : "Expense"}</p><p className="mt-0.5 font-data text-xs font-bold text-rose-600 dark:text-red-400" data-testid="mobile-flow-expense-total">−{money(flowExpense)}</p></div>
         </div>
       </Card>
 
@@ -269,7 +277,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
                 </div>
                 <div className="mt-1 space-y-0.5">
                   <div className="h-1.5 rounded-full bg-primary" style={{ width: `${Math.max(3, (item.current / compareMax) * 100)}%` }} />
-                  <div className="h-1.5 rounded-full bg-neutral-500" style={{ width: `${Math.max(3, (item.previous / compareMax) * 100)}%` }} />
+                  <div className={`h-1.5 rounded-full ${isDark ? "bg-neutral-500" : "bg-slate-300"}`} style={{ width: `${Math.max(3, (item.previous / compareMax) * 100)}%` }} />
                 </div>
               </div>
             ))}
@@ -277,7 +285,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
           </div>
           <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/50 pt-2 text-[9px] font-semibold text-muted-foreground">
             <span className="flex items-center gap-1"><i className="size-1.5 rounded-full bg-primary" />{t.thisMonth} {money(currentSpend)}</span>
-            <span className="flex items-center gap-1"><i className="size-1.5 rounded-full bg-neutral-500" />{t.lastMonth} {money(previousTotal)}</span>
+            <span className="flex items-center gap-1"><i className={`size-1.5 rounded-full ${isDark ? "bg-neutral-500" : "bg-slate-300"}`} />{t.lastMonth} {money(previousTotal)}</span>
           </div>
         </Card>
       </div>
@@ -287,7 +295,7 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         <div className="mt-3 space-y-2">
           {upcoming.slice(0, 3).map((bill) => (
             <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/35 px-3 py-2.5">
-              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/12 text-amber-400"><CalendarClock size={14} /></div>
+              <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400"><CalendarClock size={14} /></div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold leading-tight">{bill.name}</p>
                 <p className="text-[10px] text-muted-foreground">{shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "left"}` : bill.frequency}</p>
@@ -308,12 +316,12 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
         <div className="mt-2 divide-y divide-border/40">
           {recent.map((item) => (
             <div key={item.id} className="flex items-center gap-3 py-2.5">
-              <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.kind === "income" ? "bg-emerald-500/12 text-emerald-400" : "bg-red-500/12 text-red-400"}`}>{item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}</div>
+              <div className={`grid size-8 shrink-0 place-items-center rounded-lg ${item.kind === "income" ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400" : "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"}`}>{item.kind === "income" ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}</div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold leading-tight">{item.description}</p>
                 <p className="truncate text-[10px] text-muted-foreground">{item.category} · {accountName(item.accountId)} · {shortDate(item.date, state.locale)}</p>
               </div>
-              <p className={`shrink-0 font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-400" : "text-foreground"}`}>{item.kind === "income" ? "+" : "−"}{money(item.baseAmount)}</p>
+              <p className={`shrink-0 font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>{item.kind === "income" ? "+" : "−"}{money(item.baseAmount)}</p>
             </div>
           ))}
           {recent.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground" data-testid="recent-empty-state">{t.noData}</p>}

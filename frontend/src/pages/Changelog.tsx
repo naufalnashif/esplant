@@ -13,10 +13,10 @@ const TYPE_ICON: Record<ChangelogEntry["changes"][number]["type"], typeof Sparkl
 };
 
 const TYPE_TONE: Record<ChangelogEntry["changes"][number]["type"], string> = {
-  added: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  fixed: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-  changed: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-  removed: "border-red-500/30 bg-red-500/10 text-red-400",
+  added: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  fixed: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  changed: "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  removed: "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
   improved: "border-primary/30 bg-primary/10 text-primary",
 };
 

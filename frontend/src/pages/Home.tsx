@@ -848,8 +848,8 @@ export default function Home() {
                     : "Data tersimpan di perangkat ini, bukan di server aplikasi."}
               </p>
               {isDemoMode ? (
-                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-400">
-                  <span className="size-1.5 rounded-full bg-amber-400 animate-pulse-soft" /> Sandbox active
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                  <span className="size-1.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse-soft" /> Sandbox active
                 </div>
               ) : storageMode === "sheets" && sheetUrl ? (
                 <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a>
@@ -908,12 +908,12 @@ export default function Home() {
           </header>
           <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
             {isDemoMode && (
-              <div data-testid="demo-sandbox-banner" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">
+              <div data-testid="demo-sandbox-banner" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-900 dark:text-amber-200">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-sm shrink-0">🎮</span>
-                  <p className="truncate font-semibold text-amber-300">
+                  <p className="truncate font-semibold text-amber-900 dark:text-amber-300">
                     <span className="font-bold">{state.locale === "id" ? "Mode Demo Sandbox" : "Demo Sandbox"}</span>
-                    <span className="hidden sm:inline text-amber-300/80"> · {state.locale === "id" ? "Data contoh terisolasi" : "Isolated sample data"}</span>
+                    <span className="hidden sm:inline text-amber-800/80 dark:text-amber-300/80"> · {state.locale === "id" ? "Data contoh terisolasi" : "Isolated sample data"}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -924,7 +924,7 @@ export default function Home() {
                       loadSample?.();
                       toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
                     }}
-                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
                   >
                     Reset
                   </button>
@@ -1111,7 +1111,7 @@ export default function Home() {
 
 function SyncPill({ mode, status, lastSyncTime, busy, onRefresh, isDemo }: { mode: "local" | "sheets"; status: string; lastSyncTime: Date | null; busy: boolean; onRefresh: () => void; isDemo?: boolean }) {
   if (isDemo) {
-    return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-400 sm:flex"><Sparkles size={13} /> Demo Sandbox</span>;
+    return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400 sm:flex"><Sparkles size={13} /> Demo Sandbox</span>;
   }
   if (mode !== "sheets") {
     return <span data-testid="sync-pill" className="hidden items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground sm:flex"><ShieldCheck size={13} /> Lokal</span>;
@@ -1120,12 +1120,12 @@ function SyncPill({ mode, status, lastSyncTime, busy, onRefresh, isDemo }: { mod
   // "disconnected" keeps the cached workspace on screen and simply invites one click to re-auth —
   // it is deliberately NOT a logout.
   const tone = status === "disconnected"
-    ? "border-amber-500/50 bg-amber-500/12 text-amber-500"
+    ? "border-amber-500/50 bg-amber-500/12 text-amber-600 dark:text-amber-400"
     : status === "error"
-      ? "border-red-500/40 bg-red-500/10 text-red-400"
+      ? "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-red-400"
       : status === "offline"
-        ? "border-amber-500/40 bg-amber-500/10 text-amber-500"
-        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-500";
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
   const label = spinning
     ? "Sinkron…"
     : status === "disconnected"
@@ -1186,6 +1186,15 @@ function Overview({
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
+  const isDark = state.theme === "dark";
+  const tooltipStyle = {
+    background: isDark ? "#282828" : "#ffffff",
+    border: isDark ? "1px solid #3c3c3c" : "1px solid #e2e8f0",
+    borderRadius: 12,
+    fontSize: 11,
+    color: isDark ? "#eff1f6" : "#0f172a",
+    boxShadow: isDark ? "0 4px 12px rgba(0,0,0,0.4)" : "0 10px 15px -3px rgba(0,0,0,0.08)",
+  };
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   // Stacking is only meaningful ACROSS categories, so a single-category month keeps the
   // classic side-by-side "last month vs this month" bars.
@@ -1247,16 +1256,16 @@ function Overview({
 
       {/* Main Top Balance & Smart Snapshot */}
       <div className="mb-6 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <Card className="relative min-h-[218px] overflow-hidden border-primary/20 bg-gradient-to-br from-[#303030] via-[#262626] to-[#1c1c1c] p-6 text-white shadow-xl shadow-primary/10 sm:p-8">
-          <div className="absolute -right-20 -top-24 size-72 rounded-full border-[30px] border-white/8" />
-          <div className="absolute -bottom-28 right-24 size-56 rounded-full border-[18px] border-white/6" />
+        <Card className="relative min-h-[218px] overflow-hidden border border-primary/25 bg-gradient-to-br from-amber-500/10 via-card to-primary/5 p-6 text-foreground shadow-lg shadow-primary/5 sm:p-8 dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10">
+          <div className="absolute -right-20 -top-24 size-72 rounded-full border-[30px] border-primary/10 pointer-events-none dark:border-white/8" />
+          <div className="absolute -bottom-28 right-24 size-56 rounded-full border-[18px] border-primary/8 pointer-events-none dark:border-white/6" />
           <div className="relative flex h-full flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/65">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground dark:text-white/65">
                   {t.totalBalance} · {state.baseCurrency}
                 </p>
-                <p className="mt-3 font-heading text-4xl font-extrabold tracking-tight sm:text-5xl" data-testid="total-balance-value">
+                <p className="mt-3 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl dark:text-white" data-testid="total-balance-value">
                   {formatMoney(totalBalance, state.baseCurrency, state.locale)}
                 </p>
               </div>
@@ -1266,31 +1275,31 @@ function Overview({
                 onClick={() => setAccountsModalOpen(true)}
                 title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
                 aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
-                className="group relative flex items-center justify-center rounded-xl border border-white/20 bg-white/10 p-2.5 text-white shadow-sm transition-all duration-200 hover:scale-105 hover:border-white/40 hover:bg-white/20 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 cursor-pointer"
+                className="group relative flex items-center justify-center rounded-xl border border-border/80 bg-background/80 p-2.5 text-foreground shadow-xs transition-all duration-200 hover:scale-105 hover:border-primary/50 hover:bg-secondary active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 cursor-pointer dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/20 dark:focus-visible:ring-white/50"
               >
                 <WalletCards size={20} className="transition-transform duration-200 group-hover:scale-110" />
                 <span className="sr-only">{isId ? "Lihat akun" : "View accounts"}</span>
               </button>
             </div>
-            <div className="mt-9 flex flex-wrap items-center gap-5 text-xs text-white/70">
+            <div className="mt-9 flex flex-wrap items-center gap-5 text-xs text-muted-foreground dark:text-white/70">
               <button
                 type="button"
                 data-testid="active-accounts-count-trigger"
                 onClick={() => setAccountsModalOpen(true)}
-                className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                className="flex items-center gap-1.5 transition-colors hover:text-foreground cursor-pointer dark:hover:text-white"
                 title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
               >
-                <span className="size-2 rounded-full bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
+                <span className="size-2 rounded-full bg-emerald-500 dark:bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
               </button>
               {totalSavings > 0 && (
                 <button
                   type="button"
                   data-testid="overview-total-savings-trigger"
                   onClick={() => onNavigate("goals")}
-                  className="flex items-center gap-1.5 transition-colors hover:text-white cursor-pointer"
+                  className="flex items-center gap-1.5 transition-colors hover:text-foreground cursor-pointer dark:hover:text-white"
                   title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
                 >
-                  <Target size={14} className="text-teal-300" />
+                  <Target size={14} className="text-teal-600 dark:text-teal-300" />
                   <span>{isId ? "Tabungan" : "Saved"}: {formatMoney(totalSavings, state.baseCurrency, state.locale, true)}</span>
                 </button>
               )}
@@ -1455,11 +1464,11 @@ function Overview({
             <ResponsiveContainer width="100%" height="100%">
               {stacked ? (
                 <BarChart data={stackedData} barGap={5}>
-                  <CartesianGrid vertical={false} stroke="currentColor" opacity={0.08} />
+                  <CartesianGrid vertical={false} stroke="currentColor" opacity={isDark ? 0.08 : 0.05} />
                   <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
                   <Tooltip
-                    contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
+                    contentStyle={tooltipStyle}
                     formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
                   />
                   {categoryChart.map((slice, index) => (
@@ -1475,14 +1484,14 @@ function Overview({
                 </BarChart>
               ) : (
                 <BarChart data={categoryChart} barGap={5}>
-                  <CartesianGrid vertical={false} stroke="currentColor" opacity={0.08} />
+                  <CartesianGrid vertical={false} stroke="currentColor" opacity={isDark ? 0.08 : 0.05} />
                   <XAxis dataKey="category" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `${Math.round(Number(value) / 1000000)}m`} />
                   <Tooltip
-                    contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
+                    contentStyle={tooltipStyle}
                     formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
                   />
-                  <Bar dataKey="previous" name={t.lastMonth} fill="#5f5f5f" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="previous" name={t.lastMonth} fill={isDark ? "#5f5f5f" : "#cbd5e1"} radius={[5, 5, 0, 0]} />
                   <Bar dataKey="current" name={t.thisMonth} fill="#ffa116" radius={[5, 5, 0, 0]} />
                 </BarChart>
               )}
@@ -1510,7 +1519,7 @@ function Overview({
                 {t.thisMonth}
               </span>
               <span className="flex items-center gap-1">
-                <i className="size-2 rounded-full bg-neutral-500" />
+                <i className={`size-2 rounded-full ${isDark ? "bg-neutral-500" : "bg-slate-300"}`} />
                 {t.lastMonth}
               </span>
             </div>
@@ -1535,7 +1544,7 @@ function Overview({
           <div className="mt-5 space-y-3">
             {upcoming.map((bill) => (
               <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/35 p-3">
-                <div className="grid size-9 place-items-center rounded-lg bg-amber-500/12 text-amber-400">
+                <div className="grid size-9 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400">
                   <CalendarClock size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1586,7 +1595,7 @@ function Overview({
               <div key={item.id} className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-secondary/60">
                 <div
                   className={`grid size-9 place-items-center rounded-lg ${
-                    item.kind === "income" ? "bg-emerald-500/12 text-emerald-400" : "bg-red-500/12 text-red-400"
+                    item.kind === "income" ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400" : "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"
                   }`}
                 >
                   {item.kind === "income" ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
@@ -1597,7 +1606,7 @@ function Overview({
                     {item.category} · {accountName(item.accountId)} · {shortDate(item.date, state.locale)}
                   </p>
                 </div>
-                <p className={`font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-400" : "text-foreground"}`}>
+                <p className={`font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
                   {item.kind === "income" ? "+" : "−"}
                   {formatMoney(item.baseAmount, state.baseCurrency, state.locale, true)}
                 </p>
@@ -1731,8 +1740,8 @@ function TransactionModal({ state, t, categories, form, setForm, onChange, onClo
     >
       <form id="transaction-form" onSubmit={onSubmit} data-testid="transaction-form" className="space-y-3 sm:space-y-4">
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-secondary/60 p-1">
-          <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "expense" ? "bg-card text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
-          <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold ${form.kind === "income" ? "bg-card text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
+          <button type="button" data-testid="transaction-expense-toggle" onClick={() => setForm((value) => ({ ...value, kind: "expense" }))} className={`rounded-lg py-2 text-xs font-bold transition-all ${form.kind === "expense" ? "bg-card text-rose-600 dark:text-red-400 shadow-sm" : "text-muted-foreground"}`}>{t.expense}</button>
+          <button type="button" data-testid="transaction-income-toggle" onClick={() => setForm((value) => ({ ...value, kind: "income" }))} className={`rounded-lg py-2 text-xs font-bold transition-all ${form.kind === "income" ? "bg-card text-emerald-600 dark:text-emerald-400 shadow-sm" : "text-muted-foreground"}`}>{t.incomeType}</button>
         </div>
 
         {/* Transaction Suggestions / Template Selector */}

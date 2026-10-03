@@ -180,10 +180,10 @@ function BudgetRow({
   const statusCopy = row.status === "over" ? labels.over : row.status === "warning" ? labels.warning : labels.safe;
   const className =
     row.status === "over"
-      ? "text-red-400 bg-red-500/10"
+      ? "text-rose-600 bg-rose-500/10 dark:text-red-400 dark:bg-red-500/10"
       : row.status === "warning"
-      ? "text-amber-400 bg-amber-500/10"
-      : "text-emerald-400 bg-emerald-500/10";
+      ? "text-amber-600 bg-amber-500/10 dark:text-amber-400 dark:bg-amber-500/10"
+      : "text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 dark:bg-emerald-500/10";
   const Icon = row.status === "over" ? AlertTriangle : row.status === "warning" ? CircleDollarSign : CheckCircle2;
   const insight =
     row.status === "over"
@@ -216,7 +216,7 @@ function BudgetRow({
             data-testid={`budget-delete-${row.category.toLowerCase().replaceAll(" ", "-")}`}
             onClick={onDelete}
             title="Delete Budget"
-            className="grid size-6 place-items-center rounded text-muted-foreground opacity-60 transition-opacity hover:opacity-100 hover:text-red-400"
+            className="grid size-6 place-items-center rounded text-muted-foreground opacity-60 transition-opacity hover:opacity-100 hover:text-rose-600 dark:hover:text-red-400"
           >
             <Trash2 size={12} />
           </button>
@@ -226,7 +226,7 @@ function BudgetRow({
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
         <div
           className={`h-full rounded-full ${
-            row.status === "over" ? "bg-red-400" : row.status === "warning" ? "bg-amber-400" : "bg-emerald-400"
+            row.status === "over" ? "bg-rose-500 dark:bg-red-400" : row.status === "warning" ? "bg-amber-500 dark:bg-amber-400" : "bg-emerald-500 dark:bg-emerald-400"
           }`}
           style={{ width: `${Math.min(100, row.ratio * 100)}%` }}
         />
@@ -239,7 +239,7 @@ function BudgetRow({
 
       <p
         className={`mt-2 text-[10px] font-semibold ${
-          row.status === "over" ? "text-red-400" : row.status === "warning" ? "text-amber-400" : "text-emerald-400"
+          row.status === "over" ? "text-rose-600 dark:text-red-400" : row.status === "warning" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
         }`}
       >
         {insight}

@@ -14,11 +14,11 @@ import { Card } from "@/components/ui/card";
 export type KpiTone = "teal" | "rose" | "amber" | "indigo" | "emerald";
 
 const TONE_CLASSES: Record<KpiTone, string> = {
-  teal: "bg-primary/12 text-primary",
-  rose: "bg-red-500/12 text-red-400",
-  amber: "bg-amber-500/12 text-amber-400",
-  indigo: "bg-indigo-500/12 text-indigo-400",
-  emerald: "bg-emerald-500/12 text-emerald-400",
+  teal: "bg-primary/10 text-primary dark:bg-primary/12",
+  rose: "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400",
+  amber: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400",
+  indigo: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400",
+  emerald: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400",
 };
 
 export interface KpiCardProps {

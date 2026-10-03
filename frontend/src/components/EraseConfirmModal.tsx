@@ -128,9 +128,9 @@ export function EraseConfirmModal({ open, isId, onClose, onConfirm }: EraseConfi
       footer={
         <div className="space-y-2">
           {/* Warning */}
-          <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2.5">
-            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-red-400" />
-            <p className="text-[11px] font-medium leading-relaxed text-red-400">
+          <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2.5 dark:border-red-500/20 dark:bg-red-500/5">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-rose-600 dark:text-red-400" />
+            <p className="text-[11px] font-medium leading-relaxed text-rose-600 dark:text-red-400">
               {isId
                 ? "Tindakan ini tidak dapat dibatalkan."
                 : "This action cannot be undone."}
@@ -172,7 +172,7 @@ export function EraseConfirmModal({ open, isId, onClose, onConfirm }: EraseConfi
             type="checkbox"
             checked={allSelected}
             onChange={toggleAll}
-            className="size-4 cursor-pointer accent-red-400"
+            className="size-4 cursor-pointer accent-rose-600 dark:accent-red-400"
             data-testid="erase-select-all"
           />
           <span className="text-sm font-bold">
@@ -194,7 +194,7 @@ export function EraseConfirmModal({ open, isId, onClose, onConfirm }: EraseConfi
             key={item.key}
             className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
               options[item.key]
-                ? "border-red-500/30 bg-red-500/5"
+                ? "border-rose-500/30 bg-rose-500/5 dark:border-red-500/30 dark:bg-red-500/5"
                 : "border-border/50 hover:border-border/80 hover:bg-secondary/30"
             }`}
             data-testid={`erase-checkbox-${item.key}`}
@@ -203,7 +203,7 @@ export function EraseConfirmModal({ open, isId, onClose, onConfirm }: EraseConfi
               type="checkbox"
               checked={options[item.key]}
               onChange={() => toggle(item.key)}
-              className="size-4 cursor-pointer accent-red-400"
+              className="size-4 cursor-pointer accent-rose-600 dark:accent-red-400"
             />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{isId ? item.labelId : item.labelEn}</p>

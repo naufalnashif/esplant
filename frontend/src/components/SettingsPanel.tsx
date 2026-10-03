@@ -640,7 +640,7 @@ export function SettingsPanel({
                 data-testid="import-xlsx-button"
                 variant="outline"
                 onClick={() => xlsxFileRef.current?.click()}
-                className="gap-2 justify-start sm:justify-center border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                className="gap-2 justify-start sm:justify-center border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
               >
                 <Upload size={15} />
                 <span>{isId ? "Impor XLSX (Semua Data)" : "Import XLSX (All Data)"}</span>
@@ -661,7 +661,7 @@ export function SettingsPanel({
               <button
                 type="button"
                 onClick={downloadXlsxTemplate}
-                className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/8 hover:text-emerald-400"
+                className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/40 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/8 hover:text-emerald-600 dark:hover:text-emerald-400"
                 data-testid="download-xlsx-template-button"
               >
                 <Download size={12} />
@@ -706,14 +706,14 @@ export function SettingsPanel({
           </Card>
 
           {/* ── Danger Zone ── */}
-          <Card className="border-red-500/20 bg-red-500/3 p-4 sm:p-6">
+          <Card className="border-rose-500/20 bg-rose-500/3 dark:border-red-500/20 dark:bg-red-500/3 p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
-                <div className="grid size-9 place-items-center rounded-xl bg-red-500/12 text-red-400 shrink-0 mt-0.5">
+                <div className="grid size-9 place-items-center rounded-xl bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400 shrink-0 mt-0.5">
                   <AlertTriangle size={16} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-600 dark:text-red-400">
                     {isId ? "Zona Berbahaya" : "Danger Zone"}
                   </p>
                   <h2 className="font-heading text-base font-bold">{isId ? "Hapus Data" : "Erase Data"}</h2>
@@ -728,7 +728,7 @@ export function SettingsPanel({
                 type="button"
                 data-testid="erase-all-button"
                 onClick={onErase}
-                className="flex shrink-0 items-center gap-2 rounded-xl border border-red-500/35 bg-red-500/8 px-4 py-2.5 text-xs font-bold text-red-400 transition-colors hover:bg-red-500/15 hover:border-red-500/50 sm:self-center"
+                className="flex shrink-0 items-center gap-2 rounded-xl border border-rose-500/35 bg-rose-500/8 px-4 py-2.5 text-xs font-bold text-rose-600 dark:border-red-500/35 dark:bg-red-500/8 dark:text-red-400 transition-colors hover:bg-rose-500/15 hover:border-rose-500/50 dark:hover:bg-red-500/15 dark:hover:border-red-500/50 sm:self-center"
               >
                 <Trash2 size={14} />
                 {isId ? "Hapus Data..." : "Erase Data..."}

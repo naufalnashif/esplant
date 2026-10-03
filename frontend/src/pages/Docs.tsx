@@ -24,7 +24,7 @@ export default function Docs() {
             </p>
           </div>
           <div className="rounded-2xl border border-border/70 bg-background/50 p-4">
-            <div className="mb-3 grid size-9 place-items-center rounded-xl bg-emerald-500/12 text-emerald-400">
+            <div className="mb-3 grid size-9 place-items-center rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
               <Cloud size={17} />
             </div>
             <p className="font-semibold text-foreground">Mode Google Sheet</p>
