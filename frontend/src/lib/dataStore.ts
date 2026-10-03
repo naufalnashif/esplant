@@ -1,6 +1,7 @@
 import type { FinanceState } from "./localDb";
 import { loadLocalState, saveLocalState, sanitizeImportedState, createInitialState, createErasedState } from "./localDb";
 import { readState, writeState, isSignedIn, authorize, AuthRequiredError } from "./googleSheets";
+import { isCacheFresh, getCachedState, setCachedState, invalidateCache } from "./sheetsCache";
 
 export type StorageMode = "local" | "sheets";
 /**
@@ -26,6 +27,11 @@ const failureStatus = (error: unknown): SyncStatus => {
 /** Reads the active workspace: the user's spreadsheet when connected, otherwise this browser. */
 export async function loadFinanceState(mode: StorageMode, spreadsheetId: string): Promise<FinanceState> {
   if (mode === "sheets" && spreadsheetId) {
+    // SWR: return cached data immediately if still fresh
+    if (isCacheFresh(spreadsheetId)) {
+      const cached = getCachedState(spreadsheetId);
+      if (cached) return cached;
+    }
     emit("syncing");
     try {
       // Silent-only here: a popup on app start-up would be blocked by the browser anyway.
@@ -33,6 +39,7 @@ export async function loadFinanceState(mode: StorageMode, spreadsheetId: string)
       const remote = await readState(spreadsheetId);
       const clean = sanitizeImportedState(remote) ?? createInitialState();
       await saveLocalState(clean); // offline mirror
+      setCachedState(spreadsheetId, clean); // update SWR cache
       emit("saved");
       return clean;
     } catch (error) {
@@ -58,6 +65,7 @@ async function flush(): Promise<void> {
   try {
     if (!isSignedIn()) await authorize(false);
     await writeState(job.spreadsheetId, job.state);
+    invalidateCache(job.spreadsheetId); // force fresh read on next load
     emit("saved");
     ok = true;
   } catch (error) {
@@ -96,7 +104,7 @@ export async function saveFinanceState(
   if (mode === "sheets" && spreadsheetId) {
     pending = { spreadsheetId, state };
     if (writeTimer) clearTimeout(writeTimer);
-    writeTimer = setTimeout(() => void flush(), 1200);
+    writeTimer = setTimeout(() => void flush(), 1500); // raised from 1200ms for better coalescing
   }
   return state;
 }

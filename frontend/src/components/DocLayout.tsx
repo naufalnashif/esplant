@@ -8,6 +8,7 @@ const NAV = [
   { to: "/faq", label: "FAQ", testid: "doc-nav-faq" },
   { to: "/privacy", label: "Privasi", testid: "doc-nav-privacy" },
   { to: "/terms", label: "Ketentuan", testid: "doc-nav-terms" },
+  { to: "/changelog", label: "Changelog", testid: "doc-nav-changelog" },
 ];
 
 /** Shared shell for the /docs, /faq, /privacy, /terms routes — same brand, one nav. */

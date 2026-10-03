@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { useNavigate, Link } from "react-router-dom";
 import * as XLSX from "xlsx";
+import { toast } from "sonner";
+
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
@@ -27,7 +28,7 @@ import { syncCommitmentsOnAdd, syncCommitmentsOnDelete, syncCommitmentsOnUpdate,
 import { TransactionsPanel } from "@/components/TransactionsPanel";
 import { BudgetGuardrails } from "@/components/BudgetGuardrails";
 import { AccountsPanel } from "@/components/AccountsPanel";
-import { InsightsPanel } from "@/components/InsightsPanel";
+
 import { GoalsPanel } from "@/components/GoalsPanel";
 import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -53,6 +54,7 @@ import {
   type CategorySlice,
 } from "@/lib/categoryChart";
 import { EraseConfirmModal, type EraseOptions } from "@/components/EraseConfirmModal";
+import { APP_VERSION, getUnseenVersion, markVersionSeen, CHANGELOG } from "@/lib/version";
 
 const CURRENCIES: Currency[] = ["IDR", "USD", "EUR", "SGD", "MYR", "JPY", "AUD"];
 // Single source of truth with localDb so a fresh workspace and the dropdowns never disagree.
@@ -228,6 +230,19 @@ export default function Home() {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
     document.documentElement.lang = state.locale === "id" ? "id" : "en";
   }, [state.locale, state.theme]);
+
+  // Version update notification — fires once per new version
+  useEffect(() => {
+    const unseen = getUnseenVersion();
+    if (unseen) {
+      const entry = CHANGELOG[0];
+      toast.info(entry?.summary ?? `_self.manage telah diperbarui ke v${unseen}`, {
+        duration: 6000,
+        action: { label: "Lihat", onClick: () => navigate("/changelog") },
+      });
+      markVersionSeen();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Onboarding gate runs after every hook so the hook order never changes between renders.
   if (!profile || !profile.onboarded) {
@@ -798,7 +813,12 @@ export default function Home() {
           ) : (
             <button key={action.key} type="button" data-testid={`sidebar-${action.key}-button`} onClick={action.onClick} className={className}><Icon size={18} className="shrink-0" /><span>{action.label}</span></button>
           ); })}</nav>
-          <div className="mt-auto rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
+          <div className="mt-auto space-y-3">
+            <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={17} className="text-primary" /><span className="text-xs font-bold">{storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}</span></div><p className="text-xs leading-relaxed text-muted-foreground">{storageMode === "sheets" ? "Setiap perubahan ditulis langsung ke Google Sheet milik Anda." : "Data tersimpan di perangkat ini, bukan di server aplikasi."}</p>{storageMode === "sheets" && sheetUrl ? <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a> : <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>}</div>
+            <Link to="/changelog" data-testid="sidebar-version-badge" className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-card/60 px-3 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+              <Sparkles size={11} className="text-primary" /> v{APP_VERSION}
+            </Link>
+          </div>
         </aside>
         <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ height: "100svh" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
@@ -876,7 +896,7 @@ export default function Home() {
             {tab === "settings" && <SettingsPanel state={state} updateState={updateState} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
           {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
-          {tab === "overview" && <div className="px-4 pb-8 sm:px-6 lg:px-10"><MobileDisclosure testid="mobile-insights-section" title={state.locale === "id" ? "Insight & rekomendasi" : "Insights & recommendations"} hint={state.locale === "id" ? "Kesehatan kas, tren kategori, budget" : "Cash health, category trends, budgets"} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><InsightsPanel state={state} currentMonth={compareMonth} /></MobileDisclosure></div>}
+
           {/* WishlistManager removed — GoalsPanel now manages wishlist inline */}
         </main>
       </div>
