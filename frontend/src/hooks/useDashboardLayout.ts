@@ -26,22 +26,46 @@ export interface UseDashboardLayoutResult {
   isWidgetVisible: (id: WidgetId) => boolean;
 }
 
+const cloneDefaultLayout = (): WidgetLayoutItem[] =>
+  DEFAULT_DASHBOARD_LAYOUT.map((item) => ({ ...item }));
+
 export function useDashboardLayout(): UseDashboardLayoutResult {
   // Load layout dari localStorage dengan sanitasi ketat (kebal parsing error)
   const [layout, setLayout] = useState<WidgetLayoutItem[]>(() => {
     try {
       const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
-      if (!raw) return DEFAULT_DASHBOARD_LAYOUT;
+      if (!raw) return cloneDefaultLayout();
       const parsed = JSON.parse(raw);
       return sanitizeDashboardLayout(parsed);
     } catch {
-      return DEFAULT_DASHBOARD_LAYOUT;
+      return cloneDefaultLayout();
     }
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftLayout, setDraftLayout] = useState<WidgetLayoutItem[]>(layout);
+  const draftLayoutRef = useRef<WidgetLayoutItem[]>(layout);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Synchronous immediate persistence helper (for Save & Reset)
+  const persistImmediately = useCallback((itemsToSave: WidgetLayoutItem[]) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    try {
+      const payload = {
+        version: 1,
+        widgets: itemsToSave,
+        lastModified: new Date().toISOString(),
+      };
+      localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(payload));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("dashboard-layout-change"));
+      }
+    } catch (err) {
+      console.error("Gagal menyimpan konfigurasi dashboard layout:", err);
+    }
+  }, []);
 
   // Debounced persistence helper to prevent localStorage thrashing
   const persistToStorage = useCallback((itemsToSave: WidgetLayoutItem[]) => {
@@ -49,18 +73,9 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      try {
-        const payload = {
-          version: 1,
-          widgets: itemsToSave,
-          lastModified: new Date().toISOString(),
-        };
-        localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(payload));
-      } catch (err) {
-        console.error("Gagal menyimpan konfigurasi dashboard layout:", err);
-      }
+      persistImmediately(itemsToSave);
     }, 350);
-  }, []);
+  }, [persistImmediately]);
 
   // Cleanup debounce on unmount
   useEffect(() => {
@@ -71,27 +86,59 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
     };
   }, []);
 
+  // Cross-component and cross-tab synchronization listener
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleSync = () => {
+      try {
+        const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+        const next = raw ? sanitizeDashboardLayout(JSON.parse(raw)) : cloneDefaultLayout();
+        setLayout(next);
+        setDraftLayout(next);
+        draftLayoutRef.current = next;
+      } catch {
+        const fresh = cloneDefaultLayout();
+        setLayout(fresh);
+        setDraftLayout(fresh);
+        draftLayoutRef.current = fresh;
+      }
+    };
+
+    window.addEventListener("storage", handleSync);
+    window.addEventListener("dashboard-layout-change", handleSync);
+    return () => {
+      window.removeEventListener("storage", handleSync);
+      window.removeEventListener("dashboard-layout-change", handleSync);
+    };
+  }, []);
+
   const startEditing = useCallback(() => {
+    draftLayoutRef.current = layout;
     setDraftLayout(layout);
     setIsEditing(true);
   }, [layout]);
 
   const cancelEditing = useCallback(() => {
+    draftLayoutRef.current = layout;
     setDraftLayout(layout);
     setIsEditing(false);
   }, [layout]);
 
   const saveEditing = useCallback(() => {
-    setLayout(draftLayout);
-    persistToStorage(draftLayout);
+    const toSave = draftLayoutRef.current;
+    setLayout(toSave);
+    persistImmediately(toSave);
     setIsEditing(false);
     toast.success("Tata letak dashboard berhasil disimpan.");
-  }, [draftLayout, persistToStorage]);
+  }, [persistImmediately]);
 
   const setColSpan = useCallback((id: WidgetId, span: DesktopColSpan) => {
-    setDraftLayout((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, desktopColSpan: span } : item))
-    );
+    setDraftLayout((prev) => {
+      const next = prev.map((item) => (item.id === id ? { ...item, desktopColSpan: span } : item));
+      draftLayoutRef.current = next;
+      return next;
+    });
     if (!isEditing) {
       setLayout((prev) => {
         const next = prev.map((item) => (item.id === id ? { ...item, desktopColSpan: span } : item));
@@ -102,9 +149,11 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
   }, [isEditing, persistToStorage]);
 
   const toggleVisibility = useCallback((id: WidgetId) => {
-    setDraftLayout((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item))
-    );
+    setDraftLayout((prev) => {
+      const next = prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item));
+      draftLayoutRef.current = next;
+      return next;
+    });
     if (!isEditing) {
       setLayout((prev) => {
         const next = prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item));
@@ -133,7 +182,11 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
       return nextSorted.map((item, idx) => ({ ...item, order: idx + 1 }));
     };
 
-    setDraftLayout((prev) => calcNext(prev));
+    setDraftLayout((prev) => {
+      const next = calcNext(prev);
+      draftLayoutRef.current = next;
+      return next;
+    });
     if (!isEditing) {
       setLayout((prev) => {
         const next = calcNext(prev);
@@ -164,7 +217,11 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
       return next;
     };
 
-    setDraftLayout((prev) => calcNext(prev));
+    setDraftLayout((prev) => {
+      const next = calcNext(prev);
+      draftLayoutRef.current = next;
+      return next;
+    });
     if (!isEditing) {
       setLayout((prev) => {
         const next = calcNext(prev);
@@ -175,15 +232,21 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
   }, [isEditing, persistToStorage]);
 
   const resetToDefault = useCallback(() => {
-    setDraftLayout(DEFAULT_DASHBOARD_LAYOUT);
-    setLayout(DEFAULT_DASHBOARD_LAYOUT);
-    persistToStorage(DEFAULT_DASHBOARD_LAYOUT);
+    const fresh = cloneDefaultLayout();
+    draftLayoutRef.current = fresh;
+    setDraftLayout(fresh);
+    setLayout(fresh);
+    persistImmediately(fresh);
     toast.success("Tata letak dikembalikan ke default.");
-  }, [persistToStorage]);
+  }, [persistImmediately]);
 
   const showAllWidgets = useCallback(() => {
     const calcNext = (prev: WidgetLayoutItem[]) => prev.map((item) => ({ ...item, isVisible: true }));
-    setDraftLayout((prev) => calcNext(prev));
+    setDraftLayout((prev) => {
+      const next = calcNext(prev);
+      draftLayoutRef.current = next;
+      return next;
+    });
     if (!isEditing) {
       setLayout((prev) => {
         const next = calcNext(prev);

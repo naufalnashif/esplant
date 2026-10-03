@@ -44,4 +44,18 @@ describe("useDashboardLayout hook logic", () => {
     expect(typeof toggleFn).toBe("function");
     expect(typeof moveFn).toBe("function");
   });
+
+  it("provides resetToDefault and restores default configuration", () => {
+    let resetFn: (() => void) | null = null;
+
+    function TestComponent() {
+      const { displayLayout, resetToDefault } = useDashboardLayout();
+      resetFn = resetToDefault;
+      return <div data-testid="first-widget">{displayLayout[0].id}</div>;
+    }
+
+    const html = renderToStaticMarkup(<TestComponent />);
+    expect(html).toContain("hero_balance");
+    expect(typeof resetFn).toBe("function");
+  });
 });

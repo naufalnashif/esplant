@@ -348,15 +348,17 @@ export const MobileChartsCarousel: React.FC<MobileChartsCarouselProps> = ({
 
       {/* Pagination dots */}
       {slides.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 pt-0.5" aria-hidden="true">
+        <div className="flex items-center justify-center gap-1.5 pt-1" aria-hidden="true" data-testid="carousel-dots-indicator">
           {slides.map((s, idx) => (
             <button
               key={s.id}
               type="button"
               onClick={() => scrollToSlide(idx)}
               aria-label={`Ke slide ${idx + 1}`}
-              className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                activeIndex === idx ? "w-5 bg-amber-600 dark:bg-primary" : "w-1.5 bg-slate-300 dark:bg-zinc-700 hover:bg-slate-400"
+              className={`size-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+                activeIndex === idx
+                  ? "bg-amber-600 dark:bg-primary scale-125 shadow-xs"
+                  : "bg-slate-300 dark:bg-zinc-700 hover:bg-slate-400"
               }`}
             />
           ))}
