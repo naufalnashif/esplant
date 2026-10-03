@@ -12,6 +12,7 @@ export interface ManageWidgetsModalProps {
   onMoveWidget: (id: WidgetId, direction: "up" | "down") => void;
   onResetDefault: () => void;
   onShowAll: () => void;
+  onSave?: () => void;
   isId?: boolean;
 }
 
@@ -86,15 +87,24 @@ export const ManageWidgetsModal: React.FC<ManageWidgetsModalProps> = ({
   onMoveWidget,
   onResetDefault,
   onShowAll,
+  onSave,
   isId = true,
 }) => {
   const visibleCount = items.filter((item) => item.isVisible).length;
   const sortedItems = [...items].sort((a, b) => a.order - b.order);
 
+  const handleDone = () => {
+    if (onSave) {
+      onSave();
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <BottomSheet
       open={open}
-      onClose={onClose}
+      onClose={handleDone}
       testid="manage-widgets-sheet"
       title={isId ? "Kelola Tata Letak Widget" : "Manage Dashboard Widgets"}
       eyebrow={isId ? "Kustomisasi Tampilan" : "Layout Customization"}
@@ -130,7 +140,7 @@ export const ManageWidgetsModal: React.FC<ManageWidgetsModalProps> = ({
             <Button
               type="button"
               size="sm"
-              onClick={onClose}
+              onClick={handleDone}
               className="text-xs"
               data-testid="close-manage-widgets-button"
             >
@@ -157,24 +167,25 @@ export const ManageWidgetsModal: React.FC<ManageWidgetsModalProps> = ({
             <div
               key={item.id}
               data-testid={`manage-widget-row-${item.id}`}
-              className={`flex items-center justify-between gap-3 rounded-2xl border p-3 transition-colors ${
+              onClick={() => onToggleVisibility(item.id)}
+              className={`flex items-center justify-between gap-3 rounded-2xl border p-3 transition-colors cursor-pointer select-none ${
                 item.isVisible
-                  ? "border-slate-200/90 bg-white dark:border-border/80 dark:bg-card/75 shadow-xs"
+                  ? "border-slate-200/90 bg-white dark:border-border/80 dark:bg-card/75 shadow-xs hover:border-amber-400/50"
                   : "border-dashed border-slate-300/80 bg-slate-50/60 opacity-60 dark:border-zinc-800 dark:bg-zinc-900/40"
               }`}
             >
               {/* Left: Reorder buttons & Title */}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex flex-col gap-0.5 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
                     disabled={isFirst}
                     onClick={() => onMoveWidget(item.id, "up")}
                     data-testid={`sheet-move-up-${item.id}`}
                     aria-label={`Pindahkan ${title} ke atas`}
-                    className="grid size-6 place-items-center rounded border border-border/80 bg-background text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                    className="grid size-7 place-items-center rounded-lg border border-border/80 bg-background text-muted-foreground hover:text-foreground active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer transition-transform"
                   >
-                    <ArrowUp size={11} />
+                    <ArrowUp size={12} />
                   </button>
                   <button
                     type="button"
@@ -182,13 +193,13 @@ export const ManageWidgetsModal: React.FC<ManageWidgetsModalProps> = ({
                     onClick={() => onMoveWidget(item.id, "down")}
                     data-testid={`sheet-move-down-${item.id}`}
                     aria-label={`Pindahkan ${title} ke bawah`}
-                    className="grid size-6 place-items-center rounded border border-border/80 bg-background text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
+                    className="grid size-7 place-items-center rounded-lg border border-border/80 bg-background text-muted-foreground hover:text-foreground active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer transition-transform"
                   >
-                    <ArrowDown size={11} />
+                    <ArrowDown size={12} />
                   </button>
                 </div>
 
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="grid size-5 place-items-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 dark:bg-zinc-800 dark:text-zinc-300 shrink-0">
                       {index + 1}
@@ -206,16 +217,19 @@ export const ManageWidgetsModal: React.FC<ManageWidgetsModalProps> = ({
                 type="button"
                 role="switch"
                 aria-checked={item.isVisible}
-                onClick={() => onToggleVisibility(item.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleVisibility(item.id);
+                }}
                 data-testid={`sheet-toggle-${item.id}`}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${
-                  item.isVisible ? "bg-amber-600 dark:bg-primary" : "bg-slate-300 dark:bg-zinc-700"
+                className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${
+                  item.isVisible ? "bg-amber-600 dark:bg-primary shadow-xs" : "bg-slate-300 dark:bg-zinc-700"
                 }`}
               >
                 <span className="sr-only">Toggle {title}</span>
                 <span
                   aria-hidden="true"
-                  className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                  className={`pointer-events-none inline-block size-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                     item.isVisible ? "translate-x-5" : "translate-x-0"
                   }`}
                 />

@@ -92,16 +92,30 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
     setDraftLayout((prev) =>
       prev.map((item) => (item.id === id ? { ...item, desktopColSpan: span } : item))
     );
-  }, []);
+    if (!isEditing) {
+      setLayout((prev) => {
+        const next = prev.map((item) => (item.id === id ? { ...item, desktopColSpan: span } : item));
+        persistToStorage(next);
+        return next;
+      });
+    }
+  }, [isEditing, persistToStorage]);
 
   const toggleVisibility = useCallback((id: WidgetId) => {
     setDraftLayout((prev) =>
       prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item))
     );
-  }, []);
+    if (!isEditing) {
+      setLayout((prev) => {
+        const next = prev.map((item) => (item.id === id ? { ...item, isVisible: !item.isVisible } : item));
+        persistToStorage(next);
+        return next;
+      });
+    }
+  }, [isEditing, persistToStorage]);
 
   const moveWidget = useCallback((id: WidgetId, direction: "up" | "down") => {
-    setDraftLayout((prev) => {
+    const calcNext = (prev: WidgetLayoutItem[]) => {
       const sorted = [...prev].sort((a, b) => a.order - b.order);
       const currentIndex = sorted.findIndex((item) => item.id === id);
       if (currentIndex === -1) return prev;
@@ -117,11 +131,20 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
 
       // Reassign sequential orders
       return nextSorted.map((item, idx) => ({ ...item, order: idx + 1 }));
-    });
-  }, []);
+    };
+
+    setDraftLayout((prev) => calcNext(prev));
+    if (!isEditing) {
+      setLayout((prev) => {
+        const next = calcNext(prev);
+        persistToStorage(next);
+        return next;
+      });
+    }
+  }, [isEditing, persistToStorage]);
 
   const reorderWidgets = useCallback((newOrderedIds: WidgetId[]) => {
-    setDraftLayout((prev) => {
+    const calcNext = (prev: WidgetLayoutItem[]) => {
       const itemMap = new Map(prev.map((item) => [item.id, item]));
       const next: WidgetLayoutItem[] = [];
 
@@ -139,21 +162,36 @@ export function useDashboardLayout(): UseDashboardLayoutResult {
       });
 
       return next;
-    });
-  }, []);
+    };
 
-  const resetToDefault = useCallback(() => {
-    setDraftLayout(DEFAULT_DASHBOARD_LAYOUT);
+    setDraftLayout((prev) => calcNext(prev));
     if (!isEditing) {
-      setLayout(DEFAULT_DASHBOARD_LAYOUT);
-      persistToStorage(DEFAULT_DASHBOARD_LAYOUT);
-      toast.success("Tata letak dikembalikan ke default.");
+      setLayout((prev) => {
+        const next = calcNext(prev);
+        persistToStorage(next);
+        return next;
+      });
     }
   }, [isEditing, persistToStorage]);
 
+  const resetToDefault = useCallback(() => {
+    setDraftLayout(DEFAULT_DASHBOARD_LAYOUT);
+    setLayout(DEFAULT_DASHBOARD_LAYOUT);
+    persistToStorage(DEFAULT_DASHBOARD_LAYOUT);
+    toast.success("Tata letak dikembalikan ke default.");
+  }, [persistToStorage]);
+
   const showAllWidgets = useCallback(() => {
-    setDraftLayout((prev) => prev.map((item) => ({ ...item, isVisible: true })));
-  }, []);
+    const calcNext = (prev: WidgetLayoutItem[]) => prev.map((item) => ({ ...item, isVisible: true }));
+    setDraftLayout((prev) => calcNext(prev));
+    if (!isEditing) {
+      setLayout((prev) => {
+        const next = calcNext(prev);
+        persistToStorage(next);
+        return next;
+      });
+    }
+  }, [isEditing, persistToStorage]);
 
   const isWidgetVisible = useCallback(
     (id: WidgetId) => {

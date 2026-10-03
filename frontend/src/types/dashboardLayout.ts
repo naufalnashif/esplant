@@ -105,7 +105,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
   {
     id: "payday_status",
     titleKey: "paydayCycle",
-    isVisible: false,
+    isVisible: true,
     order: 10,
     desktopColSpan: 12,
     minColSpan: 4,
