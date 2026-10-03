@@ -11,9 +11,9 @@ import {
 } from "recharts";
 import {
   ArrowDownLeft, ArrowLeft, ArrowUpRight, Activity, Calendar, CalendarClock, Check, ChevronRight,
-  Landmark, LayoutDashboard, MessageSquarePlus,
+  FileSpreadsheet, Landmark, LayoutDashboard, MessageSquarePlus,
   Moon, MoreHorizontal, Pencil, Plus, ReceiptText, RefreshCw, Settings2, ShieldCheck, Sparkles,
-  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, Zap,
+  Sun, Target, TrendingDown, TrendingUp, UserPlus, WalletCards, X, Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { BrandMark } from "@/components/BrandMark";
+import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
 import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import { MobileNav } from "@/components/mobile/MobileNav";
@@ -146,6 +147,14 @@ export default function Home() {
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showCycleModal, setShowCycleModal] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [dismissSheetsPrompt, setDismissSheetsPrompt] = useState(() => {
+    try {
+      return localStorage.getItem("esplant_dismiss_sheets_prompt") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [transactionForm, setTransactionForm] = useState({
     kind: "expense" as TransactionKind,
     amount: "",
@@ -823,24 +832,63 @@ export default function Home() {
   return (
     <div className="min-h-svh bg-background text-foreground">
       <div className="mx-auto flex min-h-svh max-w-[1600px]">
-        <aside className="sticky top-0 hidden h-svh w-[250px] shrink-0 flex-col border-r border-border/70 bg-card/70 px-5 py-6 backdrop-blur-xl lg:flex" data-testid="desktop-sidebar">
+        <aside className="sticky top-0 hidden h-svh w-[250px] shrink-0 flex-col border-r border-slate-200/80 bg-white px-5 py-6 dark:border-border/70 dark:bg-card/70 dark:backdrop-blur-xl lg:flex" data-testid="desktop-sidebar">
           <div className="mb-10 flex items-center gap-3 px-2"><BrandMark size="lg" showTagline /></div>
-          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Workspace</p>
-          <nav className="space-y-1" data-testid="desktop-navigation">{navItems.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" data-testid={`nav-${item.key}-button`} onClick={() => setTab(item.key)} className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium ${tab === item.key ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"}`}><Icon size={18} className={`shrink-0 ${tab === item.key ? "text-primary" : ""}`} /><span>{item.label}</span>{tab === item.key && <ChevronRight size={14} className="ml-auto text-primary" />}</button>; })}</nav>
-          <nav className="mt-4 space-y-1 border-t border-border/60 pt-4" data-testid="desktop-navigation-secondary">{moreActions.map((action) => { const Icon = action.icon; const className = "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"; return action.href ? (
-            <a key={action.key} href={action.href} target="_blank" rel="noopener noreferrer" data-testid={`sidebar-${action.key}-link`} className={className}><Icon size={18} className="shrink-0" /><span>{action.label}</span></a>
-          ) : (
-            <button key={action.key} type="button" data-testid={`sidebar-${action.key}-button`} onClick={action.onClick} className={className}><Icon size={18} className="shrink-0" /><span>{action.label}</span></button>
-          ); })}</nav>
+          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-muted-foreground">Workspace</p>
+          <nav className="space-y-1" data-testid="desktop-navigation">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = tab === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  data-testid={`nav-${item.key}-button`}
+                  onClick={() => setTab(item.key)}
+                  className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? "bg-amber-100 text-amber-900 font-semibold dark:bg-secondary dark:text-foreground"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-muted-foreground dark:hover:bg-secondary/60 dark:hover:text-foreground"
+                  }`}
+                >
+                  <Icon
+                    size={18}
+                    className={`shrink-0 ${
+                      isActive ? "text-amber-600 dark:text-primary" : "text-slate-500 group-hover:text-slate-900 dark:text-muted-foreground dark:group-hover:text-foreground"
+                    }`}
+                  />
+                  <span>{item.label}</span>
+                  {isActive && <ChevronRight size={14} className="ml-auto text-amber-600 dark:text-primary" />}
+                </button>
+              );
+            })}
+          </nav>
+          <nav className="mt-4 space-y-1 border-t border-slate-200/80 pt-4 dark:border-border/60" data-testid="desktop-navigation-secondary">
+            {moreActions.map((action) => {
+              const Icon = action.icon;
+              const className = "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-muted-foreground dark:hover:bg-secondary/60 dark:hover:text-foreground transition-colors cursor-pointer";
+              return action.href ? (
+                <a key={action.key} href={action.href} target="_blank" rel="noopener noreferrer" data-testid={`sidebar-${action.key}-link`} className={className}>
+                  <Icon size={18} className="shrink-0 text-slate-500 group-hover:text-slate-900 dark:text-muted-foreground dark:group-hover:text-foreground" />
+                  <span>{action.label}</span>
+                </a>
+              ) : (
+                <button key={action.key} type="button" data-testid={`sidebar-${action.key}-button`} onClick={action.onClick} className={className}>
+                  <Icon size={18} className="shrink-0 text-slate-500 group-hover:text-slate-900 dark:text-muted-foreground dark:group-hover:text-foreground" />
+                  <span>{action.label}</span>
+                </button>
+              );
+            })}
+          </nav>
           <div className="mt-auto space-y-3">
-            <div className="rounded-2xl border border-primary/20 bg-primary/8 p-4" data-testid="offline-status-card">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-50/60 p-4 dark:border-primary/20 dark:bg-primary/8" data-testid="offline-status-card">
               <div className="mb-3 flex items-center gap-2">
-                <ShieldCheck size={17} className="text-primary" />
-                <span className="text-xs font-bold">
+                <ShieldCheck size={17} className="text-amber-600 dark:text-primary" />
+                <span className="text-xs font-bold text-slate-900 dark:text-foreground">
                   {isDemoMode ? (state.locale === "id" ? "Sandbox Terisolasi" : "Isolated Sandbox") : storageMode === "sheets" ? "Spreadsheet Anda" : t.offline}
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="text-xs leading-relaxed text-slate-600 dark:text-muted-foreground">
                 {isDemoMode 
                   ? (state.locale === "id" ? "Ruang uji coba data contoh, terpisah sepenuhnya dari data offline produksi." : "Isolated sandbox environment, completely separated from production offline cache.")
                   : storageMode === "sheets" 
@@ -848,23 +896,23 @@ export default function Home() {
                     : "Data tersimpan di perangkat ini, bukan di server aplikasi."}
               </p>
               {isDemoMode ? (
-                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400">
                   <span className="size-1.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse-soft" /> Sandbox active
                 </div>
               ) : storageMode === "sheets" && sheetUrl ? (
-                <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">Buka spreadsheet →</a>
+                <a href={sheetUrl} target="_blank" rel="noopener noreferrer" data-testid="sidebar-open-sheet-link" className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700 hover:underline dark:text-primary">Buka spreadsheet →</a>
               ) : (
-                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary"><span className="size-1.5 rounded-full bg-primary animate-pulse-soft" /> Local only</div>
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-primary"><span className="size-1.5 rounded-full bg-amber-500 animate-pulse-soft dark:bg-primary" /> Local only</div>
               )}
             </div>
-            <Link to="/changelog" data-testid="sidebar-version-badge" className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-card/60 px-3 py-2 text-[10px] font-bold text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-              <Sparkles size={11} className="text-primary" /> v{APP_VERSION}
+            <Link to="/changelog" data-testid="sidebar-version-badge" className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-[10px] font-bold text-slate-600 transition-colors hover:border-amber-400 hover:text-amber-700 dark:border-border/60 dark:bg-card/60 dark:text-muted-foreground dark:hover:border-primary dark:hover:text-primary">
+              <Sparkles size={11} className="text-amber-600 dark:text-primary" /> v{APP_VERSION}
             </Link>
           </div>
         </aside>
         <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
-          <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-border/60 bg-background/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10" data-testid="app-header">
-            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
+          <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-200/80 bg-white/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10 dark:border-border/60 dark:bg-background/85" data-testid="app-header">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} isDemo={isDemoMode} />
               {!healthReport.ok && (
@@ -885,20 +933,20 @@ export default function Home() {
                 onOpenAddTransaction={openAddTransaction}
                 onOpenAddCommitment={() => setShowAddCommitmentModal(true)}
               />
-              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="hidden sm:inline-flex rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-primary hover:text-primary cursor-pointer">{state.locale.toUpperCase()}</button>
-              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="hidden sm:grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:border-primary hover:text-primary sm:size-9 cursor-pointer">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
-              <div className="hidden h-8 w-px bg-border sm:block" />
+              <button type="button" data-testid="language-toggle-button" onClick={() => updateState({ locale: state.locale === "id" ? "en" : "id" })} className="hidden sm:inline-flex rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:border-amber-400 hover:text-amber-800 dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:border-primary dark:hover:text-primary cursor-pointer">{state.locale.toUpperCase()}</button>
+              <button type="button" data-testid="theme-toggle-button" onClick={() => updateState({ theme: state.theme === "dark" ? "light" : "dark" })} className="hidden sm:grid size-8 place-items-center rounded-lg border border-slate-200/80 bg-white text-slate-700 hover:border-amber-400 hover:text-amber-800 sm:size-9 cursor-pointer dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:border-primary dark:hover:text-primary">{state.theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
+              <div className="hidden h-8 w-px bg-slate-200/80 dark:bg-border sm:block" />
               <button
                 type="button"
                 data-testid="header-profile-button"
                 onClick={() => setShowProfileMenu(true)}
                 title={state.locale === "id" ? "Menu Profil & Pengaturan" : "Profile & Settings Menu"}
                 aria-label="Profile"
-                className="flex items-center gap-2 rounded-full border border-border/70 bg-card/60 p-1 sm:px-3 sm:py-1.5 transition-all hover:border-primary/50 hover:bg-secondary/60 active:scale-95 cursor-pointer"
+                className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/90 p-1 sm:px-3 sm:py-1.5 transition-all hover:border-amber-400 hover:bg-slate-50 active:scale-95 cursor-pointer dark:border-border/70 dark:bg-card/60 dark:hover:border-primary/50 dark:hover:bg-secondary/60"
               >
                 <div className="hidden text-right sm:block">
-                  <p className="text-xs font-bold leading-tight text-foreground">{state.profileName || "_self.manage"}</p>
-                  <p className="text-[10px] text-muted-foreground">{isDemoMode ? "Demo Sandbox" : storageMode === "sheets" ? "Google Sheets" : "Local Workspace"}</p>
+                  <p className="text-xs font-bold leading-tight text-slate-900 dark:text-foreground">{state.profileName || "_self.manage"}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-muted-foreground">{isDemoMode ? "Demo Sandbox" : storageMode === "sheets" ? "Google Sheets" : "Local Workspace"}</p>
                 </div>
                 <div className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-primary to-amber-500 text-xs font-extrabold text-primary-foreground sm:size-8 shadow-sm">
                   {(state.profileName || "S").slice(0, 1).toUpperCase()}
@@ -939,6 +987,53 @@ export default function Home() {
                     className="rounded-lg bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
                   >
                     {state.locale === "id" ? "Keluar" : "Exit"}
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Non-intrusive Google Sheets Connect Banner for local users */}
+            {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && (
+              <div
+                data-testid="local-sheets-prompt-banner"
+                className="mb-3 flex flex-col gap-2.5 rounded-xl border border-slate-200/90 bg-white p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-border/60 dark:bg-card/75"
+              >
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400">
+                    <FileSpreadsheet size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-slate-900 dark:text-foreground">
+                      {state.locale === "id" ? "Data Anda saat ini tersimpan lokal di browser" : "Your data is stored locally in this browser"}
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-slate-500 dark:text-muted-foreground">
+                      {state.locale === "id"
+                        ? "Hubungkan Google Spreadsheet agar data aman tersimpan di cloud pribadi Anda dan bisa disinkronkan antar-perangkat."
+                        : "Connect Google Sheets to safely sync your data across devices and keep a private cloud backup."}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                  <Button
+                    size="sm"
+                    data-testid="local-sheets-connect-btn"
+                    onClick={() => setShowConnectModal(true)}
+                    className="h-8 gap-1.5 px-3 text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    <FileSpreadsheet size={13} />
+                    <span>{state.locale === "id" ? "Hubungkan Sheet" : "Connect Sheet"}</span>
+                  </Button>
+                  <button
+                    type="button"
+                    title={state.locale === "id" ? "Tutup notifikasi ini" : "Dismiss notice"}
+                    onClick={() => {
+                      setDismissSheetsPrompt(true);
+                      try {
+                        localStorage.setItem("esplant_dismiss_sheets_prompt", "true");
+                      } catch {}
+                    }}
+                    className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <X size={14} />
                   </button>
                 </div>
               </div>
@@ -1095,14 +1190,24 @@ export default function Home() {
           save({ ...state, customCycleDay: newDay });
         }}
       />
-      {/* First-run onboarding wizard — shown once if onboardingDone is false */}
-      {!state.onboardingDone && (
+      {/* First-run onboarding wizard — shown once if onboardingDone is false and user hasn't set profileName */}
+      {!state.onboardingDone && !state.profileName && !isDemoMode && localStorage.getItem("esplant_onboarding_completed") !== "true" && (
         <OnboardingModal
           state={state}
           onComplete={(profileName, customCycleDay) => {
+            try {
+              localStorage.setItem("esplant_onboarding_completed", "true");
+            } catch {}
             save({ ...state, profileName, customCycleDay, onboardingDone: true });
             toast.success(state.locale === "id" ? `Selamat datang, ${profileName}! 🎉` : `Welcome, ${profileName}! 🎉`);
           }}
+        />
+      )}
+      {/* Connect Google Sheets dialog triggerable from banner or settings */}
+      {showConnectModal && (
+        <ConnectSheetDialog
+          open={showConnectModal}
+          onClose={() => setShowConnectModal(false)}
         />
       )}
     </div>
@@ -1256,16 +1361,17 @@ function Overview({
 
       {/* Main Top Balance & Smart Snapshot */}
       <div className="mb-6 grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        <Card className="relative min-h-[218px] overflow-hidden border border-primary/25 bg-gradient-to-br from-amber-500/10 via-card to-primary/5 p-6 text-foreground shadow-lg shadow-primary/5 sm:p-8 dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10">
-          <div className="absolute -right-20 -top-24 size-72 rounded-full border-[30px] border-primary/10 pointer-events-none dark:border-white/8" />
-          <div className="absolute -bottom-28 right-24 size-56 rounded-full border-[18px] border-primary/8 pointer-events-none dark:border-white/6" />
+        <Card className="relative min-h-[218px] overflow-hidden border border-amber-500/20 bg-white p-6 text-slate-900 shadow-soft sm:p-8 dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10">
+          <div className="absolute -right-20 -top-24 size-72 rounded-full border-[30px] border-amber-500/10 pointer-events-none dark:border-white/8" />
+          <div className="absolute -bottom-28 right-24 size-56 rounded-full border-[18px] border-amber-500/8 pointer-events-none dark:border-white/6" />
+          <div className="absolute -right-16 -top-16 size-60 rounded-full bg-gradient-to-bl from-amber-500/12 via-amber-500/4 to-transparent blur-2xl pointer-events-none dark:hidden" />
           <div className="relative flex h-full flex-col justify-between">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground dark:text-white/65">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-white/65">
                   {t.totalBalance} · {state.baseCurrency}
                 </p>
-                <p className="mt-3 font-heading text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl dark:text-white" data-testid="total-balance-value">
+                <p className="mt-3 font-heading text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl dark:text-white" data-testid="total-balance-value">
                   {formatMoney(totalBalance, state.baseCurrency, state.locale)}
                 </p>
               </div>
@@ -1275,18 +1381,18 @@ function Overview({
                 onClick={() => setAccountsModalOpen(true)}
                 title={isId ? "Klik untuk melihat rincian akun aktif" : "Click to view active accounts breakdown"}
                 aria-label={isId ? "Lihat rincian akun aktif" : "View active accounts breakdown"}
-                className="group relative flex items-center justify-center rounded-xl border border-border/80 bg-background/80 p-2.5 text-foreground shadow-xs transition-all duration-200 hover:scale-105 hover:border-primary/50 hover:bg-secondary active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 cursor-pointer dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/20 dark:focus-visible:ring-white/50"
+                className="group relative flex items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50/80 p-2.5 text-slate-700 shadow-xs transition-all duration-200 hover:scale-105 hover:border-amber-400 hover:bg-slate-100 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 cursor-pointer dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/20 dark:focus-visible:ring-white/50"
               >
                 <WalletCards size={20} className="transition-transform duration-200 group-hover:scale-110" />
                 <span className="sr-only">{isId ? "Lihat akun" : "View accounts"}</span>
               </button>
             </div>
-            <div className="mt-9 flex flex-wrap items-center gap-5 text-xs text-muted-foreground dark:text-white/70">
+            <div className="mt-9 flex flex-wrap items-center gap-5 text-xs text-slate-600 dark:text-white/70">
               <button
                 type="button"
                 data-testid="active-accounts-count-trigger"
                 onClick={() => setAccountsModalOpen(true)}
-                className="flex items-center gap-1.5 transition-colors hover:text-foreground cursor-pointer dark:hover:text-white"
+                className="flex items-center gap-1.5 transition-colors hover:text-slate-900 cursor-pointer dark:hover:text-white"
                 title={isId ? "Klik untuk melihat rincian akun" : "Click to view accounts breakdown"}
               >
                 <span className="size-2 rounded-full bg-emerald-500 dark:bg-emerald-300" /> {state.accounts.length} {isId ? "akun aktif" : "active accounts"}
@@ -1296,7 +1402,7 @@ function Overview({
                   type="button"
                   data-testid="overview-total-savings-trigger"
                   onClick={() => onNavigate("goals")}
-                  className="flex items-center gap-1.5 transition-colors hover:text-foreground cursor-pointer dark:hover:text-white"
+                  className="flex items-center gap-1.5 transition-colors hover:text-slate-900 cursor-pointer dark:hover:text-white"
                   title={isId ? "Lihat tabungan di Goals" : "View savings in Goals"}
                 >
                   <Target size={14} className="text-teal-600 dark:text-teal-300" />
@@ -1310,11 +1416,11 @@ function Overview({
           </div>
         </Card>
 
-        <Card className="border-border/70 bg-card/75 p-6 backdrop-blur-xl">
+        <Card className="border border-slate-200/80 bg-white p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none dark:backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Tren Finansial" : "Smart snapshot"}</p>
-              <p className="mt-2 font-heading text-lg font-bold">{t.cashFlow}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{isId ? "Tren Finansial" : "Smart snapshot"}</p>
+              <p className="mt-2 font-heading text-lg font-bold text-slate-900 dark:text-foreground">{t.cashFlow}</p>
             </div>
             <Badge variant="secondary" className="gap-1">
               <RefreshCw size={12} /> Live
@@ -1331,21 +1437,21 @@ function Overview({
                 </defs>
                 <YAxis hide domain={[0, (dataMax: number) => (dataMax <= 0 ? 100000 : Math.ceil(dataMax * 1.15))]} />
                 <Tooltip
-                  contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }}
+                  contentStyle={tooltipStyle}
                   formatter={(value) => formatMoney(Number(value), state.baseCurrency, state.locale, true)}
                 />
-                <Area type="monotone" dataKey="income" stroke="#2cbb5d" strokeWidth={2} fill="url(#cashflow)" />
-                <Area type="monotone" dataKey="expense" stroke="#ef4743" strokeWidth={2} fill="transparent" />
+                <Area type="monotone" dataKey="income" stroke={isDark ? "#2cbb5d" : "#16a34a"} strokeWidth={2} fill="url(#cashflow)" />
+                <Area type="monotone" dataKey="expense" stroke={isDark ? "#ef4743" : "#e11d48"} strokeWidth={2} fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
+          <div className="mt-3 flex gap-4 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground">
             <span className="flex items-center gap-1">
-              <i className="size-2 rounded-full bg-emerald-400" />
+              <i className="size-2 rounded-full bg-emerald-500" />
               {isId ? "Pemasukan" : "Income"}
             </span>
             <span className="flex items-center gap-1">
-              <i className="size-2 rounded-full bg-red-400" />
+              <i className="size-2 rounded-full bg-rose-500" />
               {isId ? "Pengeluaran" : "Expense"}
             </span>
           </div>
@@ -1355,26 +1461,26 @@ function Overview({
       {/* Filter Periode Dashboard Header */}
       <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">
             {isId ? "Filter Periode Dashboard" : "Dashboard Period Filter"}
           </p>
-          <h2 className="mt-1 font-heading text-xl font-bold">
+          <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">
             {isId ? `Ringkasan Finansial (${periodLabels[periodFilter]})` : `Financial Overview (${periodLabels[periodFilter]})`}
           </h2>
         </div>
 
         {/* Period Selector Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border/70 bg-card/80 p-1.5 shadow-sm" data-testid="period-filter-bar">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-100/90 p-1.5 shadow-xs dark:border-border/70 dark:bg-card/80" data-testid="period-filter-bar">
           {(["today", "week", "month", "year", "all"] as const).map((pKey) => (
             <button
               key={pKey}
               type="button"
               data-testid={`period-filter-${pKey}`}
               onClick={() => setPeriodFilter(pKey)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
                 periodFilter === pKey
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  ? "bg-amber-600 text-white shadow-xs dark:bg-primary dark:text-primary-foreground"
+                  : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground"
               }`}
             >
               {periodLabels[pKey]}
@@ -1397,7 +1503,7 @@ function Overview({
           value={formatMoney(activeStats.income, state.baseCurrency, state.locale, true)}
           note={periodFilter === "month" ? `${incomeDelta >= 0 ? "+" : ""}${incomeDelta}% ${isId ? "vs bulan lalu" : "vs last month"}` : `${periodLabels[periodFilter]}`}
           icon={<TrendingUp size={19} />}
-          tone="indigo"
+          tone="emerald"
         />
         <KpiCard
           label={isId ? `Arus Bersih (${periodLabels[periodFilter]})` : `Net Flow (${periodLabels[periodFilter]})`}
@@ -1426,15 +1532,15 @@ function Overview({
 
       {/* Main Bar Chart & Action Center */}
       <div className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-        <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
+        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t.compare}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.compare}</p>
+              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">
                 {t.category} · {currentMonth}
               </h2>
               {categoryChart.length > 0 && (
-                <p className="mt-1 text-[10px] font-semibold text-muted-foreground" data-testid="category-chart-hint">
+                <p className="mt-1 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground" data-testid="category-chart-hint">
                   {stacked
                     ? `${isId ? "Stacked per kategori" : "Stacked by category"} · ${t.topCategories}`
                     : isId ? "Satu kategori — tampilan berdampingan" : "Single category — side-by-side view"}
@@ -1446,7 +1552,7 @@ function Overview({
               data-testid="comparison-month-select"
               value={currentMonth}
               onChange={(event) => setCompareMonth(event.target.value)}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold outline-none focus:border-primary cursor-pointer"
+              className="rounded-lg border border-slate-200/80 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none focus:border-amber-500 cursor-pointer dark:border-border dark:bg-background dark:text-foreground"
             >
               {monthOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -1498,7 +1604,7 @@ function Overview({
             </ResponsiveContainer>
           </div>
           {stacked ? (
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-semibold text-muted-foreground" data-testid="category-bar-legend">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground" data-testid="category-bar-legend">
               {categoryChart.map((slice, index) => (
                 <span
                   key={slice.key}
@@ -1513,7 +1619,7 @@ function Overview({
               ))}
             </div>
           ) : (
-            <div className="mt-3 flex gap-4 text-[10px] font-semibold text-muted-foreground">
+            <div className="mt-3 flex gap-4 text-[10px] font-semibold text-slate-500 dark:text-muted-foreground">
               <span className="flex items-center gap-1">
                 <i className="size-2 rounded-full bg-primary" />
                 {t.thisMonth}
@@ -1526,45 +1632,45 @@ function Overview({
           )}
         </Card>
 
-        <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
+        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t.actionCenter}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">{t.dueSoon}</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.actionCenter}</p>
+              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{t.dueSoon}</h2>
             </div>
             <button
               type="button"
               data-testid="view-commitments-button"
               onClick={() => onNavigate("commitments")}
-              className="text-xs font-bold text-primary hover:underline"
+              className="text-xs font-bold text-amber-700 hover:underline dark:text-primary cursor-pointer"
             >
               {t.seeAll}
             </button>
           </div>
           <div className="mt-5 space-y-3">
             {upcoming.map((bill) => (
-              <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/35 p-3">
-                <div className="grid size-9 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400">
+              <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-3 dark:border-border/60 dark:bg-background/35">
+                <div className="grid size-9 place-items-center rounded-lg border border-amber-200/60 bg-amber-50 text-amber-700 dark:border-transparent dark:bg-amber-500/12 dark:text-amber-400">
                   <CalendarClock size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{bill.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">{bill.name}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
                     {shortDate(bill.nextDueDate, state.locale)} · {bill.remainingInstallments ? `${bill.remainingInstallments}x ${isId ? "sisa" : "remaining"}` : bill.frequency}
                   </p>
                 </div>
-                <p className="font-data text-xs font-bold">
+                <p className="font-data text-xs font-bold text-slate-900 dark:text-foreground">
                   {formatMoney(toBase(bill.amount, bill.currency, state.exchangeRates), state.baseCurrency, state.locale, true)}
                 </p>
               </div>
             ))}
-            {upcoming.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{t.noData}</p>}
+            {upcoming.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
           </div>
           <button
             type="button"
             data-testid="open-commitment-from-action-button"
             onClick={() => onNavigate("commitments")}
-            className="mt-5 flex w-full items-center justify-between rounded-xl border border-dashed border-primary/35 px-3 py-3 text-left text-xs font-semibold text-primary hover:bg-primary/8"
+            className="mt-5 flex w-full items-center justify-between rounded-xl border border-dashed border-amber-500/35 px-3 py-3 text-left text-xs font-semibold text-amber-700 hover:bg-amber-50/50 dark:border-primary/35 dark:text-primary dark:hover:bg-primary/8 cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <Plus size={15} /> {isId ? "Tambah Tagihan / Cicilan Baru" : "Add Bill / Installment"}
@@ -1575,62 +1681,62 @@ function Overview({
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-        <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
+        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{t.recent}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Riwayat Transaksi" : "Your money trail"}</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.recent}</p>
+              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{isId ? "Riwayat Transaksi" : "Your money trail"}</h2>
             </div>
             <button
               type="button"
               data-testid="view-transactions-button"
               onClick={() => onNavigate("transactions")}
-              className="text-xs font-bold text-primary hover:underline"
+              className="text-xs font-bold text-amber-700 hover:underline dark:text-primary cursor-pointer"
             >
               {t.seeAll}
             </button>
           </div>
           <div className="space-y-1">
             {recent.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-secondary/60">
+              <div key={item.id} className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-slate-100/70 dark:hover:bg-secondary/60">
                 <div
                   className={`grid size-9 place-items-center rounded-lg ${
-                    item.kind === "income" ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400" : "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"
+                    item.kind === "income" ? "border border-emerald-200/60 bg-emerald-50 text-emerald-600 dark:border-transparent dark:bg-emerald-500/12 dark:text-emerald-400" : "border border-rose-200/60 bg-rose-50 text-rose-600 dark:border-transparent dark:bg-red-500/12 dark:text-red-400"
                   }`}
                 >
                   {item.kind === "income" ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{item.description}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="truncate text-sm font-semibold text-slate-900 dark:text-foreground">{item.description}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-muted-foreground">
                     {item.category} · {accountName(item.accountId)} · {shortDate(item.date, state.locale)}
                   </p>
                 </div>
-                <p className={`font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>
+                <p className={`font-data text-xs font-bold ${item.kind === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-foreground"}`}>
                   {item.kind === "income" ? "+" : "−"}
                   {formatMoney(item.baseAmount, state.baseCurrency, state.locale, true)}
                 </p>
               </div>
             ))}
             {recent.length === 0 && (
-              <p className="py-10 text-center text-sm text-muted-foreground" data-testid="recent-empty-state">
+              <p className="py-10 text-center text-sm text-slate-500 dark:text-muted-foreground" data-testid="recent-empty-state">
                 {t.noData}
               </p>
             )}
           </div>
         </Card>
 
-        <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
+        <Card className="border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
-              <h2 className="mt-1 font-heading text-xl font-bold">{isId ? "Distribusi Pengeluaran" : "Where it goes"}</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
+              <h2 className="mt-1 font-heading text-xl font-bold text-slate-900 dark:text-foreground">{isId ? "Distribusi Pengeluaran" : "Where it goes"}</h2>
             </div>
             <button
               type="button"
               data-testid="view-goals-button"
               onClick={() => onNavigate("goals")}
-              className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary"
+              className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-muted-foreground dark:hover:bg-secondary cursor-pointer"
             >
               <MoreHorizontal size={18} />
             </button>
@@ -1651,7 +1757,7 @@ function Overview({
                       <Cell key={item.key} fill={sliceColor(item, index)} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ background: "#282828", border: "1px solid #3c3c3c", borderRadius: 12, fontSize: 11 }} />
+                  <Tooltip contentStyle={tooltipStyle} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -1664,14 +1770,14 @@ function Overview({
                   title={item.isOther ? item.members.join(", ") : item.category}
                 >
                   <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: sliceColor(item, index) }} />
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700 dark:text-foreground">
                     {item.category}
-                    {item.isOther && <span className="ml-1 text-muted-foreground">({item.members.length})</span>}
+                    {item.isOther && <span className="ml-1 text-slate-500 dark:text-muted-foreground">({item.members.length})</span>}
                   </span>
-                  <span className="font-data text-[10px] text-muted-foreground">{percent(item.current, currentSpend)}%</span>
+                  <span className="font-data text-[10px] text-slate-500 dark:text-muted-foreground">{percent(item.current, currentSpend)}%</span>
                 </div>
               ))}
-              {categoryChart.length === 0 && <p className="text-xs text-muted-foreground">{t.noData}</p>}
+              {categoryChart.length === 0 && <p className="text-xs text-slate-500 dark:text-muted-foreground">{t.noData}</p>}
             </div>
           </div>
         </Card>

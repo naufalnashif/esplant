@@ -268,6 +268,7 @@ export const sanitizeImportedState = (raw: unknown): FinanceState | null => {
         ? Math.floor(value.customCycleDay)
         : 1,
     bundles: arr(value.bundles, base.bundles || []),
+    onboardingDone: typeof value.onboardingDone === "boolean" ? value.onboardingDone : Boolean(value.profileName),
   };
   if (!next.accounts.every((item) => item && typeof item.id === "string" && typeof item.name === "string" && Number.isFinite(item.balance))) return null;
   if (!next.transactions.every((item) => item && typeof item.id === "string" && Number.isFinite(item.amount))) return null;
@@ -334,16 +335,23 @@ export const loadLocalState = async (namespace: StorageNamespace = "production")
     db.close();
     if (value) {
       const demo = createInitialState();
-      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
+      const onboardingDone = typeof value.onboardingDone === "boolean" ? value.onboardingDone : Boolean(value.profileName);
+      return withOpeningBalances({ ...demo, ...value, onboardingDone, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   } catch {
-    const fallback = localStorage.getItem(lsKey);
-    if (fallback) {
+    /* indexedDB read failed, try localStorage fallback */
+  }
+
+  const fallback = localStorage.getItem(lsKey);
+  if (fallback) {
+    try {
       const demo = createInitialState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
-      return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
-    }
+      const onboardingDone = typeof value.onboardingDone === "boolean" ? value.onboardingDone : Boolean(value.profileName);
+      return withOpeningBalances({ ...demo, ...value, onboardingDone, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
+    } catch {}
   }
+
   const fresh = withOpeningBalances(createInitialState());
   await saveLocalState(fresh, namespace);
   return fresh;

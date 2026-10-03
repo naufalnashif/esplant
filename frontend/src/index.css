@@ -285,6 +285,11 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Soft multi-layered elevation for light mode cards (MaxSkills aesthetic) */
+.shadow-soft {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 4px 12px 0 rgba(0, 0, 0, 0.03);
+}
+
 
 html, body, #root {
   overflow-x: hidden;

@@ -14,11 +14,11 @@ import { Card } from "@/components/ui/card";
 export type KpiTone = "teal" | "rose" | "amber" | "indigo" | "emerald";
 
 const TONE_CLASSES: Record<KpiTone, string> = {
-  teal: "bg-primary/10 text-primary dark:bg-primary/12",
-  rose: "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/12 dark:text-amber-400",
-  indigo: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400",
-  emerald: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400",
+  teal: "bg-teal-50 text-teal-600 border border-teal-200/60 dark:bg-primary/12 dark:text-primary dark:border-transparent",
+  rose: "bg-rose-50 text-rose-600 border border-rose-200/60 dark:bg-red-500/12 dark:text-red-400 dark:border-transparent",
+  amber: "bg-amber-50 text-amber-700 border border-amber-200/60 dark:bg-amber-500/12 dark:text-amber-400 dark:border-transparent",
+  indigo: "bg-blue-50 text-blue-600 border border-blue-200/60 dark:bg-indigo-500/12 dark:text-indigo-400 dark:border-transparent",
+  emerald: "bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-500/12 dark:text-emerald-400 dark:border-transparent",
 };
 
 export interface KpiCardProps {
@@ -60,7 +60,7 @@ export function KpiCard({
   if (variant === "compact") {
     return (
       <Card
-        className={`group relative min-w-0 overflow-hidden border-border/70 bg-card/75 p-2.5 sm:p-3 shadow-xs backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${onClick ? "cursor-pointer" : ""} ${className}`}
+        className={`group relative min-w-0 overflow-hidden border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border/70 dark:bg-card/75 dark:shadow-xs dark:backdrop-blur-xl ${onClick ? "cursor-pointer" : ""} ${className}`}
         data-testid={testid}
         onClick={onClick}
       >
@@ -69,7 +69,7 @@ export function KpiCard({
             <div className={`grid size-6 shrink-0 place-items-center rounded-md [&>svg]:size-3.5 ${TONE_CLASSES[tone]}`}>
               {icon}
             </div>
-            <p className="truncate text-[11px] font-semibold text-muted-foreground">{label}</p>
+            <p className="truncate text-[11px] font-semibold text-slate-600 dark:text-muted-foreground">{label}</p>
           </div>
           {badge && (
             <Badge variant="outline" className={`shrink-0 text-[9px] px-1 py-0 ${badgeClass ?? ""}`}>
@@ -78,12 +78,12 @@ export function KpiCard({
           )}
         </div>
         <p
-          className={`mt-1 truncate font-data text-base font-bold tracking-tight text-foreground sm:text-lg ${valueClass ?? ""}`}
+          className={`mt-1 truncate font-data text-base font-bold tracking-tight text-slate-900 sm:text-lg dark:text-foreground ${valueClass ?? ""}`}
           data-testid={testid ? `${testid}-value` : undefined}
         >
           {value}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{note}</p>
+        <p className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-muted-foreground">{note}</p>
         {/* Subtle glow orb */}
         <div className="absolute -right-6 -top-6 size-16 rounded-full bg-primary/5 blur-xl transition-transform duration-300 group-hover:scale-150 pointer-events-none" />
       </Card>
@@ -92,7 +92,7 @@ export function KpiCard({
 
   return (
     <Card
-      className={`group relative min-w-0 overflow-hidden border-border/70 bg-card/75 p-3.5 sm:p-5 shadow-sm backdrop-blur-xl transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg ${onClick ? "cursor-pointer" : ""} ${className}`}
+      className={`group relative min-w-0 overflow-hidden border border-slate-200/80 bg-white p-3.5 sm:p-5 shadow-soft transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border/70 dark:bg-card/75 dark:shadow-sm dark:backdrop-blur-xl ${onClick ? "cursor-pointer" : ""} ${className}`}
       data-testid={testid}
       onClick={onClick}
     >
@@ -106,14 +106,14 @@ export function KpiCard({
           </Badge>
         )}
       </div>
-      <p className="truncate text-[11px] sm:text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="truncate text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-muted-foreground">{label}</p>
       <p
-        className={`mt-0.5 sm:mt-1 truncate font-data text-lg font-bold tracking-tight sm:text-2xl ${valueClass ?? ""}`}
+        className={`mt-0.5 sm:mt-1 truncate font-data text-lg font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-foreground ${valueClass ?? ""}`}
         data-testid={testid ? `${testid}-value` : undefined}
       >
         {value}
       </p>
-      <p className="mt-1 sm:mt-2 truncate text-[10px] sm:text-[11px] text-muted-foreground">{note}</p>
+      <p className="mt-1 sm:mt-2 truncate text-[10px] sm:text-[11px] text-slate-500 dark:text-muted-foreground">{note}</p>
       {/* Subtle glow orb that expands on hover */}
       <div className="absolute -right-8 -top-8 size-20 sm:size-24 rounded-full bg-primary/5 blur-2xl transition-transform duration-300 group-hover:scale-150 pointer-events-none" />
     </Card>
