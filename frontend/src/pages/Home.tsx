@@ -912,7 +912,26 @@ export default function Home() {
         </aside>
         <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-200/80 bg-white/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10 dark:border-border/60 dark:bg-background/85" data-testid="app-header">
-            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3"><div className="lg:hidden"><BrandMark size="sm" showText={false} /></div><div className="min-w-0"><p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-muted-foreground sm:hidden">_self.manage</p><p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p></div></div>
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                data-testid="mobile-back-to-landing-button"
+                onClick={() => navigate("/")}
+                title={state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page"}
+                aria-label={state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page"}
+                className="flex lg:hidden items-center justify-center size-8 rounded-lg border border-slate-200/80 bg-white text-slate-700 shadow-2xs hover:border-amber-400 hover:bg-slate-50 active:scale-95 transition-all cursor-pointer dark:border-border/70 dark:bg-card/75 dark:text-muted-foreground shrink-0"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <div className="hidden xs:block lg:hidden">
+                <BrandMark size="sm" showText={false} />
+              </div>
+              <div className="min-w-0">
+                <p className="hidden text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-muted-foreground sm:block">{tab === "overview" ? "_self.manage / Financial Tracker" : `_self.manage / ${activeNavLabel}`}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-muted-foreground sm:hidden">_self.manage</p>
+                <p className="truncate font-heading text-sm font-bold lg:hidden" data-testid="mobile-page-title"><span className="sm:hidden">{activeNavLabel}</span><span className="hidden sm:inline">_self.manage</span></p>
+              </div>
+            </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} isDemo={isDemoMode} />
               {!healthReport.ok && (
@@ -2107,6 +2126,7 @@ function ProfileModal({
   onUpdateProfileName: (name: string) => void;
 }) {
   const isId = state.locale === "id";
+  const navigate = useNavigate();
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(state.profileName || "");
 
@@ -2266,6 +2286,31 @@ function ProfileModal({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {isId ? "Google Sheets, ekspor backup data, dan privasi" : "Google Sheets, data export, and privacy"}
+                </p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </button>
+
+          <button
+            type="button"
+            data-testid="profile-menu-landing"
+            onClick={() => {
+              onClose();
+              navigate("/");
+            }}
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400">
+                <ArrowLeft size={18} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground transition-colors group-hover:text-primary">
+                  {isId ? "Kembali ke Landing Page" : "Back to Landing Page"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isId ? "Buka halaman pengenalan publik aplikasi" : "Open public welcome & feature page"}
                 </p>
               </div>
             </div>

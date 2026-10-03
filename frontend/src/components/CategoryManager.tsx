@@ -1,4 +1,4 @@
-import { Archive, Check, Pencil, Plus, RotateCcw, Search, Trash2, Tag } from "lucide-react";
+import { Archive, Check, Pencil, Plus, RotateCcw, Search, Trash2, Tag, ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -9,11 +9,14 @@ import { MAX_ACTIVE_CATEGORIES } from "@/lib/localDb";
 export function CategoryManager({
   state,
   onSave,
+  defaultOpen = false,
 }: {
   state: FinanceState;
   onSave: (categories: Category[]) => void;
+  defaultOpen?: boolean;
 }) {
   const isId = state.locale === "id";
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -102,22 +105,27 @@ export function CategoryManager({
   const hiddenCount = filteredCategories.length - visibleCategories.length;
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5" data-testid="category-manager">
+    <section className="rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl sm:p-5 overflow-hidden transition-all" data-testid="category-manager">
       {/* Header & Controls */}
-      <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="w-full text-left flex items-center justify-between gap-3 cursor-pointer group"
+        data-testid="toggle-category-manager-button"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary shrink-0">
             <Tag size={16} />
           </div>
-          <div>
-            <h2 className="font-heading text-lg font-bold">{isId ? "Kelola Kategori Transaksi" : "Manage Categories"}</h2>
-            <p className="text-xs text-muted-foreground">
+          <div className="min-w-0">
+            <h2 className="font-heading text-base sm:text-lg font-bold truncate">{isId ? "Kelola Kategori Transaksi" : "Manage Categories"}</h2>
+            <p className="text-xs text-muted-foreground hidden sm:block truncate">
               {isId ? "Kategori aktif & jumlah transaksi terikat" : "Active categories & transaction count"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Badge
             variant={atLimit ? "outline" : "secondary"}
             className={`text-xs ${atLimit ? "border-amber-500/50 text-amber-500" : ""}`}
@@ -126,15 +134,20 @@ export function CategoryManager({
             {activeCount}/{MAX_ACTIVE_CATEGORIES} {isId ? "Aktif" : "Active"}
           </Badge>
           {state.categories.some((c) => c.archived) && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
+            <Badge variant="outline" className="text-xs text-muted-foreground hidden sm:inline-flex">
               {state.categories.filter((c) => c.archived).length} {isId ? "Diarsipkan" : "Archived"}
             </Badge>
           )}
+          <div className="grid size-7 place-items-center rounded-lg border border-border/70 bg-background/50 text-muted-foreground">
+            <ChevronDown size={15} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+          </div>
         </div>
-      </div>
+      </button>
 
-      {/* Action Bar: Create & Search/Filter */}
-      <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+      {isOpen && (
+        <div className="mt-4 pt-4 border-t border-border/40 animate-rise-in">
+          {/* Action Bar: Create & Search/Filter */}
+          <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
         <div className="flex gap-2">
           <input
             data-testid="category-new-input"
@@ -311,15 +324,17 @@ export function CategoryManager({
             : `Show All (${filteredCategories.length})`}
         </button>
       )}
-      {showAllCategories && filteredCategories.length > CATEGORY_PREVIEW_COUNT && (
-        <button
-          type="button"
-          data-testid="category-show-less-button"
-          onClick={() => setShowAllCategories(false)}
-          className="mt-3 w-full rounded-lg border border-dashed border-border/70 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-        >
-          {isId ? "Sembunyikan" : "Show Less"}
-        </button>
+          {showAllCategories && filteredCategories.length > CATEGORY_PREVIEW_COUNT && (
+            <button
+              type="button"
+              data-testid="category-show-less-button"
+              onClick={() => setShowAllCategories(false)}
+              className="mt-3 w-full rounded-lg border border-dashed border-border/70 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+            >
+              {isId ? "Sembunyikan" : "Show Less"}
+            </button>
+          )}
+        </div>
       )}
     </section>
   );
