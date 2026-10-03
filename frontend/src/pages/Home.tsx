@@ -916,7 +916,7 @@ export default function Home() {
               <button
                 type="button"
                 data-testid="mobile-back-to-landing-button"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/landing")}
                 title={state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page"}
                 aria-label={state.locale === "id" ? "Kembali ke Landing Page" : "Back to Landing Page"}
                 className="flex lg:hidden items-center justify-center size-8 rounded-lg border border-slate-200/80 bg-white text-slate-700 shadow-2xs hover:border-amber-400 hover:bg-slate-50 active:scale-95 transition-all cursor-pointer dark:border-border/70 dark:bg-card/75 dark:text-muted-foreground shrink-0"
@@ -2297,7 +2297,7 @@ function ProfileModal({
             data-testid="profile-menu-landing"
             onClick={() => {
               onClose();
-              navigate("/");
+              navigate("/landing");
             }}
             className="group flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-card/60 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99] cursor-pointer"
           >

@@ -7,6 +7,7 @@ import type * as React from "react";
 import { formatMoney } from "@/lib/formatters";
 import { SectionHeading, ShowMoreButton, KpiCard, EmptyState } from "@/components/shared";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
+import { DetailCard } from "@/components/mobile/DetailCard";
 
 interface AccountLabels {
   accounts: string;
@@ -48,6 +49,7 @@ export function AccountsPanel({
   const [form, setForm] = useState({ name: "", brand: "", type: "debit" as Account["type"], balance: "", currency: state.baseCurrency as Currency });
   const isId = state.locale === "id";
   const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const showModal = isAddOpen || Boolean(showAddModalFromParent);
   const closeModal = () => {
@@ -263,59 +265,112 @@ export function AccountsPanel({
               </div>
             </div>
           )}
-          {visibleAccounts.map((account, index) => (
-            <div
-              key={account.id}
-              className={`rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl ${
-                index >= ACCOUNT_PREVIEW_COUNT ? "animate-rise-in" : ""
-              }`}
-              data-testid={`account-card-${account.id}`}
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`grid size-10 place-items-center rounded-xl ${
+          {/* ── Mobile View: Tap-to-expand DetailCard (hide & show details) ── */}
+          <div className="space-y-2 md:hidden" data-testid="accounts-mobile-list">
+            {visibleAccounts.map((account, index) => {
+              const open = expandedAccountId === account.id;
+              return (
+                <DetailCard
+                  key={account.id}
+                  testid={`account-card-${account.id}`}
+                  icon={<WalletCards size={16} />}
+                  iconClass={
                     account.type === "credit"
                       ? "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"
                       : account.type === "ewallet"
                         ? "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400"
                         : "bg-primary/12 text-primary"
-                  }`}
+                  }
+                  title={account.name}
+                  subtitle={`${account.brand} · ${typeLabel[account.type]}`}
+                  value={formatMoney(account.balance, account.currency, state.locale)}
+                  valueClass={account.balance < 0 ? "text-rose-600 dark:text-red-400" : undefined}
+                  open={open}
+                  onToggle={() => setExpandedAccountId(open ? null : account.id)}
+                  className={index >= ACCOUNT_PREVIEW_COUNT ? "animate-rise-in" : ""}
                 >
-                  <WalletCards size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-semibold">{account.name}</p>
-                    <Badge variant="outline" className="text-[9px]">{typeLabel[account.type]}</Badge>
+                  <div className="flex items-center justify-between border-t border-border/50 pt-2 text-xs">
+                    <Badge variant="outline" className="text-[10px]">{account.currency}</Badge>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        data-testid={`account-adjust-${account.id}-button`}
+                        onClick={() => onAdjust(account)}
+                        className="text-[11px] font-bold text-primary hover:underline py-1 px-2.5 rounded-lg hover:bg-primary/10 transition-colors"
+                      >
+                        {labels.adjust}
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`account-remove-${account.id}-button`}
+                        onClick={() => onRemove(account)}
+                        className="flex items-center gap-1 text-[11px] font-bold text-rose-600 dark:text-red-400 hover:underline py-1 px-2.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+                      >
+                        <Trash2 size={12} />{labels.remove}
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {account.brand} · {account.currency}
+                </DetailCard>
+              );
+            })}
+          </div>
+
+          {/* ── Desktop/Tablet View: Full Cards ── */}
+          <div className="hidden md:block space-y-3" data-testid="accounts-desktop-list">
+            {visibleAccounts.map((account, index) => (
+              <div
+                key={account.id}
+                className={`rounded-2xl border border-border/70 bg-card/75 p-4 shadow-sm backdrop-blur-xl ${
+                  index >= ACCOUNT_PREVIEW_COUNT ? "animate-rise-in" : ""
+                }`}
+                data-testid={`account-card-desktop-${account.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`grid size-10 place-items-center rounded-xl ${
+                      account.type === "credit"
+                        ? "bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400"
+                        : account.type === "ewallet"
+                          ? "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/12 dark:text-indigo-400"
+                          : "bg-primary/12 text-primary"
+                    }`}
+                  >
+                    <WalletCards size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{account.name}</p>
+                      <Badge variant="outline" className="text-[9px]">{typeLabel[account.type]}</Badge>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {account.brand} · {account.currency}
+                    </p>
+                  </div>
+                  <p className={`font-data text-sm font-bold ${account.balance < 0 ? "text-rose-600 dark:text-red-400" : ""}`}>
+                    {formatMoney(account.balance, account.currency, state.locale)}
                   </p>
                 </div>
-                <p className={`font-data text-sm font-bold ${account.balance < 0 ? "text-rose-600 dark:text-red-400" : ""}`}>
-                  {formatMoney(account.balance, account.currency, state.locale)}
-                </p>
+                <div className="mt-4 flex items-center justify-end gap-2 border-t border-border/50 pt-3">
+                  <button
+                    type="button"
+                    data-testid={`account-adjust-desktop-${account.id}-button`}
+                    onClick={() => onAdjust(account)}
+                    className="text-[10px] font-bold text-primary hover:underline"
+                  >
+                    {labels.adjust}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid={`account-remove-desktop-${account.id}-button`}
+                    onClick={() => onRemove(account)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-red-400 hover:underline"
+                  >
+                    <Trash2 size={12} />{labels.remove}
+                  </button>
+                </div>
               </div>
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-border/50 pt-3">
-                <button
-                  type="button"
-                  data-testid={`account-adjust-${account.id}-button`}
-                  onClick={() => onAdjust(account)}
-                  className="text-[10px] font-bold text-primary hover:underline"
-                >
-                  {labels.adjust}
-                </button>
-                <button
-                  type="button"
-                  data-testid={`account-remove-${account.id}-button`}
-                  onClick={() => onRemove(account)}
-                  className="flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-red-400 hover:underline"
-                >
-                  <Trash2 size={12} />{labels.remove}
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           {state.accounts.length === 0 && (
             <EmptyState

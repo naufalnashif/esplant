@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/formatters";
 import type { FinanceState, SavingsGoal } from "@/lib/localDb";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
+import { DetailCard } from "@/components/mobile/DetailCard";
 import {
   SectionHeading,
   KpiCard,
@@ -227,6 +228,7 @@ export function GoalsPanel({
   // Filtered savings goals list
   const GOALS_PREVIEW_LIMIT = 3;
   const [showAllGoals, setShowAllGoals] = useState(false);
+  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null);
 
   const filteredGoals = useMemo(() => {
     return state.savings.filter((g) =>
@@ -403,7 +405,114 @@ export function GoalsPanel({
 
         {filteredGoals.length > 0 ? (
           <>
-            <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {/* ── Mobile View: Tap-to-expand DetailCard (hide & show details) ── */}
+            <div className="space-y-2 md:hidden" data-testid="goals-mobile-list">
+              {visibleGoals.map((goal) => {
+                const progress = goal.target > 0
+                  ? Math.min(100, Math.round((goal.saved / goal.target) * 100))
+                  : 0;
+                const isCompleted = goal.target > 0 && goal.saved >= goal.target;
+                const open = expandedGoalId === goal.id;
+
+                return (
+                  <DetailCard
+                    key={goal.id}
+                    testid={`savings-goal-card-${goal.id}`}
+                    icon={<Target size={16} />}
+                    iconClass={
+                      isCompleted
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-primary/12 text-primary"
+                    }
+                    title={goal.name}
+                    subtitle={
+                      goal.targetDate
+                        ? `${isId ? "Target" : "Due"}: ${goal.targetDate}`
+                        : undefined
+                    }
+                    value={formatMoney(goal.saved, state.baseCurrency, state.locale)}
+                    valueSub={
+                      isCompleted
+                        ? (isId ? "✓ Tercapai" : "✓ Reached")
+                        : `${progress}%`
+                    }
+                    valueClass={isCompleted ? "text-emerald-600 dark:text-emerald-400" : undefined}
+                    progress={progress}
+                    progressColor={isCompleted ? "bg-emerald-500 dark:bg-emerald-400" : "bg-primary"}
+                    open={open}
+                    onToggle={() => setExpandedGoalId(open ? null : goal.id)}
+                    className="border-border/70 bg-card/60"
+                  >
+                    <div className="space-y-3 pt-1">
+                      {/* Breakdown Numbers */}
+                      <div className="flex items-baseline justify-between rounded-xl border border-border/50 bg-background/50 p-2.5 text-xs">
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block">{isId ? "Terkumpul" : "Saved"}</span>
+                          <span className="font-data font-bold text-foreground">
+                            {formatMoney(goal.saved, state.baseCurrency, state.locale)}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-muted-foreground block">{isId ? "Target" : "Target"}</span>
+                          <span className="font-data font-semibold text-muted-foreground">
+                            {formatMoney(goal.target, state.baseCurrency, state.locale)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setCommitTargetGoal(goal);
+                            setCommitAmount("");
+                            setCommitDirection("deposit");
+                          }}
+                          data-testid={`savings-commit-btn-${goal.id}`}
+                          className="h-8 gap-1.5 text-xs font-semibold hover:border-primary/50 hover:bg-primary/10 hover:text-primary flex-1"
+                        >
+                          <Wallet size={13} />
+                          {isId ? "Tabung / Ambil" : "Deposit / Withdraw"}
+                        </Button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            title={isId ? "Edit goal" : "Edit goal"}
+                            data-testid={`savings-edit-${goal.id}-button`}
+                            onClick={() => {
+                              setEditingGoal(goal);
+                              setEditGoalForm({
+                                name: goal.name,
+                                target: String(goal.target),
+                                targetDate: goal.targetDate || "",
+                              });
+                            }}
+                            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            title={isId ? "Hapus goal" : "Delete goal"}
+                            data-testid={`savings-delete-${goal.id}-button`}
+                            onClick={() => setDeletingGoal(goal)}
+                            className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-rose-500/10 hover:text-rose-600 dark:hover:bg-red-400/10 dark:hover:text-red-400"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </DetailCard>
+                );
+              })}
+            </div>
+
+            {/* ── Desktop/Tablet View: Multi-column Card Grid ── */}
+            <div className="hidden md:grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3" data-testid="goals-desktop-grid">
               {visibleGoals.map((goal) => (
                 <SavingsGoalCard
                   key={goal.id}
