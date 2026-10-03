@@ -37,6 +37,7 @@ import {
   GlassCard,
   SectionCardHeader,
   EmptyState,
+  ShowMoreButton,
 } from "@/components/shared";
 
 // ─── Sub-component: Savings Goal Card ───────────────────────────────────────
@@ -224,11 +225,22 @@ export function GoalsPanel({
   const overallProgress = targetTotal > 0 ? Math.min(100, Math.round((savedTotal / targetTotal) * 100)) : 0;
 
   // Filtered savings goals list
+  const GOALS_PREVIEW_LIMIT = 3;
+  const [showAllGoals, setShowAllGoals] = useState(false);
+
   const filteredGoals = useMemo(() => {
     return state.savings.filter((g) =>
       searchQuery ? g.name.toLowerCase().includes(searchQuery.toLowerCase()) : true,
     );
   }, [state.savings, searchQuery]);
+
+  const hasMoreGoals = filteredGoals.length > GOALS_PREVIEW_LIMIT;
+  const visibleGoals = useMemo(() => {
+    if (showAllGoals || searchQuery.trim() !== "") {
+      return filteredGoals;
+    }
+    return filteredGoals.slice(0, GOALS_PREVIEW_LIMIT);
+  }, [filteredGoals, showAllGoals, searchQuery]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -373,33 +385,64 @@ export function GoalsPanel({
           eyebrow={isId ? "Target Tabungan" : "Savings Buckets"}
           title={isId ? "Celengan & Tabungan Masa Depan" : "Goals & Savings"}
           mb="mb-4"
+          action={
+            hasMoreGoals && !searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setShowAllGoals((v) => !v)}
+                className="text-xs font-semibold text-primary hover:underline transition-colors"
+                data-testid="goals-quick-toggle-btn"
+              >
+                {showAllGoals
+                  ? (isId ? "Tampilkan lebih sedikit" : "Show less")
+                  : (isId ? `Lihat semua (${filteredGoals.length})` : `Show all (${filteredGoals.length})`)}
+              </button>
+            ) : undefined
+          }
         />
 
         {filteredGoals.length > 0 ? (
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredGoals.map((goal) => (
-              <SavingsGoalCard
-                key={goal.id}
-                goal={goal}
-                locale={state.locale}
-                baseCurrency={state.baseCurrency}
-                onCommitClick={(g) => {
-                  setCommitTargetGoal(g);
-                  setCommitAmount("");
-                  setCommitDirection("deposit");
-                }}
-                onEdit={(g) => {
-                  setEditingGoal(g);
-                  setEditGoalForm({
-                    name: g.name,
-                    target: String(g.target),
-                    targetDate: g.targetDate || "",
-                  });
-                }}
-                onDelete={(g) => setDeletingGoal(g)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleGoals.map((goal) => (
+                <SavingsGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  locale={state.locale}
+                  baseCurrency={state.baseCurrency}
+                  onCommitClick={(g) => {
+                    setCommitTargetGoal(g);
+                    setCommitAmount("");
+                    setCommitDirection("deposit");
+                  }}
+                  onEdit={(g) => {
+                    setEditingGoal(g);
+                    setEditGoalForm({
+                      name: g.name,
+                      target: String(g.target),
+                      targetDate: g.targetDate || "",
+                    });
+                  }}
+                  onDelete={(g) => setDeletingGoal(g)}
+                />
+              ))}
+            </div>
+
+            {hasMoreGoals && !searchQuery.trim() && (
+              <div className="mt-4">
+                <ShowMoreButton
+                  expanded={showAllGoals}
+                  onToggle={() => setShowAllGoals((v) => !v)}
+                  count={filteredGoals.length}
+                  label={{
+                    show: isId ? "Lihat semua celengan goal" : "Show all goals",
+                    hide: isId ? "Tampilkan lebih sedikit" : "Show less",
+                  }}
+                  testid="goals-toggle-show-all"
+                />
+              </div>
+            )}
+          </>
         ) : (
           <EmptyState
             message={

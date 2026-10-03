@@ -237,7 +237,7 @@ export function AccountsPanel({
               data-testid="account-card-savings-goals"
             >
               <div className="flex items-start gap-3">
-                <div className="grid size-10 place-items-center rounded-xl bg-teal-500/10 text-teal-600 dark:bg-teal-500/12 dark:text-teal-400 border border-teal-500/25">
+                <div className="grid size-10 place-items-center rounded-xl bg-teal-500/10 text-teal-600 dark:bg-teal-500/12 dark:text-teal-400 border border-teal-500/25 shrink-0">
                   <Target size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -253,7 +253,7 @@ export function AccountsPanel({
                     {state.savings.length} {isId ? "target impian aktif · Non-transaksi langsung" : "active goals · Non-transactional"}
                   </p>
                 </div>
-                <p className="font-data text-sm font-bold text-teal-600 dark:text-teal-400">
+                <p className="font-data text-sm font-bold text-teal-600 dark:text-teal-400 shrink-0">
                   {formatMoney(totalSavings, state.baseCurrency, state.locale)}
                 </p>
               </div>

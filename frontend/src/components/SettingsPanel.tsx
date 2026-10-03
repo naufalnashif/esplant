@@ -16,6 +16,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Calendar,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,89 @@ import { SectionHeading } from "@/components/shared";
 
 type SettingsSubTab = "general" | "data";
 
-function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (nextState: FinanceState) => void }) {
+function CollapsibleSettingsCard({
+  icon,
+  iconTone = "primary",
+  eyebrow,
+  title,
+  subtitle,
+  badge,
+  isOpen,
+  onToggle,
+  testid,
+  children,
+  className = "",
+}: {
+  icon: React.ReactNode;
+  iconTone?: "primary" | "emerald" | "rose" | "amber";
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  testid?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const iconToneClasses = {
+    primary: "bg-primary/12 text-primary",
+    emerald: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+    rose: "bg-rose-500/12 text-rose-600 dark:text-red-400",
+    amber: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+  }[iconTone];
+
+  return (
+    <Card className={`border-border/70 bg-card/75 overflow-hidden transition-all backdrop-blur-xl ${className}`} data-testid={testid}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-3 hover:bg-card/90 active:bg-secondary/20 transition-colors cursor-pointer group"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`grid size-10 place-items-center rounded-xl shrink-0 ${iconToneClasses}`}>
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground truncate">
+              {eyebrow}
+            </p>
+            <h2 className="font-heading text-base sm:text-lg font-bold text-foreground truncate">{title}</h2>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground hidden sm:block truncate mt-0.5">{subtitle}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {badge}
+          <div className="grid size-7 place-items-center rounded-lg border border-border/70 bg-background/50 text-muted-foreground group-hover:text-foreground transition-colors">
+            <ChevronDown size={15} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+          </div>
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 border-t border-border/40 animate-rise-in">
+          <div className="pt-4">
+            {children}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function DatabaseConnectionCard({
+  state,
+  save,
+  isOpen,
+  onToggle,
+}: {
+  state: FinanceState;
+  save: (nextState: FinanceState) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
   const { profile, spreadsheetId, sheetUrl, disconnectSheet, lastSyncTime, syncStatus, needsReconnect, reconnect } = useStorage();
   const [isSyncing, setIsSyncing] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
@@ -67,29 +150,28 @@ function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (n
   };
 
   return (
-    <Card className="border-border/70 bg-card/75 p-5 sm:p-6" data-testid="database-connection-card">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/12 text-emerald-500">
-            <Database size={18} />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Storage</p>
-            <h2 className="font-heading text-xl font-bold">{isId ? "Koneksi Spreadsheet" : "Spreadsheet Connection"}</h2>
-          </div>
-        </div>
+    <CollapsibleSettingsCard
+      testid="database-connection-card"
+      icon={<Database size={18} />}
+      iconTone="emerald"
+      eyebrow="Storage"
+      title={isId ? "Koneksi Spreadsheet" : "Spreadsheet Connection"}
+      subtitle={connected ? profile?.spreadsheetName || "Google Sheets" : isId ? "Mode Lokal (browser)" : "Local Mode (browser)"}
+      badge={
         <span
           data-testid="storage-mode-badge"
-          className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${
+          className={`rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
             connected
               ? "border border-emerald-500/30 bg-emerald-500/15 text-emerald-500"
               : "border border-blue-500/30 bg-blue-500/15 text-blue-500"
           }`}
         >
-          {connected ? "Google Sheets" : isId ? "Lokal (browser)" : "Local (browser)"}
+          {connected ? "Google Sheets" : isId ? "Lokal" : "Local"}
         </span>
-      </div>
-
+      }
+      isOpen={isOpen}
+      onToggle={onToggle}
+    >
       {connected ? (
         <div className="space-y-4">
           <div className="rounded-xl border border-border/60 bg-background/50 p-3.5">
@@ -212,36 +294,40 @@ function DatabaseConnectionCard({ state, save }: { state: FinanceState; save: (n
       )}
 
       <ConnectSheetDialog open={showConnect} onClose={() => setShowConnect(false)} />
-    </Card>
+    </CollapsibleSettingsCard>
   );
 }
 
 function FinancialCycleCard({
   state,
   updateState,
+  isOpen,
+  onToggle,
 }: {
   state: FinanceState;
   updateState: (updates: Partial<FinanceState>) => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }) {
   const isId = state.locale === "id";
   const cycleDay = state.customCycleDay || 1;
 
   return (
-    <Card className="border-border/70 bg-card/75 p-5 sm:p-6" data-testid="settings-financial-cycle-card">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">
-          <Calendar size={18} />
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {isId ? "Siklus Akuntansi" : "Accounting Cycle"}
-          </p>
-          <h2 className="font-heading text-xl font-bold">
-            {isId ? "Siklus Keuangan" : "Financial Cycle"}
-          </h2>
-        </div>
-      </div>
-
+    <CollapsibleSettingsCard
+      testid="settings-financial-cycle-card"
+      icon={<Calendar size={18} />}
+      iconTone="primary"
+      eyebrow={isId ? "Siklus Akuntansi" : "Accounting Cycle"}
+      title={isId ? "Siklus Keuangan" : "Financial Cycle"}
+      subtitle={isId ? `Pencatatan dimulai setiap tgl ${cycleDay}` : `Cycle starts on day ${cycleDay}`}
+      badge={
+        <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+          {isId ? `Tgl ${cycleDay}` : `Day ${cycleDay}`}
+        </span>
+      }
+      isOpen={isOpen}
+      onToggle={onToggle}
+    >
       <p className="mb-4 text-xs text-muted-foreground">
         {isId
           ? "Pilih tanggal awal pembukuan sesuai tanggal gajian Anda agar ringkasan, grafik, dan guardrail budget sinkron."
@@ -253,7 +339,7 @@ function FinancialCycleCard({
         onChange={(val) => updateState({ customCycleDay: val })}
         locale={state.locale}
       />
-    </Card>
+    </CollapsibleSettingsCard>
   );
 }
 
@@ -288,6 +374,47 @@ export function SettingsPanel({
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>("general");
   const jsonFileRef = useRef<HTMLInputElement>(null);
   const xlsxFileRef = useRef<HTMLInputElement>(null);
+
+  // Collapsible cards state
+  const [openCards, setOpenCards] = useState<Record<string, boolean>>({
+    profile: true,
+    cycle: false,
+    database: false,
+    category: false,
+    export: true,
+    import: false,
+    danger: false,
+    health: false,
+  });
+
+  const toggleCard = (cardId: string) => {
+    setOpenCards((prev) => ({ ...prev, [cardId]: !prev[cardId] }));
+  };
+
+  const areCurrentTabCardsAllOpen = activeSubTab === "general"
+    ? Boolean(openCards.profile && openCards.cycle && openCards.database && openCards.category)
+    : Boolean(openCards.export && openCards.import && openCards.danger && openCards.health);
+
+  const toggleAllCurrentTab = () => {
+    const nextState = !areCurrentTabCardsAllOpen;
+    if (activeSubTab === "general") {
+      setOpenCards((prev) => ({
+        ...prev,
+        profile: nextState,
+        cycle: nextState,
+        database: nextState,
+        category: nextState,
+      }));
+    } else {
+      setOpenCards((prev) => ({
+        ...prev,
+        export: nextState,
+        import: nextState,
+        danger: nextState,
+        health: nextState,
+      }));
+    }
+  };
 
   const subTabs = [
     {
@@ -436,20 +563,39 @@ export function SettingsPanel({
         })}
       </div>
 
+      {/* Quick toggle for all cards */}
+      <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+        <span>{isId ? "Ketuk kartu untuk buka/tutup" : "Tap any card to expand/collapse"}</span>
+        <button
+          type="button"
+          onClick={toggleAllCurrentTab}
+          className="font-semibold text-primary hover:underline transition-colors cursor-pointer"
+          data-testid="toggle-all-settings-cards"
+        >
+          {areCurrentTabCardsAllOpen
+            ? (isId ? "Tutup Semua Kartu" : "Collapse All Cards")
+            : (isId ? "Buka Semua Kartu" : "Expand All Cards")}
+        </button>
+      </div>
+
       {/* General Tab */}
       {activeSubTab === "general" && (
-        <div className="space-y-6">
-          <Card className="border-border/70 bg-card/75 p-5 sm:p-6">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">
-                <Settings2 size={18} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Local profile</p>
-                <h2 className="font-heading text-xl font-bold">{isId ? "Profil & Preferensi Tampilan" : "Profile & Display Preferences"}</h2>
-              </div>
-            </div>
-
+        <div className="space-y-4">
+          <CollapsibleSettingsCard
+            testid="settings-profile-card"
+            icon={<Settings2 size={18} />}
+            iconTone="primary"
+            eyebrow="Local profile"
+            title={isId ? "Profil & Preferensi Tampilan" : "Profile & Display Preferences"}
+            subtitle={`${state.profileName || "_self.manage"} • ${state.locale.toUpperCase()} • ${state.theme === "dark" ? "Dark" : "Light"}`}
+            badge={
+              <span className="rounded-full border border-border bg-secondary/50 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                {state.locale.toUpperCase()} • {state.theme === "dark" ? "Dark" : "Light"}
+              </span>
+            }
+            isOpen={Boolean(openCards.profile)}
+            onToggle={() => toggleCard("profile")}
+          >
             <div className="grid gap-6 md:grid-cols-2">
               <div className="flex items-center justify-between rounded-xl border border-border/70 bg-background/50 p-3.5">
                 <div className="min-w-0">
@@ -522,39 +668,52 @@ export function SettingsPanel({
                 </div>
               </div>
             </div>
-          </Card>
+          </CollapsibleSettingsCard>
 
           {/* Financial Accounting & Payday Cycle */}
-          <FinancialCycleCard state={state} updateState={updateState} />
+          <FinancialCycleCard
+            state={state}
+            updateState={updateState}
+            isOpen={Boolean(openCards.cycle)}
+            onToggle={() => toggleCard("cycle")}
+          />
 
           {/* Database & Storage Mode */}
-          <DatabaseConnectionCard state={state} save={save} />
+          <DatabaseConnectionCard
+            state={state}
+            save={save}
+            isOpen={Boolean(openCards.database)}
+            onToggle={() => toggleCard("database")}
+          />
 
           {/* Category Management */}
-          <CategoryManager state={state} onSave={(categories) => updateState({ categories })} />
+          <CategoryManager
+            state={state}
+            onSave={(categories) => updateState({ categories })}
+            defaultOpen={Boolean(openCards.category)}
+          />
         </div>
       )}
 
       {/* Data Tab — redesigned for mobile */}
       {activeSubTab === "data" && (
-        <div className="space-y-5">
-
+        <div className="space-y-4">
           {/* ── Export Section ── */}
-          <Card className="border-border/70 bg-card/75 p-4 sm:p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="grid size-9 place-items-center rounded-xl bg-primary/12 text-primary shrink-0">
-                <Download size={16} />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                  {isId ? "Ekspor & Cetak" : "Export & Print"}
-                </p>
-                <h2 className="font-heading text-base font-bold sm:text-lg">
-                  {isId ? "Unduh Data & Laporan" : "Download Data & Reports"}
-                </h2>
-              </div>
-            </div>
-
+          <CollapsibleSettingsCard
+            testid="settings-export-card"
+            icon={<Download size={18} />}
+            iconTone="primary"
+            eyebrow={isId ? "Ekspor & Cetak" : "Export & Print"}
+            title={isId ? "Unduh Data & Laporan" : "Download Data & Reports"}
+            subtitle={isId ? "Ekspor XLSX, JSON Backup, PDF" : "Export XLSX, JSON Backup, PDF"}
+            badge={
+              <span className="rounded-full border border-border bg-secondary/50 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                XLSX • JSON • PDF
+              </span>
+            }
+            isOpen={Boolean(openCards.export)}
+            onToggle={() => toggleCard("export")}
+          >
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               <Button
                 data-testid="export-xlsx-button"
@@ -590,24 +749,24 @@ export function SettingsPanel({
                 ? "XLSX berisi 7 sheet: Transaksi, Akun, Tagihan, Utang, Tabungan, Wishlist, dan Budget — cocok untuk dibuka di Excel atau Google Sheets."
                 : "XLSX contains 7 sheets: Transactions, Accounts, Bills, Debts, Savings, Wishlist, and Budgets — open in Excel or Google Sheets."}
             </p>
-          </Card>
+          </CollapsibleSettingsCard>
 
           {/* ── Import Section ── */}
-          <Card className="border-border/70 bg-card/75 p-4 sm:p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="grid size-9 place-items-center rounded-xl bg-emerald-500/12 text-emerald-500 shrink-0">
-                <Upload size={16} />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                  {isId ? "Impor & Restore" : "Import & Restore"}
-                </p>
-                <h2 className="font-heading text-base font-bold sm:text-lg">
-                  {isId ? "Impor Data ke Aplikasi" : "Import Data to App"}
-                </h2>
-              </div>
-            </div>
-
+          <CollapsibleSettingsCard
+            testid="settings-import-card"
+            icon={<Upload size={18} />}
+            iconTone="emerald"
+            eyebrow={isId ? "Impor & Restore" : "Import & Restore"}
+            title={isId ? "Impor Data ke Aplikasi" : "Import Data to App"}
+            subtitle={isId ? "Impor file XLSX atau JSON backup" : "Import XLSX or JSON backup"}
+            badge={
+              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                XLSX • JSON
+              </span>
+            }
+            isOpen={Boolean(openCards.import)}
+            onToggle={() => toggleCard("import")}
+          >
             {/* Hidden file inputs */}
             <input
               ref={jsonFileRef}
@@ -703,27 +862,30 @@ export function SettingsPanel({
                 </li>
               </ul>
             </div>
-          </Card>
+          </CollapsibleSettingsCard>
 
           {/* ── Danger Zone ── */}
-          <Card className="border-rose-500/20 bg-rose-500/3 dark:border-red-500/20 dark:bg-red-500/3 p-4 sm:p-6">
+          <CollapsibleSettingsCard
+            testid="settings-danger-card"
+            icon={<AlertTriangle size={18} />}
+            iconTone="rose"
+            eyebrow={isId ? "Zona Berbahaya" : "Danger Zone"}
+            title={isId ? "Hapus Data" : "Erase Data"}
+            subtitle={isId ? "Pilih kategori data yang ingin dihapus" : "Select data categories to erase"}
+            badge={
+              <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-xs font-semibold text-rose-600 dark:text-red-400">
+                {isId ? "Reset" : "Reset"}
+              </span>
+            }
+            isOpen={Boolean(openCards.danger)}
+            onToggle={() => toggleCard("danger")}
+          >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="grid size-9 place-items-center rounded-xl bg-rose-500/10 text-rose-600 dark:bg-red-500/12 dark:text-red-400 shrink-0 mt-0.5">
-                  <AlertTriangle size={16} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-600 dark:text-red-400">
-                    {isId ? "Zona Berbahaya" : "Danger Zone"}
-                  </p>
-                  <h2 className="font-heading text-base font-bold">{isId ? "Hapus Data" : "Erase Data"}</h2>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground max-w-sm">
-                    {isId
-                      ? "Pilih kategori data yang ingin dihapus. Pengaturan, profil, dan kategori selalu dipertahankan."
-                      : "Select which data categories to erase. Settings, profile, and categories are always kept."}
-                  </p>
-                </div>
-              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground max-w-sm">
+                {isId
+                  ? "Pilih kategori data yang ingin dihapus. Pengaturan, profil, dan kategori selalu dipertahankan."
+                  : "Select which data categories to erase. Settings, profile, and categories are always kept."}
+              </p>
               <button
                 type="button"
                 data-testid="erase-all-button"
@@ -734,10 +896,14 @@ export function SettingsPanel({
                 {isId ? "Hapus Data..." : "Erase Data..."}
               </button>
             </div>
-          </Card>
+          </CollapsibleSettingsCard>
 
           {/* Data Health Panel */}
-          <DataHealthPanel state={state} onSave={save} />
+          <DataHealthPanel
+            state={state}
+            onSave={save}
+            defaultOpen={Boolean(openCards.health)}
+          />
         </div>
       )}
     </div>

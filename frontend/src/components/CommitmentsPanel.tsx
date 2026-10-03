@@ -52,8 +52,8 @@ export function CommitmentsPanel({
   showAddModalFromParent?: boolean;
   onCloseAddModalFromParent?: () => void;
 }) {
-  const BILL_PREVIEW_COUNT = 6;
-  const DEBT_PREVIEW_COUNT = 6;
+  const BILL_PREVIEW_COUNT = 3;
+  const DEBT_PREVIEW_COUNT = 3;
   const isId = state.locale === "id";
 
   // Tab filter: all | bills | debts

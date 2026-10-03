@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/formatters";
 import type { Budget, FinanceState } from "@/lib/localDb";
 import { getCycleKeyForTransaction } from "@/lib/analyticsEngine";
+import { ShowMoreButton } from "@/components/shared";
 
 interface BudgetLabels {
   budgets: string;
@@ -43,6 +44,10 @@ export function BudgetGuardrails({
   const [limit, setLimit] = useState("");
   const cycleDay = state.customCycleDay || 1;
 
+  const BUDGETS_PREVIEW_LIMIT = 3;
+  const [showAllBudgets, setShowAllBudgets] = useState(false);
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+
   const rows = state.budgets.map((budget) => {
     const spent = state.transactions
       .filter((item) => {
@@ -57,6 +62,9 @@ export function BudgetGuardrails({
     const status: "over" | "warning" | "safe" = ratio >= 1 ? "over" : ratio >= 0.8 ? "warning" : "safe";
     return { ...budget, spent, limitBase, ratio, status };
   });
+
+  const hasMoreBudgets = rows.length > BUDGETS_PREVIEW_LIMIT;
+  const visibleRows = showAllBudgets ? rows : rows.slice(0, BUDGETS_PREVIEW_LIMIT);
 
   const totalLimit = rows.reduce((sum, row) => sum + row.limitBase, 0);
   const totalSpent = rows.reduce((sum, row) => sum + row.spent, 0);
@@ -103,16 +111,30 @@ export function BudgetGuardrails({
             <p className="mt-1 text-xs text-muted-foreground">{labels.budgetSubtitle}</p>
           </div>
         </div>
-        <div className="text-left sm:text-right">
-          <p className="font-data text-lg font-bold">{formatMoney(totalSpent, state.baseCurrency, state.locale, true)}</p>
-          <p className="text-[10px] text-muted-foreground">
-            of {formatMoney(totalLimit, state.baseCurrency, state.locale, true)} allocated
-          </p>
+        <div className="flex items-center justify-between sm:flex-col sm:items-end gap-1">
+          <div className="text-left sm:text-right">
+            <p className="font-data text-lg font-bold">{formatMoney(totalSpent, state.baseCurrency, state.locale, true)}</p>
+            <p className="text-[10px] text-muted-foreground">
+              of {formatMoney(totalLimit, state.baseCurrency, state.locale, true)} allocated
+            </p>
+          </div>
+          {hasMoreBudgets && (
+            <button
+              type="button"
+              onClick={() => setShowAllBudgets((v) => !v)}
+              className="text-xs font-semibold text-primary hover:underline transition-colors ml-auto sm:ml-0"
+              data-testid="budgets-quick-toggle-btn"
+            >
+              {showAllBudgets
+                ? (isId ? "Tampilkan lebih sedikit" : "Show less")
+                : (isId ? `Lihat semua (${rows.length})` : `Show all (${rows.length})`)}
+            </button>
+          )}
         </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {rows.map((row) => (
+        {visibleRows.map((row) => (
           <BudgetRow
             key={row.id}
             row={row}
@@ -130,36 +152,77 @@ export function BudgetGuardrails({
         )}
       </div>
 
-      <form
-        onSubmit={submit}
-        className="mt-5 grid gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 sm:grid-cols-[1fr_1fr_auto]"
-        data-testid="budget-form"
-      >
-        <select
-          data-testid="budget-category-select"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-          className="h-10 rounded-lg border border-border bg-background px-3 text-xs font-semibold"
+      {hasMoreBudgets && (
+        <div className="mt-3">
+          <ShowMoreButton
+            expanded={showAllBudgets}
+            onToggle={() => setShowAllBudgets((v) => !v)}
+            count={rows.length}
+            label={{
+              show: isId ? "Lihat semua guardrail budget" : "Show all budget guardrails",
+              hide: isId ? "Tampilkan lebih sedikit" : "Show less",
+            }}
+            testid="budgets-toggle-show-all"
+          />
+        </div>
+      )}
+
+      {/* Add form / collapsible trigger */}
+      {!isAddFormOpen && rows.length > 0 ? (
+        <button
+          type="button"
+          data-testid="toggle-add-budget-btn"
+          onClick={() => setIsAddFormOpen(true)}
+          className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/35 bg-primary/5 text-xs font-bold text-primary transition-all hover:bg-primary/10 active:scale-[0.99]"
         >
-          {categories.map((item) => (
-            <option key={item} value={item} label={item} />
-          ))}
-        </select>
-        <input
-          data-testid="budget-limit-input"
-          required
-          type="number"
-          min="1"
-          value={limit}
-          onChange={(event) => setLimit(event.target.value)}
-          placeholder={labels.monthlyLimit}
-          className="h-10 rounded-lg border border-border bg-background px-3 font-data text-xs outline-none focus:border-primary"
-        />
-        <Button data-testid="budget-save-button" type="submit" className="h-10 gap-2">
           <Plus size={15} />
-          {labels.setBudget}
-        </Button>
-      </form>
+          <span>{isId ? "+ Atur Budget Kategori" : "+ Set Category Budget"}</span>
+        </button>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            submit(e);
+            if (rows.length > 0) setIsAddFormOpen(false);
+          }}
+          className="mt-4 grid gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 sm:grid-cols-[1fr_1fr_auto_auto]"
+          data-testid="budget-form"
+        >
+          <select
+            data-testid="budget-category-select"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className="h-10 rounded-lg border border-border bg-background px-3 text-xs font-semibold"
+          >
+            {categories.map((item) => (
+              <option key={item} value={item} label={item} />
+            ))}
+          </select>
+          <input
+            data-testid="budget-limit-input"
+            required
+            type="number"
+            min="1"
+            value={limit}
+            onChange={(event) => setLimit(event.target.value)}
+            placeholder={labels.monthlyLimit}
+            className="h-10 rounded-lg border border-border bg-background px-3 font-data text-xs outline-none focus:border-primary"
+          />
+          <Button data-testid="budget-save-button" type="submit" className="h-10 gap-2">
+            <Plus size={15} />
+            {labels.setBudget}
+          </Button>
+          {rows.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsAddFormOpen(false)}
+              className="h-10 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {isId ? "Tutup" : "Close"}
+            </Button>
+          )}
+        </form>
+      )}
     </section>
   );
 }
