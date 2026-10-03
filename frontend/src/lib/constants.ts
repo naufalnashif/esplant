@@ -98,6 +98,7 @@ export const APP_LINKS = {
     faq: "/faq",
     terms: "/terms",
     privacy: "/privacy",
+    changelog: "/changelog",
   },
 } as const;
 

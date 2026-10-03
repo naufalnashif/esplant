@@ -13,6 +13,7 @@ import { Reveal } from "@/components/Reveal";
 import { useDocumentTitle } from "@/hooks/useReveal";
 import { useStorage } from "@/lib/storageContext";
 import { APP_LINKS } from "@/lib/constants";
+import { APP_VERSION } from "@/lib/version";
 
 /** @deprecated Import `APP_LINKS.TESTER_REGISTER` from `@/lib/constants` instead. */
 export const TESTER_URL = APP_LINKS.TESTER_REGISTER;
@@ -183,10 +184,22 @@ function HeroTypewriter() {
     return () => clearTimeout(timer);
   }, [text, isDeleting, index]);
 
+  // The longest phrase reserves the box dimensions — prevents any layout shift
+  const longestPhrase = TYPEWRITER_PHRASES.reduce(
+    (a, b) => (a.length >= b.length ? a : b), ""
+  );
+
   return (
-    <span className="text-primary inline-block min-h-[1.15em]">
-      {text}
-      <span className="animate-pulse ml-0.5 inline-block text-primary font-normal">|</span>
+    <span className="text-primary relative inline-block align-bottom">
+      {/* Ghost: invisible but reserves full width + height, zero CLS */}
+      <span aria-hidden="true" className="invisible block whitespace-pre-wrap select-none">
+        {longestPhrase}
+      </span>
+      {/* Visible overlay: absolutely positioned within the reserved box */}
+      <span className="absolute inset-0 whitespace-pre-wrap" aria-live="polite">
+        {text}
+        <span className="animate-pulse ml-0.5 inline-block text-primary font-normal">|</span>
+      </span>
     </span>
   );
 }
@@ -549,7 +562,12 @@ export function LandingPreview({ autoConnect = false }: { autoConnect?: boolean 
         <div className="border-t border-border/50">
           <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-2 px-4 py-4 pb-[max(16px,env(safe-area-inset-bottom))] text-[11px] font-semibold text-muted-foreground sm:px-8 sm:py-5">
             <p>© {new Date().getFullYear()} _self.manage</p>
-            <p className="flex items-center gap-2"><Lock size={12} /> Versi Beta · Data tetap milik Anda</p>
+            <div className="flex items-center gap-3">
+              <Link to="/changelog" data-testid="landing-version-badge" className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/20">
+                v{APP_VERSION}
+              </Link>
+              <p className="flex items-center gap-2"><Lock size={12} /> Versi Beta · Data tetap milik Anda</p>
+            </div>
           </div>
         </div>
       </footer>

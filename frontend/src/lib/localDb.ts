@@ -131,9 +131,17 @@ export interface FinanceState {
   schedule: ScheduleSettings;
 }
 
-const DB_NAME = "esplant-financial-tracker";
-const STORE_NAME = "finance-state";
-const STATE_KEY = "current";
+export type StorageNamespace = "production" | "demo";
+
+export const DB_NAME = "esplant-financial-tracker";
+export const DB_VERSION = 2;
+export const STORE_PROD = "finance-state";
+export const STORE_DEMO = "finance-state-demo";
+export const STORE_NOTIFICATIONS = "notifications";
+export const STATE_KEY = "current";
+
+const LS_PROD_KEY = "nusa-artha-state";
+const LS_DEMO_KEY = "nusa-artha-state-demo";
 
 /*
   Eight starter categories only — deliberately small so a fresh workspace is not flooded with
@@ -250,30 +258,44 @@ export const sanitizeImportedState = (raw: unknown): FinanceState | null => {
   return withOpeningBalances(next);
 };
 
-const openDb = (): Promise<IDBDatabase> =>
+export const openDb = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     if (typeof indexedDB === "undefined") {
       reject(new Error("IndexedDB unavailable"));
       return;
     }
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_PROD)) {
+        db.createObjectStore(STORE_PROD);
+      }
+      if (!db.objectStoreNames.contains(STORE_DEMO)) {
+        db.createObjectStore(STORE_DEMO);
+      }
+      if (!db.objectStoreNames.contains(STORE_NOTIFICATIONS)) {
+        db.createObjectStore(STORE_NOTIFICATIONS, { keyPath: "id" });
+      }
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("Unable to open local storage"));
   });
 
-export const saveLocalState = async (state: FinanceState): Promise<void> => {
+export const saveLocalState = async (state: FinanceState, namespace: StorageNamespace = "production"): Promise<void> => {
+  const storeName = namespace === "demo" ? STORE_DEMO : STORE_PROD;
+  const lsKey = namespace === "demo" ? LS_DEMO_KEY : LS_PROD_KEY;
+
   // 1. Always update localStorage immediately for instant synchronous recovery
   try {
-    localStorage.setItem("nusa-artha-state", JSON.stringify(state));
+    localStorage.setItem(lsKey, JSON.stringify(state));
   } catch {}
 
   // 2. Also update IndexedDB for structured local storage
   try {
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, "readwrite");
-      transaction.objectStore(STORE_NAME).put(state, STATE_KEY);
+      const transaction = db.transaction(storeName, "readwrite");
+      transaction.objectStore(storeName).put(state, STATE_KEY);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
@@ -281,12 +303,15 @@ export const saveLocalState = async (state: FinanceState): Promise<void> => {
   } catch {}
 };
 
-/** This browser's copy of the workspace. Never leaves the device. */
-export const loadLocalState = async (): Promise<FinanceState> => {
+/** This browser's copy of the workspace. Supports production cache and isolated sandbox demo cache. */
+export const loadLocalState = async (namespace: StorageNamespace = "production"): Promise<FinanceState> => {
+  const storeName = namespace === "demo" ? STORE_DEMO : STORE_PROD;
+  const lsKey = namespace === "demo" ? LS_DEMO_KEY : LS_PROD_KEY;
+
   try {
     const db = await openDb();
     const value = await new Promise<FinanceState | undefined>((resolve, reject) => {
-      const request = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(STATE_KEY);
+      const request = db.transaction(storeName, "readonly").objectStore(storeName).get(STATE_KEY);
       request.onsuccess = () => resolve(request.result as FinanceState | undefined);
       request.onerror = () => reject(request.error);
     });
@@ -296,7 +321,7 @@ export const loadLocalState = async (): Promise<FinanceState> => {
       return withOpeningBalances({ ...demo, ...value, budgets: value.budgets ?? demo.budgets, categories: value.categories ?? demo.categories });
     }
   } catch {
-    const fallback = localStorage.getItem("nusa-artha-state");
+    const fallback = localStorage.getItem(lsKey);
     if (fallback) {
       const demo = createInitialState();
       const value = JSON.parse(fallback) as Partial<FinanceState>;
@@ -304,6 +329,23 @@ export const loadLocalState = async (): Promise<FinanceState> => {
     }
   }
   const fresh = withOpeningBalances(createInitialState());
-  await saveLocalState(fresh);
+  await saveLocalState(fresh, namespace);
   return fresh;
+};
+
+/** Wipes the demo sandbox storage completely without touching production data. */
+export const clearDemoState = async (): Promise<void> => {
+  try {
+    localStorage.removeItem(LS_DEMO_KEY);
+  } catch {}
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_DEMO, "readwrite");
+      transaction.objectStore(STORE_DEMO).delete(STATE_KEY);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  } catch {}
 };

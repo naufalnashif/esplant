@@ -14,6 +14,7 @@ export interface UserProfile {
   spreadsheetName: string;
   storageMode: StorageMode;
   onboarded: boolean;
+  isDemoMode?: boolean;
 }
 
 export interface StorageContextValue {
@@ -34,11 +35,18 @@ export interface StorageContextValue {
   needsReconnect: boolean;
   /** Interactive re-auth for the "Terputus, klik untuk sync ulang" affordance. */
   reconnect: () => Promise<boolean>;
+  /** True when running inside the isolated demo sandbox. */
+  isDemoMode: boolean;
+  /** Enters isolated demo sandbox mode without touching existing production profile or cache. */
+  enterDemoMode: () => void;
+  /** Exits demo sandbox mode and restores previous production profile if any. */
+  exitDemoMode: () => void;
 }
 
 const StorageContext = createContext<StorageContextValue | undefined>(undefined);
 const PROFILE_KEY = "selfmanage-user-profile";
 const LEGACY_PROFILE_KEY = "esplan-user-profile";
+const SAVED_PROD_PROFILE_KEY = "selfmanage-saved-prod-profile";
 const LAST_SYNC_KEY = "selfmanage-last-sync";
 
 const readProfile = (): UserProfile | null => {
@@ -54,6 +62,7 @@ const readProfile = (): UserProfile | null => {
       spreadsheetName: String(parsed.spreadsheetName ?? ""),
       storageMode: parsed.spreadsheetId ? "sheets" : "local",
       onboarded: Boolean(parsed.onboarded),
+      isDemoMode: Boolean(parsed.isDemoMode),
     };
   } catch {
     return null;
@@ -173,6 +182,42 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
   }, []);
 
+  const isDemoMode = Boolean(profile?.isDemoMode);
+
+  const enterDemoMode = useCallback(() => {
+    // If user has a real (non-demo) profile, save it so we can restore on exit
+    if (profile && !profile.isDemoMode) {
+      try {
+        localStorage.setItem(SAVED_PROD_PROFILE_KEY, JSON.stringify(profile));
+      } catch {}
+    }
+    const demoProfile: UserProfile = {
+      nickname: "Demo Sandbox",
+      spreadsheetId: "",
+      spreadsheetName: "",
+      storageMode: "local",
+      onboarded: true,
+      isDemoMode: true,
+    };
+    setProfile(demoProfile);
+  }, [profile, setProfile]);
+
+  const exitDemoMode = useCallback(() => {
+    try {
+      const savedProd = localStorage.getItem(SAVED_PROD_PROFILE_KEY);
+      localStorage.removeItem(SAVED_PROD_PROFILE_KEY);
+      if (savedProd) {
+        const parsed = JSON.parse(savedProd) as UserProfile;
+        if (parsed && typeof parsed === "object") {
+          setProfile({ ...parsed, isDemoMode: false });
+          return;
+        }
+      }
+    } catch {}
+    // If no saved production profile existed, clear profile (un-onboards, back to landing)
+    clearProfile();
+  }, [clearProfile, setProfile]);
+
   const value = useMemo<StorageContextValue>(() => {
     const spreadsheetId = profile?.storageMode === "sheets" ? profile.spreadsheetId : "";
     return {
@@ -190,8 +235,11 @@ export const StorageProvider: React.FC<{ children: ReactNode }> = ({ children })
       restoringSession,
       needsReconnect: Boolean(spreadsheetId) && !googleSignedIn && !restoringSession,
       reconnect,
+      isDemoMode,
+      enterDemoMode,
+      exitDemoMode,
     };
-  }, [profile, setProfile, clearProfile, disconnectSheet, syncStatus, syncDetail, lastSyncTime, googleSignedIn, restoringSession, reconnect]);
+  }, [profile, setProfile, clearProfile, disconnectSheet, syncStatus, syncDetail, lastSyncTime, googleSignedIn, restoringSession, reconnect, isDemoMode, enterDemoMode, exitDemoMode]);
 
   return <StorageContext.Provider value={value}>{children}</StorageContext.Provider>;
 };

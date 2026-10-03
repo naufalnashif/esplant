@@ -14,6 +14,7 @@ const Docs = lazy(() => import("@/pages/Docs"));
 const Faq = lazy(() => import("@/pages/Faq"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
+const Changelog = lazy(() => import("@/pages/Changelog"));
 
 function DashboardLoader() {
   return (
@@ -39,22 +40,14 @@ function DashboardGate() {
   );
 }
 
-// /demo — one tap into local (IndexedDB) mode, then straight to the dashboard.
+// /demo — switch context to isolated sandbox demo, then straight to the dashboard.
 function EnterDemo() {
-  const { profile, setProfile } = useStorage();
+  const { enterDemoMode } = useStorage();
   const navigate = useNavigate();
   useEffect(() => {
-    if (!profile?.onboarded) {
-      setProfile({
-        nickname: profile?.nickname ?? "",
-        spreadsheetId: "",
-        spreadsheetName: "",
-        storageMode: "local",
-        onboarded: true,
-      });
-    }
+    enterDemoMode();
     navigate("/dashboard", { replace: true });
-  }, [profile, setProfile, navigate]);
+  }, [enterDemoMode, navigate]);
   return <DashboardLoader />;
 }
 
@@ -75,11 +68,18 @@ function NotFound() {
   );
 }
 
+// "/" — if the user has already onboarded, skip landing and go to dashboard.
+function LandingGate() {
+  const { profile } = useStorage();
+  if (profile?.onboarded) return <Navigate to="/dashboard" replace />;
+  return <LandingPreview />;
+}
+
 export default function App() {
   return (
     <StorageProvider>
       <Routes>
-        <Route path="/" element={<LandingPreview />} />
+        <Route path="/" element={<LandingGate />} />
         <Route path="/connect" element={<LandingPreview autoConnect />} />
         <Route path="/demo" element={<EnterDemo />} />
         <Route path="/dashboard/*" element={<DashboardGate />} />
@@ -87,6 +87,7 @@ export default function App() {
         <Route path="/faq" element={<DocPage><Faq /></DocPage>} />
         <Route path="/terms" element={<DocPage><Terms /></DocPage>} />
         <Route path="/privacy" element={<DocPage><Privacy /></DocPage>} />
+        <Route path="/changelog" element={<DocPage><Changelog /></DocPage>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster position="top-center" theme="dark" richColors closeButton />

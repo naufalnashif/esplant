@@ -2,7 +2,7 @@
   "name": "_self.manage — Money, made clear",
   "short_name": "_self.manage",
   "description": "Pelacak keuangan pribadi yang menyimpan data di Google Spreadsheet Anda sendiri atau di browser.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",
