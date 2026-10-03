@@ -16,13 +16,12 @@ import {
   RefreshCw,
   AlertTriangle,
   Calendar,
-  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { FinanceState } from "@/lib/localDb";
-import { getCycleRangeForDate } from "@/lib/analyticsEngine";
+import { FinancialCycleSelector } from "@/components/FinancialCycleSelector";
 import { CategoryManager } from "@/components/CategoryManager";
 import { DataHealthPanel } from "@/components/DataHealthPanel";
 import { useStorage } from "@/lib/storageContext";
@@ -226,28 +225,6 @@ function FinancialCycleCard({
 }) {
   const isId = state.locale === "id";
   const cycleDay = state.customCycleDay || 1;
-  const activeRange = getCycleRangeForDate(new Date(), cycleDay);
-  const isCustomPreset = cycleDay === 1 || cycleDay === 25 || cycleDay === 28;
-  const [showCustomInput, setShowCustomInput] = useState(!isCustomPreset);
-  const [localCustom, setLocalCustom] = useState(String(cycleDay));
-
-  const SEGMENTS = [
-    { value: 1, label: "Tgl 1", sublabel: isId ? "Kalender" : "Calendar" },
-    { value: 25, label: "Tgl 25", sublabel: isId ? "Gajian" : "Payday" },
-    { value: 28, label: "Tgl 28", sublabel: isId ? "Gajian" : "Payday" },
-    { value: -1, label: isId ? "Kustom" : "Custom", sublabel: "" },
-  ];
-
-  const activeSegment = !isCustomPreset ? -1 : cycleDay;
-
-  const handleSegment = (val: number) => {
-    if (val === -1) {
-      setShowCustomInput(true);
-    } else {
-      setShowCustomInput(false);
-      updateState({ customCycleDay: val });
-    }
-  };
 
   return (
     <Card className="border-border/70 bg-card/75 p-5 sm:p-6" data-testid="settings-financial-cycle-card">
@@ -267,73 +244,15 @@ function FinancialCycleCard({
 
       <p className="mb-4 text-xs text-muted-foreground">
         {isId
-          ? "Pilih tanggal awal pembukuan sesuai tanggal gajian Anda."
-          : "Pick your cycle start date — usually your payday."}
+          ? "Pilih tanggal awal pembukuan sesuai tanggal gajian Anda agar ringkasan, grafik, dan guardrail budget sinkron."
+          : "Pick your cycle start date — usually your payday — to keep overview charts and budget guardrails synced."}
       </p>
 
-      {/* Segmented Control */}
-      <div className="grid grid-cols-4 gap-1.5 rounded-xl border border-border/70 bg-background/50 p-1">
-        {SEGMENTS.map((seg) => {
-          const active = seg.value === activeSegment;
-          return (
-            <button
-              key={seg.value}
-              type="button"
-              data-testid={`cycle-preset-${seg.value}`}
-              onClick={() => handleSegment(seg.value)}
-              className={`flex flex-col items-center justify-center rounded-lg px-2 py-2.5 text-center transition-all ${
-                active
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-              }`}
-            >
-              <span className="text-xs font-extrabold leading-none">{seg.label}</span>
-              {seg.sublabel && (
-                <span className={`mt-0.5 text-[9px] leading-none ${active ? "text-primary-foreground/70" : "text-muted-foreground/70"}`}>
-                  {seg.sublabel}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Custom input — revealed when Kustom is selected */}
-      {showCustomInput && (
-        <div className="mt-3 flex items-center gap-2">
-          <label htmlFor="custom-cycle-day-input" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-            {isId ? "Tanggal (1 – 31):" : "Day (1 – 31):"}
-          </label>
-          <input
-            id="custom-cycle-day-input"
-            data-testid="custom-cycle-day-input"
-            type="number"
-            min={1}
-            max={31}
-            value={localCustom}
-            onChange={(e) => {
-              setLocalCustom(e.target.value);
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val) && val >= 1 && val <= 31) {
-                updateState({ customCycleDay: val });
-              }
-            }}
-            className="w-20 rounded-lg border border-primary/40 bg-background px-3 py-1.5 font-data text-xs font-bold text-foreground focus:border-primary focus:outline-none"
-          />
-        </div>
-      )}
-
-      {/* Active cycle badge */}
-      <div
-        data-testid="active-cycle-preview"
-        className="mt-3 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2"
-      >
-        <CalendarClock size={13} className="shrink-0 text-primary" />
-        <span className="text-xs font-semibold text-primary">
-          {isId ? "Siklus Aktif: " : "Active Cycle: "}
-          <span className="font-bold">{activeRange.label}</span>
-        </span>
-      </div>
+      <FinancialCycleSelector
+        value={cycleDay}
+        onChange={(val) => updateState({ customCycleDay: val })}
+        locale={state.locale}
+      />
     </Card>
   );
 }

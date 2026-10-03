@@ -35,6 +35,8 @@ import { CommitmentsPanel } from "@/components/CommitmentsPanel";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { BundlesPanel } from "@/components/BundlesPanel";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { FinancialCycleBanner } from "@/components/FinancialCycleBanner";
+import { FinancialCycleModal } from "@/components/FinancialCycleModal";
 import { PDFReportModal } from "@/components/PDFReportModal";
 import { LandingPreview, TESTER_URL } from "@/components/LandingPreview";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
@@ -61,7 +63,6 @@ import { APP_VERSION } from "@/lib/version";
 import { useAppVersionCheck } from "@/lib/useAppVersionCheck";
 import {
   getCycleKeyForTransaction,
-  getCycleRangeForDate,
   getPreviousCycleKey,
   buildMultiCycleTrend,
 } from "@/lib/analyticsEngine";
@@ -144,6 +145,7 @@ export default function Home() {
   const [filter, setFilter] = useState({ search: "", kind: "all", category: "all", account: "all", sort: "newest" });
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showCycleModal, setShowCycleModal] = useState(false);
   const [transactionForm, setTransactionForm] = useState({
     kind: "expense" as TransactionKind,
     amount: "",
@@ -947,23 +949,13 @@ export default function Home() {
                 </div>
               </div>
             )}
-            {/* Mini cycle banner — shows remaining days in current financial cycle */}
-            {tab === "overview" && (() => {
-              const cr = getCycleRangeForDate(new Date(), cycleDay);
-              const remaining = Math.max(0, Math.ceil((new Date(cr.endDate + "T23:59:59").getTime() - Date.now()) / 86400000));
-              return (
-                <div data-testid="cycle-banner" className="mb-4 flex items-center gap-2 rounded-xl bg-primary/8 border border-primary/15 px-3 py-2">
-                  <CalendarClock size={13} className="text-primary shrink-0" />
-                  <span className="text-xs font-semibold text-foreground">
-                    {state.locale === "id" ? "Siklus aktif: " : "Active cycle: "}
-                    <strong className="text-primary">{cr.label}</strong>
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    · {remaining} {state.locale === "id" ? "hari tersisa" : "days left"}
-                  </span>
-                </div>
-              );
-            })()}
+            {/* Interactive Financial Cycle Banner on overview dashboard */}
+            {tab === "overview" && (
+              <FinancialCycleBanner
+                state={state}
+                onOpenEditCycle={() => setShowCycleModal(true)}
+              />
+            )}
             {tab === "overview" && (isMobile
               ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
               : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
@@ -1097,6 +1089,15 @@ export default function Home() {
         isId={state.locale === "id"}
         onClose={() => setShowEraseModal(false)}
         onConfirm={handleEraseConfirm}
+      />
+      {/* Financial Cycle Quick Editor Modal */}
+      <FinancialCycleModal
+        open={showCycleModal}
+        onClose={() => setShowCycleModal(false)}
+        state={state}
+        onSaveCycle={(newDay) => {
+          save({ ...state, customCycleDay: newDay });
+        }}
       />
       {/* First-run onboarding wizard — shown once if onboardingDone is false */}
       {!state.onboardingDone && (
