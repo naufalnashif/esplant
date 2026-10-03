@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AccountsBreakdownModal } from "@/components/AccountsBreakdownModal";
-import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import type { FinanceState } from "@/lib/localDb";
 import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, toBase, useOverviewStats, type PeriodKey } from "@/lib/overviewStats";
@@ -63,7 +62,7 @@ function MobileCardHeader({ eyebrow, title, action }: { eyebrow: string; title: 
 
 export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName }: MobileOverviewProps) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
-  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, periodStats, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
+  const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const recent = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const flowIncome = flowChart.reduce((sum, item) => sum + item.income, 0);
   const flowExpense = flowChart.reduce((sum, item) => sum + item.expense, 0);
@@ -320,25 +319,6 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
           {recent.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground" data-testid="recent-empty-state">{t.noData}</p>}
         </div>
       </Card>
-
-      <MobileDisclosure testid="mobile-period-matrix" title={isId ? "Matriks Multi-Periode" : "Multi-period matrix"} hint={isId ? "Hari ini · Minggu · Bulan · Tahun" : "Today · Week · Month · Year"} showLabel={isId ? "Lihat selengkapnya" : "Show more"} hideLabel={isId ? "Sembunyikan" : "Hide"}>
-        <div className="grid grid-cols-2 gap-2.5">
-          {(["today", "week", "month", "year"] as const).map((key) => {
-            const stats = periodStats[key];
-            const positive = stats.net >= 0;
-            return (
-              <button key={key} type="button" onClick={() => setPeriodFilter(key)} className={`rounded-xl border p-3 text-left ${periodFilter === key ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border/60 bg-card/75"}`}>
-                <div className="flex items-center justify-between"><p className="text-xs font-bold">{periodLabels[key]}</p><span className="text-[10px] text-muted-foreground">{stats.count} tx</span></div>
-                <div className="mt-2 space-y-1 text-[10px]">
-                  <div className="flex justify-between gap-1"><span className="text-muted-foreground">{isId ? "Masuk" : "In"}</span><span className="font-data font-semibold text-emerald-400">+{money(stats.income)}</span></div>
-                  <div className="flex justify-between gap-1"><span className="text-muted-foreground">{isId ? "Keluar" : "Out"}</span><span className="font-data font-semibold text-red-400">−{money(stats.expense)}</span></div>
-                  <div className="flex justify-between gap-1 border-t border-border/40 pt-1 font-bold"><span>Net</span><span className={`font-data ${positive ? "text-emerald-400" : "text-red-400"}`}>{positive ? "+" : ""}{money(stats.net)}</span></div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </MobileDisclosure>
 
       <AccountsBreakdownModal
         open={accountsModalOpen}
