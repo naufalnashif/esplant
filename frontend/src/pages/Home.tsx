@@ -944,7 +944,7 @@ export default function Home() {
             </Link>
           </div>
         </aside>
-        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
+        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full lg:pb-8" style={{ height: "100svh", paddingBottom: "calc(80px + max(6px, env(safe-area-inset-bottom)))" }}>
           <header className="sticky top-0 z-20 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-slate-200/80 bg-white/85 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pb-2.5 backdrop-blur-xl sm:px-6 sm:py-4 lg:px-10 dark:border-border/60 dark:bg-background/85" data-testid="app-header">
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
@@ -1036,7 +1036,7 @@ export default function Home() {
               </button>
             </div>
           </header>
-          <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
+          <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10 w-full max-w-full overflow-x-hidden">
             {/* Non-intrusive Google Sheets Connect Banner for local users */}
             {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && state.accounts.length > 0 && (
               <div
