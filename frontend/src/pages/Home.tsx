@@ -44,7 +44,6 @@ import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { BrandMark } from "@/components/BrandMark";
 import { ConnectSheetDialog } from "@/components/ConnectSheetDialog";
 import { BottomSheet } from "@/components/mobile/BottomSheet";
-import { MobileDisclosure } from "@/components/mobile/MobileDisclosure";
 import { MobileNav } from "@/components/mobile/MobileNav";
 import { MobileOverview } from "@/components/mobile/MobileOverview";
 import { AccountsBreakdownModal } from "@/components/AccountsBreakdownModal";
@@ -1039,23 +1038,23 @@ export default function Home() {
           </header>
           <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
             {/* Non-intrusive Google Sheets Connect Banner for local users */}
-            {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && (
+            {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && state.accounts.length > 0 && (
               <div
                 data-testid="local-sheets-prompt-banner"
-                className="mb-3 flex flex-col gap-2.5 rounded-xl border border-slate-200/90 bg-white p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-border/60 dark:bg-card/75"
+                className="mb-3 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-50/40 p-2.5 sm:p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-primary/20 dark:bg-primary/5"
               >
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400">
-                    <FileSpreadsheet size={16} />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/12 dark:text-emerald-400">
+                    <FileSpreadsheet size={15} />
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-xs font-bold text-slate-900 dark:text-foreground">
-                      {state.locale === "id" ? "Data Anda saat ini tersimpan lokal di browser" : "Your data is stored locally in this browser"}
+                      {state.locale === "id" ? "Data tersimpan lokal di browser" : "Data stored locally in browser"}
                     </p>
-                    <p className="text-[11px] leading-relaxed text-slate-500 dark:text-muted-foreground">
+                    <p className="hidden sm:block text-[11px] text-slate-500 dark:text-muted-foreground">
                       {state.locale === "id"
-                        ? "Hubungkan Google Spreadsheet agar data aman tersimpan di cloud pribadi Anda dan bisa disinkronkan antar-perangkat."
-                        : "Connect Google Sheets to safely sync your data across devices and keep a private cloud backup."}
+                        ? "Hubungkan Google Spreadsheet agar data aman tersimpan di cloud pribadi Anda."
+                        : "Connect Google Sheets to safely sync your data across devices."}
                     </p>
                   </div>
                 </div>
@@ -1064,9 +1063,9 @@ export default function Home() {
                     size="sm"
                     data-testid="local-sheets-connect-btn"
                     onClick={() => setShowConnectModal(true)}
-                    className="h-8 gap-1.5 px-3 text-xs font-bold shadow-xs cursor-pointer"
+                    className="h-7 sm:h-8 gap-1.5 px-2.5 sm:px-3 text-[11px] sm:text-xs font-bold shadow-xs cursor-pointer"
                   >
-                    <FileSpreadsheet size={13} />
+                    <FileSpreadsheet size={12} />
                     <span>{state.locale === "id" ? "Hubungkan Sheet" : "Connect Sheet"}</span>
                   </Button>
                   <button
@@ -1078,16 +1077,56 @@ export default function Home() {
                         localStorage.setItem("esplant_dismiss_sheets_prompt", "true");
                       } catch {}
                     }}
-                    className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground transition-colors cursor-pointer"
+                    className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-muted-foreground dark:hover:bg-secondary dark:hover:text-foreground transition-colors cursor-pointer"
                   >
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 </div>
               </div>
             )}
             {tab === "overview" && (isMobile
-              ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} onOpenEditCycle={() => setShowCycleModal(true)} />
-              : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} onOpenEditCycle={() => setShowCycleModal(true)} />)}
+              ? <MobileOverview
+                  state={state}
+                  t={t}
+                  totalBalance={totalBalance}
+                  currentSpend={currentSpend}
+                  currentIncome={currentIncome}
+                  categoryChart={categoryChart}
+                  flowChart={flowChart}
+                  currentMonth={compareMonth}
+                  setCompareMonth={setCompareMonth}
+                  onNavigate={setTab}
+                  onLoadSample={loadSample}
+                  accountName={accountName}
+                  onOpenEditCycle={() => setShowCycleModal(true)}
+                  categories={categories}
+                  onSaveBudget={saveBudget}
+                  onDeleteBudget={deleteBudget}
+                  budgetLabels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }}
+                />
+              : <Overview
+                  state={state}
+                  t={t}
+                  totalBalance={totalBalance}
+                  currentSpend={currentSpend}
+                  currentIncome={currentIncome}
+                  committed={committed}
+                  trendText={trendText}
+                  previousSpend={previousSpend}
+                  categoryChart={categoryChart}
+                  flowChart={flowChart}
+                  currentMonth={compareMonth}
+                  setCompareMonth={setCompareMonth}
+                  onAdd={() => openAddTransaction()}
+                  onNavigate={setTab}
+                  onLoadSample={loadSample}
+                  accountName={accountName}
+                  onOpenEditCycle={() => setShowCycleModal(true)}
+                  categories={categories}
+                  onSaveBudget={saveBudget}
+                  onDeleteBudget={deleteBudget}
+                  budgetLabels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }}
+                />)}
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} onOpenBundles={() => setShowBundlesModal(true)} />}
             {tab === "commitments" && (
               <CommitmentsPanel
@@ -1132,7 +1171,6 @@ export default function Home() {
             )}
             {tab === "settings" && <SettingsPanel state={state} updateState={updateState} onJson={exportJson} onXlsx={exportXlsx} onImport={importJson} onImportXlsx={importXlsx} onErase={eraseAll} onPrint={() => setShowPdfModal(true)} save={save} />}
           </div>
-          {tab === "overview" && <div className="px-4 pb-4 sm:px-6 sm:pb-8 lg:px-10"><MobileDisclosure testid="mobile-budget-section" title={t.budgets} hint={t.budgetSubtitle} showLabel={state.locale === "id" ? "Lihat selengkapnya" : "Show more"} hideLabel={state.locale === "id" ? "Sembunyikan" : "Hide"}><BudgetGuardrails state={state} labels={{ budgets: t.budgets, budgetSubtitle: t.budgetSubtitle, safe: t.safe, warning: t.warning, over: t.over, setBudget: t.setBudget, monthlyLimit: t.monthlyLimit, insightWithin: t.insightWithin, insightOver: t.insightOver, save: t.save }} categories={categories} currentMonth={compareMonth} onSave={saveBudget} onDelete={deleteBudget} /></MobileDisclosure></div>}
 
           {/* WishlistManager removed — GoalsPanel now manages wishlist inline */}
         </main>
@@ -1362,6 +1400,10 @@ function Overview({
   onLoadSample,
   accountName,
   onOpenEditCycle,
+  categories,
+  onSaveBudget,
+  onDeleteBudget,
+  budgetLabels,
 }: {
   state: FinanceState;
   t: typeof copy.id;
@@ -1380,6 +1422,21 @@ function Overview({
   onLoadSample?: () => void;
   accountName: (id: string) => string;
   onOpenEditCycle?: () => void;
+  categories?: string[];
+  onSaveBudget?: (category: string, limit: number) => void;
+  onDeleteBudget?: (category: string) => void;
+  budgetLabels?: {
+    budgets: string;
+    budgetSubtitle: string;
+    safe: string;
+    warning: string;
+    over: string;
+    setBudget: string;
+    monthlyLimit: string;
+    insightWithin: string;
+    insightOver: string;
+    save: string;
+  };
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const [manageModalOpen, setManageModalOpen] = useState(false);
@@ -1544,7 +1601,7 @@ function Overview({
             ) : null;
           } else if (item.id === "category_comparison") {
             content = (
-              <Card className="h-full border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.compare}</p>
@@ -1646,7 +1703,7 @@ function Overview({
             );
           } else if (item.id === "upcoming_bills") {
             content = (
-              <Card className="h-full border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.actionCenter}</p>
@@ -1661,7 +1718,7 @@ function Overview({
                     {t.seeAll}
                   </button>
                 </div>
-                <div className="mt-5 space-y-3">
+                <div className="mt-5 space-y-3 flex-1">
                   {upcoming.map((bill) => (
                     <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-slate-200/70 bg-slate-50/70 p-3 dark:border-border/60 dark:bg-background/35">
                       <div className="grid size-9 place-items-center rounded-lg border border-amber-200/60 bg-amber-50 text-amber-700 dark:border-transparent dark:bg-amber-500/12 dark:text-amber-400">
@@ -1695,7 +1752,7 @@ function Overview({
             );
           } else if (item.id === "recent_transactions") {
             content = (
-              <Card className="h-full border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{t.recent}</p>
@@ -1710,7 +1767,7 @@ function Overview({
                     {t.seeAll}
                   </button>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1">
                   {recent.map((trans) => (
                     <div key={trans.id} className="flex items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-slate-100/70 dark:hover:bg-secondary/60">
                       <div
@@ -1742,7 +1799,7 @@ function Overview({
             );
           } else if (item.id === "spending_allocation") {
             content = (
-              <Card className="h-full border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
+              <Card className="h-full flex flex-col justify-between border border-slate-200/80 bg-white p-5 sm:p-6 shadow-soft dark:border-border/70 dark:bg-card/75 dark:shadow-none">
                 <div className="mb-5 flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-muted-foreground">{isId ? "Alokasi Belanja" : "Allocation"}</p>
@@ -1757,7 +1814,7 @@ function Overview({
                     <MoreHorizontal size={18} />
                   </button>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-1">
                   <div className="h-[150px] w-[150px]" data-testid="category-donut-chart" data-slice-count={categoryChart.length}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -1798,6 +1855,33 @@ function Overview({
                 </div>
               </Card>
             );
+          } else if (item.id === "budget_guardrails") {
+            content = (
+              <div data-testid="mobile-budget-section" className="w-full">
+                <BudgetGuardrails
+                  state={state}
+                  labels={
+                    budgetLabels || {
+                      budgets: t.budgets,
+                      budgetSubtitle: t.budgetSubtitle,
+                      safe: t.safe,
+                      warning: t.warning,
+                      over: t.over,
+                      setBudget: t.setBudget,
+                      monthlyLimit: t.monthlyLimit,
+                      insightWithin: t.insightWithin,
+                      insightOver: t.insightOver,
+                      save: t.save,
+                    }
+                  }
+                  categories={categories || []}
+                  currentMonth={currentMonth}
+                  onSave={onSaveBudget || (() => {})}
+                  onDelete={onDeleteBudget}
+                  className="mt-0"
+                />
+              </div>
+            );
           }
 
           if (!content) return null;
@@ -1812,6 +1896,7 @@ function Overview({
             upcoming_bills: isId ? "Tagihan & Cicilan Jatuh Tempo" : "Upcoming Bills",
             recent_transactions: isId ? "Riwayat Transaksi" : "Recent Activity",
             spending_allocation: isId ? "Distribusi Alokasi Pengeluaran" : "Spending Allocation",
+            budget_guardrails: isId ? "Budget Guardrails" : "Budget Guardrails",
           };
 
           return (

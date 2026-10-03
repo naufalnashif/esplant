@@ -30,13 +30,13 @@ export const HeroBalanceWidget: React.FC<HeroBalanceWidgetProps> = ({
   return (
     <Card
       data-testid="hero-balance-widget"
-      className="relative min-h-[200px] sm:min-h-[218px] overflow-hidden border border-amber-500/20 bg-white p-5 sm:p-7 text-slate-900 shadow-soft dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10"
+      className="relative h-full flex flex-col justify-between min-h-[200px] sm:min-h-[218px] overflow-hidden border border-amber-500/20 bg-white p-5 sm:p-7 text-slate-900 shadow-soft dark:border-primary/20 dark:bg-gradient-to-br dark:from-[#303030] dark:via-[#262626] dark:to-[#1c1c1c] dark:text-white dark:shadow-xl dark:shadow-primary/10"
     >
       <div className="absolute -right-20 -top-24 size-72 rounded-full border-[30px] border-amber-500/10 pointer-events-none dark:border-white/8" />
       <div className="absolute -bottom-28 right-24 size-56 rounded-full border-[18px] border-amber-500/8 pointer-events-none dark:border-white/6" />
       <div className="absolute -right-16 -top-16 size-60 rounded-full bg-gradient-to-bl from-amber-500/12 via-amber-500/4 to-transparent blur-2xl pointer-events-none dark:hidden" />
 
-      <div className="relative flex h-full flex-col justify-between">
+      <div className="relative flex h-full flex-1 flex-col justify-between">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-white/65">

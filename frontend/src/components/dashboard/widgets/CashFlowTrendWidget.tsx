@@ -52,7 +52,7 @@ export const CashFlowTrendWidget: React.FC<CashFlowTrendWidgetProps> = ({
         </Badge>
       </div>
 
-      <div className="my-3 h-[95px] sm:h-[105px] w-full min-h-[95px]">
+      <div className="my-3 h-[105px] sm:h-[120px] flex-1 w-full min-h-[95px]">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={flowChart}>
             <defs>

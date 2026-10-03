@@ -114,7 +114,7 @@ export const DashboardWidgetContainer: React.FC<DashboardWidgetContainerProps> =
     <div
       data-widget-id={id}
       data-testid={`widget-container-${id}`}
-      className={`relative transition-all duration-200 ${spanClass} ${
+      className={`relative transition-all duration-200 h-full flex flex-col ${spanClass} ${
         isEditing
           ? `rounded-2xl border-2 border-dashed p-2 sm:p-2.5 transition-colors ${
               isVisible
@@ -151,7 +151,7 @@ export const DashboardWidgetContainer: React.FC<DashboardWidgetContainerProps> =
             {/* Desktop ColSpan Selector */}
             {onColSpanChange && (
               <div className="hidden sm:flex items-center gap-0.5 rounded-lg border border-border/80 bg-background/80 p-0.5">
-                {([4, 6, 8, 12] as DesktopColSpan[]).map((span) => (
+                {([4, 5, 6, 7, 8, 12] as DesktopColSpan[]).map((span) => (
                   <button
                     key={span}
                     type="button"
@@ -218,7 +218,7 @@ export const DashboardWidgetContainer: React.FC<DashboardWidgetContainerProps> =
 
       {/* Widget Content wrapped in internal Error Boundary */}
       <WidgetErrorBoundary widgetTitle={title}>
-        <div className={!isVisible && isEditing ? "pointer-events-none select-none" : ""}>
+        <div className={`h-full flex-1 flex flex-col ${!isVisible && isEditing ? "pointer-events-none select-none" : ""}`}>
           {children}
         </div>
       </WidgetErrorBoundary>

@@ -70,6 +70,12 @@ const WIDGET_TITLES: Record<WidgetId, { id: string; en: string; descId: string; 
     descId: "Diagram donat proporsi belanja per kategori.",
     descEn: "Donut chart visualizing expense proportions by category.",
   },
+  budget_guardrails: {
+    id: "Budget Guardrails",
+    en: "Budget Guardrails",
+    descId: "Batas pengeluaran per kategori dengan indikator otomatis aman vs over.",
+    descEn: "Category budget guardrails with automatic safe vs over-limit insights.",
+  },
 };
 
 export const ManageWidgetsModal: React.FC<ManageWidgetsModalProps> = ({

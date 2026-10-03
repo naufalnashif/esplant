@@ -31,6 +31,7 @@ export function BudgetGuardrails({
   currentMonth,
   onSave,
   onDelete,
+  className,
 }: {
   state: FinanceState;
   labels: BudgetLabels;
@@ -38,6 +39,7 @@ export function BudgetGuardrails({
   currentMonth: string;
   onSave: (category: string, limit: number) => void;
   onDelete?: (category: string) => void;
+  className?: string;
 }) {
   const isId = state.locale === "id";
   const [category, setCategory] = useState(categories[0] ?? "Food");
@@ -99,7 +101,7 @@ export function BudgetGuardrails({
   };
 
   return (
-    <section className="mt-6 rounded-2xl border border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl sm:p-6">
+    <section className={`rounded-2xl border border-border/70 bg-card/75 p-5 shadow-sm backdrop-blur-xl sm:p-6 ${className ?? "mt-6"}`}>
       <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex items-start gap-3">
           <div className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary">

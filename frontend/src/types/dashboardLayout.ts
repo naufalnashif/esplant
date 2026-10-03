@@ -9,7 +9,8 @@ export type WidgetId =
   | "upcoming_bills"
   | "category_comparison"
   | "recent_transactions"
-  | "spending_allocation";
+  | "spending_allocation"
+  | "budget_guardrails";
 
 export interface WidgetLayoutItem {
   id: WidgetId;
@@ -34,7 +35,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
     titleKey: "totalBalance",
     isVisible: true,
     order: 1,
-    desktopColSpan: 6,
+    desktopColSpan: 7,
     minColSpan: 4,
   },
   {
@@ -42,7 +43,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
     titleKey: "cashFlow",
     isVisible: true,
     order: 2,
-    desktopColSpan: 6,
+    desktopColSpan: 5,
     minColSpan: 4,
   },
   {
@@ -62,18 +63,10 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
     minColSpan: 6,
   },
   {
-    id: "payday_status",
-    titleKey: "paydayCycle",
-    isVisible: true,
-    order: 5,
-    desktopColSpan: 12,
-    minColSpan: 4,
-  },
-  {
     id: "category_comparison",
     titleKey: "spendingComparison",
     isVisible: true,
-    order: 6,
+    order: 5,
     desktopColSpan: 7,
     minColSpan: 6,
   },
@@ -81,7 +74,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
     id: "upcoming_bills",
     titleKey: "dueSoon",
     isVisible: true,
-    order: 7,
+    order: 6,
     desktopColSpan: 5,
     minColSpan: 4,
   },
@@ -89,7 +82,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
     id: "recent_transactions",
     titleKey: "recentActivity",
     isVisible: true,
-    order: 8,
+    order: 7,
     desktopColSpan: 7,
     minColSpan: 6,
   },
@@ -97,8 +90,24 @@ export const DEFAULT_DASHBOARD_LAYOUT: WidgetLayoutItem[] = [
     id: "spending_allocation",
     titleKey: "spendingAllocation",
     isVisible: true,
-    order: 9,
+    order: 8,
     desktopColSpan: 5,
+    minColSpan: 4,
+  },
+  {
+    id: "budget_guardrails",
+    titleKey: "budgets",
+    isVisible: true,
+    order: 9,
+    desktopColSpan: 12,
+    minColSpan: 6,
+  },
+  {
+    id: "payday_status",
+    titleKey: "paydayCycle",
+    isVisible: false,
+    order: 10,
+    desktopColSpan: 12,
     minColSpan: 4,
   },
 ];
@@ -113,6 +122,7 @@ export const VALID_WIDGET_IDS: ReadonlySet<string> = new Set<WidgetId>([
   "category_comparison",
   "recent_transactions",
   "spending_allocation",
+  "budget_guardrails",
 ]);
 
 export const VALID_COL_SPANS: ReadonlySet<number> = new Set<DesktopColSpan>([4, 5, 6, 7, 8, 12]);
