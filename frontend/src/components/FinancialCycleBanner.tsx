@@ -5,6 +5,7 @@ import type { FinanceState } from "@/lib/localDb";
 export interface FinancialCycleBannerProps {
   state: FinanceState;
   onOpenEditCycle: () => void;
+  className?: string;
 }
 
 /**
@@ -14,6 +15,7 @@ export interface FinancialCycleBannerProps {
 export function FinancialCycleBanner({
   state,
   onOpenEditCycle,
+  className = "",
 }: FinancialCycleBannerProps) {
   const isId = state.locale === "id";
   const cycleDay = state.customCycleDay || 1;
@@ -36,7 +38,7 @@ export function FinancialCycleBanner({
     <div
       data-testid="cycle-banner-card"
       onClick={onOpenEditCycle}
-      className="group mb-3 inline-flex max-w-full items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-amber-50/70 px-3 py-1.5 text-xs text-slate-800 transition-all hover:border-amber-400 hover:bg-amber-100/60 active:scale-[0.99] cursor-pointer touch-manipulation select-none dark:border-primary/20 dark:bg-primary/8 dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-primary/12"
+      className={`group inline-flex max-w-full items-center justify-between gap-2 rounded-xl border border-amber-500/25 bg-amber-50/70 px-2.5 py-1 text-xs text-slate-800 transition-all hover:border-amber-400 hover:bg-amber-100/60 active:scale-[0.99] cursor-pointer touch-manipulation select-none dark:border-primary/25 dark:bg-primary/10 dark:text-foreground dark:hover:border-primary/40 dark:hover:bg-primary/15 ${className}`}
       title={isId ? "Klik untuk mengubah tanggal siklus keuangan" : "Click to change financial cycle date"}
       role="button"
       tabIndex={0}

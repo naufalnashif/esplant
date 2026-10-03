@@ -41,7 +41,7 @@ export function LandingDrawer({
     <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu" data-testid="landing-drawer">
       <button type="button" aria-label="Tutup menu" onClick={onClose} className={`absolute inset-0 ${BACKDROP.overlay}`} data-testid="landing-drawer-backdrop" />
       <aside className="animate-drawer-in absolute inset-y-0 right-0 flex w-[82%] max-w-xs flex-col border-l border-border/70 bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border/60 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3">
           <BrandMark size="sm" />
           <button type="button" data-testid="landing-drawer-close" onClick={onClose} aria-label="Tutup menu" className="grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
             <X size={18} />
