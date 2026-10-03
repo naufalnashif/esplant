@@ -544,7 +544,7 @@ export function GoalsPanel({
                   onToggle={() => setShowAllGoals((v) => !v)}
                   count={filteredGoals.length}
                   label={{
-                    show: isId ? "Lihat semua celengan goal" : "Show all goals",
+                    show: isId ? "Lihat semua tabungan" : "Show all goals",
                     hide: isId ? "Tampilkan lebih sedikit" : "Show less",
                   }}
                   testid="goals-toggle-show-all"

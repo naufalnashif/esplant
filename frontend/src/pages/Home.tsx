@@ -122,7 +122,7 @@ const percent = (value: number, total: number) => total ? Math.min(100, Math.rou
 const accountDeltaFor = (transaction: Transaction, rates: FinanceState["exchangeRates"], currency: Currency) => ((transaction.kind === "expense" ? -1 : 1) * transaction.baseAmount) / rates[currency];
 
 export default function Home() {
-  const { profile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime, reconnect, needsReconnect, isDemoMode, exitDemoMode } = useStorage();
+  const { profile, setProfile, storageMode, spreadsheetId, sheetUrl, syncStatus, lastSyncTime, reconnect, needsReconnect, isDemoMode, exitDemoMode } = useStorage();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -180,6 +180,31 @@ export default function Home() {
     retry: false,
   });
   const state = stateQuery.data ?? createInitialState();
+
+  // Sync completed onboarding flag to localStorage once loaded so future page loads never glitch
+  useEffect(() => {
+    if (state.onboardingDone || state.profileName) {
+      try {
+        localStorage.setItem("esplant_onboarding_completed", "true");
+      } catch {}
+    }
+  }, [state.onboardingDone, state.profileName]);
+
+  const isStateLoaded = !stateQuery.isLoading && Boolean(stateQuery.data);
+  const isUserAlreadyOnboarded =
+    Boolean(profile?.onboarded) ||
+    Boolean(profile?.nickname?.trim()) ||
+    Boolean(state.onboardingDone) ||
+    Boolean(state.profileName?.trim()) ||
+    isDemoMode ||
+    (() => {
+      try {
+        return localStorage.getItem("esplant_onboarding_completed") === "true";
+      } catch {
+        return false;
+      }
+    })();
+
   const saveMutation = useMutation({
     mutationFn: (next: FinanceState) => saveFinanceState(storageMode, spreadsheetId, next, isDemoMode),
     onSuccess: (next) => queryClient.setQueryData(stateQueryKey, next),
@@ -1209,14 +1234,17 @@ export default function Home() {
           save({ ...state, customCycleDay: newDay });
         }}
       />
-      {/* First-run onboarding wizard — shown once if onboardingDone is false and user hasn't set profileName */}
-      {!state.onboardingDone && !state.profileName && !isDemoMode && localStorage.getItem("esplant_onboarding_completed") !== "true" && (
+      {/* First-run onboarding wizard — shown only after state is definitively loaded and user hasn't onboarded */}
+      {isStateLoaded && !isUserAlreadyOnboarded && (
         <OnboardingModal
           state={state}
           onComplete={(profileName, customCycleDay) => {
             try {
               localStorage.setItem("esplant_onboarding_completed", "true");
             } catch {}
+            if (profile) {
+              setProfile({ ...profile, nickname: profileName, onboarded: true });
+            }
             save({ ...state, profileName, customCycleDay, onboardingDone: true });
             toast.success(state.locale === "id" ? `Selamat datang, ${profileName}! 🎉` : `Welcome, ${profileName}! 🎉`);
           }}
