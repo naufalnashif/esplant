@@ -959,6 +959,35 @@ export default function Home() {
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               <SyncPill mode={storageMode} status={syncStatus} lastSyncTime={lastSyncTime} busy={stateQuery.isFetching} onRefresh={() => void handleSyncClick()} isDemo={isDemoMode} />
+              {isDemoMode && (
+                <div data-testid="demo-sandbox-desktop-badge" className="hidden lg:flex items-center gap-2 rounded-full border border-amber-500/35 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-600 dark:text-amber-400">
+                  <span className="text-xs">🎮</span>
+                  <span className="font-extrabold uppercase tracking-wider text-[10px]">{state.locale === "id" ? "Demo Sandbox" : "Demo Sandbox"}</span>
+                  <span className="h-3 w-px bg-amber-500/30" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loadSample?.();
+                      toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
+                    }}
+                    className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                  <span className="h-3 w-px bg-amber-500/30" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      exitDemoMode();
+                      navigate("/landing");
+                      toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
+                    }}
+                    className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                  >
+                    {state.locale === "id" ? "Keluar" : "Exit"}
+                  </button>
+                </div>
+              )}
               {!healthReport.ok && (
                 <button
                   type="button"
@@ -999,42 +1028,6 @@ export default function Home() {
             </div>
           </header>
           <div className="px-4 py-3 sm:px-6 sm:py-6 lg:px-10">
-            {isDemoMode && (
-              <div data-testid="demo-sandbox-banner" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-900 dark:text-amber-200">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm shrink-0">🎮</span>
-                  <p className="truncate font-semibold text-amber-900 dark:text-amber-300">
-                    <span className="font-bold">{state.locale === "id" ? "Mode Demo Sandbox" : "Demo Sandbox"}</span>
-                    <span className="hidden sm:inline text-amber-800/80 dark:text-amber-300/80"> · {state.locale === "id" ? "Data contoh terisolasi" : "Isolated sample data"}</span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    data-testid="demo-reset-data-button"
-                    onClick={() => {
-                      loadSample?.();
-                      toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
-                    }}
-                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="demo-exit-button"
-                    onClick={() => {
-                      exitDemoMode();
-                      navigate("/landing");
-                      toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
-                    }}
-                    className="rounded-lg bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-                  >
-                    {state.locale === "id" ? "Keluar" : "Exit"}
-                  </button>
-                </div>
-              </div>
-            )}
             {/* Non-intrusive Google Sheets Connect Banner for local users */}
             {storageMode === "local" && !isDemoMode && !dismissSheetsPrompt && (
               <div
@@ -1082,18 +1075,9 @@ export default function Home() {
                 </div>
               </div>
             )}
-            {/* Compact Financial Cycle Pill — space saving and clear */}
-            {tab === "overview" && (
-              <div className="mb-2 flex items-center">
-                <FinancialCycleBanner
-                  state={state}
-                  onOpenEditCycle={() => setShowCycleModal(true)}
-                />
-              </div>
-            )}
             {tab === "overview" && (isMobile
-              ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />
-              : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} />)}
+              ? <MobileOverview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} onOpenEditCycle={() => setShowCycleModal(true)} />
+              : <Overview state={state} t={t} totalBalance={totalBalance} currentSpend={currentSpend} currentIncome={currentIncome} committed={committed} trendText={trendText} previousSpend={previousSpend} categoryChart={categoryChart} flowChart={flowChart} currentMonth={compareMonth} setCompareMonth={setCompareMonth} onAdd={() => openAddTransaction()} onNavigate={setTab} onLoadSample={loadSample} accountName={accountName} onOpenEditCycle={() => setShowCycleModal(true)} />)}
             {tab === "transactions" && <TransactionsPanel state={state} labels={{ all: t.all, type: t.type, expense: t.expense, incomeType: t.incomeType, category: t.category, account: t.account, newest: t.newest, largest: t.largest, search: t.search, noData: t.noData, addTransaction: t.addTransaction }} categories={categories} filteredTransactions={filteredTransactions} filter={filter} setFilter={setFilter} accountName={accountName} onAdd={() => openAddTransaction()} onEdit={openEditTransaction} onDelete={deleteTransaction} onOpenBundles={() => setShowBundlesModal(true)} />}
             {tab === "commitments" && (
               <CommitmentsPanel
@@ -1143,6 +1127,48 @@ export default function Home() {
           {/* WishlistManager removed — GoalsPanel now manages wishlist inline */}
         </main>
       </div>
+
+      {/* Mobile Floating Demo Mini-Chip (Left-aligned, symmetrical with FAB on right) */}
+      {isDemoMode && (
+        <div
+          data-testid="demo-sandbox-banner"
+          style={{
+            bottom: "calc(68px + max(6px, env(safe-area-inset-bottom)) + 14px)",
+          }}
+          className="fixed left-4 z-30 flex items-center gap-2 rounded-full border border-amber-500/40 bg-card/95 px-3 py-1.5 shadow-xl backdrop-blur-xl text-xs font-bold text-amber-500 select-none animate-fade-in lg:hidden"
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="text-xs">🎮</span>
+            <span className="text-[11px] font-extrabold tracking-wide uppercase">Demo</span>
+          </span>
+          <span className="h-3 w-px bg-border/80" />
+          <button
+            type="button"
+            data-testid="demo-reset-data-button"
+            onClick={() => {
+              loadSample?.();
+              toast.success(state.locale === "id" ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
+            }}
+            className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            {state.locale === "id" ? "Reset" : "Reset"}
+          </button>
+          <span className="h-3 w-px bg-border/80" />
+          <button
+            type="button"
+            data-testid="demo-exit-button"
+            onClick={() => {
+              exitDemoMode();
+              navigate("/landing");
+              toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
+            }}
+            className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline transition-colors cursor-pointer"
+          >
+            {state.locale === "id" ? "Keluar ✕" : "Exit ✕"}
+          </button>
+        </div>
+      )}
+
       <MobileNav
         tab={tab}
         setTab={setTab}
@@ -1216,6 +1242,13 @@ export default function Home() {
           onUpdateProfileName={(newName) => {
             updateState({ profileName: newName });
             toast.success(state.locale === "id" ? "Nama profil berhasil disimpan." : "Profile name saved successfully.");
+          }}
+          isDemoMode={isDemoMode}
+          onLoadSample={loadSample}
+          onExitDemo={() => {
+            exitDemoMode();
+            navigate("/landing");
+            toast.info(state.locale === "id" ? "Keluar dari mode demo." : "Exited demo mode.");
           }}
         />
       )}
@@ -1318,6 +1351,7 @@ function Overview({
   onNavigate,
   onLoadSample,
   accountName,
+  onOpenEditCycle,
 }: {
   state: FinanceState;
   t: typeof copy.id;
@@ -1335,6 +1369,7 @@ function Overview({
   onNavigate: (tab: Tab) => void;
   onLoadSample?: () => void;
   accountName: (id: string) => string;
+  onOpenEditCycle?: () => void;
 }) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
@@ -1362,10 +1397,18 @@ function Overview({
         title={state.profileName ? `${t.hello}, ${state.profileName}.` : `${t.hello}.`}
         description={t.command}
         action={
-          <Button data-testid="add-transaction-button" onClick={onAdd} className="gap-2 shadow-lg shadow-primary/20">
-            <Plus size={17} />
-            {t.addTransaction}
-          </Button>
+          <div className="flex items-center gap-3">
+            {onOpenEditCycle && (
+              <FinancialCycleBanner
+                state={state}
+                onOpenEditCycle={onOpenEditCycle}
+              />
+            )}
+            <Button data-testid="add-transaction-button" onClick={onAdd} className="gap-2 shadow-lg shadow-primary/20">
+              <Plus size={17} />
+              {t.addTransaction}
+            </Button>
+          </div>
         }
       />
 
@@ -2141,6 +2184,9 @@ function ProfileModal({
   onToggleTheme,
   onToggleLocale,
   onUpdateProfileName,
+  isDemoMode,
+  onLoadSample,
+  onExitDemo,
 }: {
   open: boolean;
   onClose: () => void;
@@ -2152,6 +2198,9 @@ function ProfileModal({
   onToggleTheme: () => void;
   onToggleLocale: () => void;
   onUpdateProfileName: (name: string) => void;
+  isDemoMode?: boolean;
+  onLoadSample?: () => void;
+  onExitDemo?: () => void;
 }) {
   const isId = state.locale === "id";
   const navigate = useNavigate();
@@ -2264,6 +2313,42 @@ function ProfileModal({
             </div>
           )}
         </div>
+
+        {/* Demo Mode Actions if in Demo Mode */}
+        {isDemoMode && (
+          <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                <span>🎮</span> {isId ? "Mode Demo Sandbox" : "Demo Sandbox Mode"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">{isId ? "Data contoh terisolasi" : "Isolated sample data"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  onLoadSample?.();
+                  toast.success(isId ? "Data sandbox di-reset ke contoh awal." : "Sandbox reset to sample data.");
+                }}
+                className="h-8 flex-1 text-xs border-amber-500/35 hover:bg-amber-500/15"
+              >
+                {isId ? "Reset Data" : "Reset Data"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onExitDemo?.();
+                }}
+                className="h-8 flex-1 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {isId ? "Keluar Demo" : "Exit Demo"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Menu Navigation */}
         <div className="space-y-2">

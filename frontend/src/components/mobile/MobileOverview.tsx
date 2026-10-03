@@ -14,6 +14,7 @@ import { formatMoney } from "@/lib/formatters";
 import { CATEGORY_COLORS, toBase, useOverviewStats, type PeriodKey } from "@/lib/overviewStats";
 import { OTHER_SLICE_COLOR, type CategorySlice } from "@/lib/categoryChart";
 import { KpiCard, SectionCardHeader, type KpiTone } from "@/components/shared";
+import { FinancialCycleBanner } from "@/components/FinancialCycleBanner";
 
 export interface OverviewLabels {
   hello: string; totalBalance: string; cashFlow: string; recent: string; seeAll: string; dueSoon: string; noData: string;
@@ -33,6 +34,7 @@ export interface MobileOverviewProps {
   onNavigate: (tab: OverviewTarget) => void;
   onLoadSample?: () => void;
   accountName: (id: string) => string;
+  onOpenEditCycle?: () => void;
 }
 
 const PERIODS: PeriodKey[] = ["today", "week", "month", "year", "all"];
@@ -59,7 +61,7 @@ function MobileCardHeader({ eyebrow, title, action }: { eyebrow: string; title: 
   return <SectionCardHeader eyebrow={eyebrow} title={title} action={action} mb="mb-3" />;
 }
 
-export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName }: MobileOverviewProps) {
+export function MobileOverview({ state, t, totalBalance, currentSpend, currentIncome, categoryChart, flowChart, currentMonth, setCompareMonth, onNavigate, onLoadSample, accountName, onOpenEditCycle }: MobileOverviewProps) {
   const [accountsModalOpen, setAccountsModalOpen] = useState(false);
   const { isId, periodFilter, setPeriodFilter, upcoming, periodCommitted, monthOptions, activeStats, periodLabels, incomeDelta, totalSavings } = useOverviewStats(state, currentMonth, currentIncome);
   const isDark = state.theme === "dark";
@@ -85,9 +87,19 @@ export function MobileOverview({ state, t, totalBalance, currentSpend, currentIn
 
   return (
     <div className="animate-rise-in space-y-4" data-testid="mobile-overview">
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isId ? "Keuangan Pribadi" : "Personal finance"}</p>
-        <h1 className="mt-1 font-heading text-2xl font-extrabold tracking-tight">{state.profileName ? `${t.hello}, ${state.profileName}.` : `${t.hello}.`}</h1>
+      <div className="flex items-center justify-between gap-2.5 flex-wrap sm:flex-nowrap">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">{isId ? "Keuangan Pribadi" : "Personal finance"}</p>
+          <h1 className="mt-0.5 font-heading text-xl sm:text-2xl font-extrabold tracking-tight truncate">{state.profileName ? `${t.hello}, ${state.profileName}.` : `${t.hello}.`}</h1>
+        </div>
+        {onOpenEditCycle && (
+          <div className="shrink-0">
+            <FinancialCycleBanner
+              state={state}
+              onOpenEditCycle={onOpenEditCycle}
+            />
+          </div>
+        )}
       </div>
 
       {state.accounts.length === 0 && (
